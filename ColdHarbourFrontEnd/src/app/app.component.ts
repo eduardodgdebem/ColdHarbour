@@ -9,4 +9,8 @@ import { RouterOutlet } from '@angular/router';
 })
 export class AppComponent {
   title = 'ColdHarbourFrontEnd';
+
+  test() {
+    console.log("opa");
+  }
 }

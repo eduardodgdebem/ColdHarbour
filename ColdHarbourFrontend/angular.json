@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "ColdHarbourFrontEnd": {
+    "CodlHarbourFrontEnd": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -34,12 +34,7 @@
             "styles": [
               "src/styles.sass"
             ],
-            "scripts": [],
-            "server": "src/main.server.ts",
-            "outputMode": "server",
-            "ssr": {
-              "entry": "src/server.ts"
-            }
+            "scripts": []
           },
           "configurations": {
             "production": {
@@ -69,10 +64,10 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "ColdHarbourFrontEnd:build:production"
+              "buildTarget": "CodlHarbourFrontEnd:build:production"
             },
             "development": {
-              "buildTarget": "ColdHarbourFrontEnd:build:development"
+              "buildTarget": "CodlHarbourFrontEnd:build:development"
             }
           },
           "defaultConfiguration": "development"

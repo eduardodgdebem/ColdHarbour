@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ColdHarbourBackend")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+09be2e61aae921a394361bd6bbf23e4f25978f72")]
 [assembly: System.Reflection.AssemblyProductAttribute("ColdHarbourBackend")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ColdHarbourBackend")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

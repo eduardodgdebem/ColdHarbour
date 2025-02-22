@@ -1,0 +1,6 @@
+@ColdHarbourBackend_HostAddress = http://localhost:5171
+
+GET {{ColdHarbourBackend_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

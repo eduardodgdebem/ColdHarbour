@@ -1,0 +1,10 @@
+<section class="player">
+  <input type="range"
+    [min]="0"
+    [max]="audioService.sliderDuration()"
+    [value]="audioService.sliderCurrentTime()"
+    (change)="onInputChange($event)">
+  <button (click)="mainButtonClick()">
+    {{audioService.isPlaying() ? "stop" : "play"}}
+  </button>
+</section>

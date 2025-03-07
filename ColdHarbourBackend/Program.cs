@@ -14,16 +14,11 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure middleware in the correct order
 app.UseRouting();
 app.UseCors("AllowAll");
 app.UseStaticFiles();
 app.UseWebSockets();
 
-// Configure endpoints
-app.UseEndpoints(endpoints =>
-{
-    endpoints.MapControllers();
-});
+app.MapControllers();
 
 app.Run();

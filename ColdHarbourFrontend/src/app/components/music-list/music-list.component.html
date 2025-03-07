@@ -1,0 +1,25 @@
+@if (musicService.isLoading()) {
+  <div class="loading">
+    <p>Loading playlist...</p>
+  </div>
+} @else if (musicService.error()) {
+  <div class="error">
+    <p>{{ musicService.error() }}</p>
+  </div>
+} @else {
+  <ul class="list">
+    @for(music of musicService.currentPlayList(); track music.id) {
+      <li class="list-item" 
+          [class.active]="isCurrentMusic(music)"
+          (click)="selectMusic(music)">
+        <div class="music-image">
+          <img [src]="music.imageRef" [alt]="music.name">
+        </div>
+        <div class="music-info">
+          <h3>{{music.name}}</h3>
+          <p>{{music.author}}</p>
+        </div>
+      </li>
+    }
+  </ul>
+}

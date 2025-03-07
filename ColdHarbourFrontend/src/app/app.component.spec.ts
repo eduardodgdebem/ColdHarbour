@@ -1,10 +1,18 @@
 import { TestBed } from '@angular/core/testing';
 import { AppComponent } from './app.component';
+import { PlayerComponent } from './components/player/player.component';
+import { MusicListComponent } from './components/music-list/music-list.component';
+import { CommonModule } from '@angular/common';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AppComponent],
+      imports: [
+        AppComponent,
+        PlayerComponent,
+        MusicListComponent,
+        CommonModule
+      ]
     }).compileComponents();
   });
 
@@ -14,16 +22,18 @@ describe('AppComponent', () => {
     expect(app).toBeTruthy();
   });
 
-  it(`should have the 'CodlHarbourFrontEnd' title`, () => {
+  it('should initialize with undefined background image', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
-    expect(app.title).toEqual('CodlHarbourFrontEnd');
+    expect(app.backgroundImg).toBeUndefined();
   });
 
-  it('should render title', () => {
+  it('should render player and music list components', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, CodlHarbourFrontEnd');
+    
+    expect(compiled.querySelector('app-player')).toBeTruthy();
+    expect(compiled.querySelector('app-music-list')).toBeTruthy();
   });
 });

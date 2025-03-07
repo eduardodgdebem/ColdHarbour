@@ -1,10 +1,48 @@
-<section class="player">
-  <input type="range"
-    [min]="0"
-    [max]="audioService.sliderDuration()"
-    [value]="audioService.sliderCurrentTime()"
-    (change)="onInputChange($event)">
-  <button (click)="mainButtonClick()">
-    {{audioService.isPlaying() ? "stop" : "play"}}
-  </button>
-</section>
+@if (musicService.currentMusic(); as music) {
+  <section class="player">
+    <div class="player-header">
+      <div class="player-header-img-container">
+        <img class="player-header-img" [src]="music.imageRef" [alt]="music.name">
+      </div>
+    </div>
+    <div class="player-controls">
+      <div class="player-controls-text">
+        <h2>{{music.name}}</h2>
+        <p>{{music.author}}</p>
+      </div>
+      <div class="player-controls-sliders">
+        <div class="player-controls-progress-wrapper" (click)="onSliderClick($event)">
+          <input
+            class="player-controls-progress"
+            type="range"
+            [min]="0"
+            [max]="audioService.duration()"
+            [value]="audioService.currentTime()"
+            (input)="onInputChange($event)">
+        </div>
+        <div class="player-controls-volume-wrapper">
+          <input
+            #volumeInput
+            class="player-controls-volume"
+            type="range"
+            [min]="0"
+            [max]="1"
+            [step]="0.01"
+            [value]="audioService.volume()"
+            (input)="onVolumeChange($event)">
+        </div>
+      </div>
+      <button class="player-controls-play-button" (click)="mainButtonClick()">
+        @if(audioService.isPlaying()) {
+          <app-pause-icon />
+        } @else {
+          <app-play-icon />
+        }
+      </button>
+    </div>
+  </section>
+} @else {
+  <section class="player player-empty">
+    <p>No music selected</p>
+  </section>
+}

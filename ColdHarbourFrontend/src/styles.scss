@@ -1,1 +1,18 @@
 /* You can add global styles to this file, and also import other style files */
+:root {
+  --black: #15181Cff;
+  --black-2: #18191Bff;
+  --gray: #929090ff;
+  --accent: rgb(168,131,54);
+  --black-3: rgb(27,27,33);
+}
+
+* {
+  padding: 0;
+  margin: 0;
+
+  font-family: "Be Vietnam Pro", serif;
+  font-weight: 300;
+  font-style: normal;
+  color: var(--gray)
+}

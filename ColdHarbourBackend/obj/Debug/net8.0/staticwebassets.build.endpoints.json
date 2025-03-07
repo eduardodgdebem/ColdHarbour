@@ -1,0 +1,334 @@
+{
+  "Version": 1,
+  "ManifestType": "Build",
+  "Endpoints": [
+    {
+      "Route": "assets/images/babyyourebad.jpg",
+      "AssetFile": "assets/images/babyyourebad.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=3600, must-revalidate"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "339824"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"stc/KfIwcH2XPKJTByO8zKPLCbTz9tGrrWRG5VrHqyY=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Sun, 23 Feb 2025 16:41:28 GMT"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-stc/KfIwcH2XPKJTByO8zKPLCbTz9tGrrWRG5VrHqyY="
+        }
+      ]
+    },
+    {
+      "Route": "assets/images/babyyourebad.qhli36vlkp.jpg",
+      "AssetFile": "assets/images/babyyourebad.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "339824"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"stc/KfIwcH2XPKJTByO8zKPLCbTz9tGrrWRG5VrHqyY=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Sun, 23 Feb 2025 16:41:28 GMT"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "qhli36vlkp"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-stc/KfIwcH2XPKJTByO8zKPLCbTz9tGrrWRG5VrHqyY="
+        },
+        {
+          "Name": "label",
+          "Value": "assets/images/babyyourebad.jpg"
+        }
+      ]
+    },
+    {
+      "Route": "assets/images/liz.7fud14ne5t.jpg",
+      "AssetFile": "assets/images/liz.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "254626"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"vQPnDjVitsHGwPcQFwqBDqxuLheWB1/Dh5xRaA28r0I=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Thu, 06 Mar 2025 23:22:14 GMT"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "7fud14ne5t"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-vQPnDjVitsHGwPcQFwqBDqxuLheWB1/Dh5xRaA28r0I="
+        },
+        {
+          "Name": "label",
+          "Value": "assets/images/liz.jpg"
+        }
+      ]
+    },
+    {
+      "Route": "assets/images/liz.jpg",
+      "AssetFile": "assets/images/liz.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=3600, must-revalidate"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "254626"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"vQPnDjVitsHGwPcQFwqBDqxuLheWB1/Dh5xRaA28r0I=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Thu, 06 Mar 2025 23:22:14 GMT"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-vQPnDjVitsHGwPcQFwqBDqxuLheWB1/Dh5xRaA28r0I="
+        }
+      ]
+    },
+    {
+      "Route": "assets/music/Baby You're Bad - HONNE.e5l2h0q9pl.mp3",
+      "AssetFile": "assets/music/Baby You're Bad - HONNE.mp3",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "9319879"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "audio/mpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"bpfFdMQynm3ukB/SuYQNmnTNe+OEDybwtwrDPWve9KY=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Sun, 23 Feb 2025 01:11:12 GMT"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "e5l2h0q9pl"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-bpfFdMQynm3ukB/SuYQNmnTNe+OEDybwtwrDPWve9KY="
+        },
+        {
+          "Name": "label",
+          "Value": "assets/music/Baby You're Bad - HONNE.mp3"
+        }
+      ]
+    },
+    {
+      "Route": "assets/music/Baby You're Bad - HONNE.mp3",
+      "AssetFile": "assets/music/Baby You're Bad - HONNE.mp3",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "9319879"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "audio/mpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"bpfFdMQynm3ukB/SuYQNmnTNe+OEDybwtwrDPWve9KY=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Sun, 23 Feb 2025 01:11:12 GMT"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-bpfFdMQynm3ukB/SuYQNmnTNe+OEDybwtwrDPWve9KY="
+        }
+      ]
+    },
+    {
+      "Route": "assets/music/Remi Wolf - Liz (Audio).kkojp6vgaq.mp3",
+      "AssetFile": "assets/music/Remi Wolf - Liz (Audio).mp3",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "4225704"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "audio/mpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"3HtICkkw4IeQlyqhvM8ac3hrktYDm6V6BGeC3+gxjo0=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Thu, 06 Mar 2025 23:21:35 GMT"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "kkojp6vgaq"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-3HtICkkw4IeQlyqhvM8ac3hrktYDm6V6BGeC3+gxjo0="
+        },
+        {
+          "Name": "label",
+          "Value": "assets/music/Remi Wolf - Liz (Audio).mp3"
+        }
+      ]
+    },
+    {
+      "Route": "assets/music/Remi Wolf - Liz (Audio).mp3",
+      "AssetFile": "assets/music/Remi Wolf - Liz (Audio).mp3",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "no-cache"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "4225704"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "audio/mpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"3HtICkkw4IeQlyqhvM8ac3hrktYDm6V6BGeC3+gxjo0=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Thu, 06 Mar 2025 23:21:35 GMT"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-3HtICkkw4IeQlyqhvM8ac3hrktYDm6V6BGeC3+gxjo0="
+        }
+      ]
+    }
+  ]
+}

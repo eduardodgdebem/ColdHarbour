@@ -1,0 +1,41 @@
+{
+  "Files": [
+    {
+      "Id": "/Users/eduardogoulartdebem/Projects/ColdHarbour/ColdHarbourBackend/wwwroot/assets/images/babyyourebad.jpg",
+      "PackagePath": "staticwebassets/assets/images/babyyourebad.jpg"
+    },
+    {
+      "Id": "/Users/eduardogoulartdebem/Projects/ColdHarbour/ColdHarbourBackend/wwwroot/assets/images/liz.jpg",
+      "PackagePath": "staticwebassets/assets/images/liz.jpg"
+    },
+    {
+      "Id": "/Users/eduardogoulartdebem/Projects/ColdHarbour/ColdHarbourBackend/wwwroot/assets/music/babyyourebad.mp3",
+      "PackagePath": "staticwebassets/assets/music/babyyourebad.mp3"
+    },
+    {
+      "Id": "/Users/eduardogoulartdebem/Projects/ColdHarbour/ColdHarbourBackend/wwwroot/assets/music/liz.mp3",
+      "PackagePath": "staticwebassets/assets/music/liz.mp3"
+    },
+    {
+      "Id": "obj/Debug/net9.0/staticwebassets/msbuild.ColdHarbourBackend.Microsoft.AspNetCore.StaticWebAssetEndpoints.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssetEndpoints.props"
+    },
+    {
+      "Id": "obj/Debug/net9.0/staticwebassets/msbuild.ColdHarbourBackend.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj/Debug/net9.0/staticwebassets/msbuild.build.ColdHarbourBackend.props",
+      "PackagePath": "build\\ColdHarbourBackend.props"
+    },
+    {
+      "Id": "obj/Debug/net9.0/staticwebassets/msbuild.buildMultiTargeting.ColdHarbourBackend.props",
+      "PackagePath": "buildMultiTargeting\\ColdHarbourBackend.props"
+    },
+    {
+      "Id": "obj/Debug/net9.0/staticwebassets/msbuild.buildTransitive.ColdHarbourBackend.props",
+      "PackagePath": "buildTransitive\\ColdHarbourBackend.props"
+    }
+  ],
+  "ElementsToRemove": []
+}

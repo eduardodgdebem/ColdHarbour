@@ -1,0 +1,67 @@
+.loading, .error {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--white);
+  font-size: 1.2rem;
+  text-align: center;
+  padding: 2rem;
+}
+
+.error {
+  color: #ff4444;
+}
+
+.list {
+  height: 100%;
+  background: var(--black);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    opacity: 0.8;
+  }
+
+  &.active {
+    background-color: var(--accent-dark);
+  }
+
+  .music-image {
+    width: 80px;
+    height: 80px;
+    margin-right: 1rem;
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  .music-info {
+    flex: 1;
+
+    h3 {
+      margin: 0;
+      font-size: 1rem;
+      color: #fff;
+    }
+
+    p {
+      margin: 0.25rem 0 0;
+      font-size: 0.875rem;
+      color: rgba(255, 255, 255, 0.7);
+    }
+  }
+}

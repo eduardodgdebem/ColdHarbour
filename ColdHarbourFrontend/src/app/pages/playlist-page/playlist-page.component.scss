@@ -1,0 +1,76 @@
+.content {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  background-color: var(--black-3);
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+
+  .music-list-container {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 8rem;
+  }
+
+  app-player {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+  }
+
+  @media (min-width: 768px) {
+    .music-list-container {
+      width: 70%;
+      padding-bottom: 0;
+    }
+
+    app-player {
+      width: 30%;
+      right: 0;
+      left: auto;
+    }
+  }
+}
+
+.music-list-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+	background-color: var(--black);
+
+	header {
+		position: relative;
+		height: 20%;
+		background: var(--black);
+		
+		img {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			opacity: 0.5;
+			background-color: var(--accent);
+			mask-image: linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0));
+			-webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0));
+		}
+
+		h1 {
+			position: absolute;
+			bottom: 0;
+			left: 1rem;
+			width: fit-content;
+			height: 100%;
+
+			color: #fff;
+			font-size: 3rem;
+			font-weight: 600;
+			letter-spacing: 0.1em;
+		}
+	}
+}

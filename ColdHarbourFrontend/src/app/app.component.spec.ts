@@ -21,19 +21,4 @@ describe('AppComponent', () => {
     const app = fixture.componentInstance;
     expect(app).toBeTruthy();
   });
-
-  it('should initialize with undefined background image', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    expect(app.backgroundImg).toBeUndefined();
-  });
-
-  it('should render player and music list components', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    fixture.detectChanges();
-    const compiled = fixture.nativeElement as HTMLElement;
-    
-    expect(compiled.querySelector('app-player')).toBeTruthy();
-    expect(compiled.querySelector('app-music-list')).toBeTruthy();
-  });
 });

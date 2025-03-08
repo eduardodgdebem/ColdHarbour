@@ -36,7 +36,9 @@ export class PlayerComponent {
     });
   }
 
-  public mainButtonClick() {
+  public mainButtonClick(e: Event) {
+    const button = e.target as HTMLButtonElement;
+    button.blur();
     if (this.musicService.currentMusic()) {
       this.audioService.playToggle();
     }

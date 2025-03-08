@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import type { Music } from './music.service';
+import type { Playlist } from './music.service';
 
 @Injectable({
   providedIn: 'root',
@@ -11,15 +11,21 @@ export class ApiService {
   private readonly API_URL = 'http://localhost:8080/api';
   private readonly ASSETS_URL = 'http://localhost:8080';
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient) {}
 
-  getPlaylist(): Observable<Music[]> {
-    return this.http.get<Music[]>(`${this.API_URL}/music/playlist`).pipe(
-      map(playlist => playlist.map(music => ({
-        ...music,
-        audioRef: `${this.ASSETS_URL}${music.audioRef}`,
-        imageRef: `${this.ASSETS_URL}${music.imageRef}`
-      })))
+  getPlaylist(id: number): Observable<Playlist> {
+    return this.http.get<Playlist>(`${this.API_URL}/music/playlist/${id}`).pipe(
+      map((playlist) => {
+        return {
+          ...playlist,
+          imageRef: `${this.ASSETS_URL}${playlist.imageRef}`,
+          musics: playlist.musics.map((music) => ({
+            ...music,
+            audioRef: `${this.ASSETS_URL}${music.audioRef}`,
+            imageRef: `${this.ASSETS_URL}${music.imageRef}`,
+          })),
+        };
+      })
     );
   }
 }

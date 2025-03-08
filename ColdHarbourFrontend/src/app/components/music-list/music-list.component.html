@@ -8,7 +8,7 @@
   </div>
 } @else {
   <ul class="list">
-    @for(music of musicService.currentPlayList(); track music.id) {
+    @for(music of musicService.currentPlayList()?.musics; track music.id) {
       <li class="list-item" 
           [class.active]="isCurrentMusic(music)"
           (click)="selectMusic(music)">

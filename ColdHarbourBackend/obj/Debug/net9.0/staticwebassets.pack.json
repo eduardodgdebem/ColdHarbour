@@ -9,6 +9,10 @@
       "PackagePath": "staticwebassets/assets/images/liz.jpg"
     },
     {
+      "Id": "/Users/eduardogoulartdebem/Projects/ColdHarbour/ColdHarbourBackend/wwwroot/assets/images/playlist1.jpg",
+      "PackagePath": "staticwebassets/assets/images/playlist1.jpg"
+    },
+    {
       "Id": "/Users/eduardogoulartdebem/Projects/ColdHarbour/ColdHarbourBackend/wwwroot/assets/music/babyyourebad.mp3",
       "PackagePath": "staticwebassets/assets/music/babyyourebad.mp3"
     },

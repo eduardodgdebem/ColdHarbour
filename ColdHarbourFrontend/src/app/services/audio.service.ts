@@ -23,8 +23,7 @@ export class AudioService {
     this.resetState();
     
     this.audio = new Audio(musicRef);
-    this.audio.volume = previousVolume;
-    this.setupAudioListeners();
+    this.audio.volume = previousVolume;    this.setupAudioListeners();
     this.play();
   }
 

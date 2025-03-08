@@ -32,7 +32,7 @@
             (input)="onVolumeChange($event)">
         </div>
       </div>
-      <button class="player-controls-play-button" (click)="mainButtonClick()">
+      <button class="player-controls-play-button" (click)="mainButtonClick($event)">
         @if(audioService.isPlaying()) {
           <app-pause-icon />
         } @else {

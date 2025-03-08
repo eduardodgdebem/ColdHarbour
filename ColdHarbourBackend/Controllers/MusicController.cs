@@ -15,10 +15,18 @@ public class MusicController : ControllerBase
         public int Id { get; set; }
     }
 
-    [HttpGet("playlist")]
-    public ActionResult<IEnumerable<MusicItem>> GetPlaylist()
+    public class PlaylistItem
     {
-        var playlist = new List<MusicItem>
+        public string Name { get; set; }
+        public string ImageRef { get; set; }
+        public int Id { get; set; }
+        public List<MusicItem> Musics { get; set; }
+    }
+
+    [HttpGet("playlist/{id}")]
+    public ActionResult<IEnumerable<PlaylistItem>> GetPlaylist(int id)
+    {
+        var musics = new List<MusicItem>
         {
             new MusicItem
             {
@@ -36,6 +44,14 @@ public class MusicController : ControllerBase
                 ImageRef = "/assets/images/liz.jpg",
                 Id = 2
             }
+        };
+
+        var playlist = new PlaylistItem
+        {
+            Name = "Playlist 1",
+            ImageRef = "/assets/images/playlist1.jpg",
+            Id = id,
+            Musics = musics
         };
 
         return Ok(playlist);

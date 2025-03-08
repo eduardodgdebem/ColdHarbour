@@ -1,222 +1,233 @@
-.player-empty {
+$mobile-breakpoint: 768px;
+$player-height-mobile: 8rem;
+$player-padding: 16px;
+$gap-small: 0.5rem;
+$gap-medium: 1rem;
+
+@mixin flex-center {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+@mixin slider-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+
+  &:hover {
+    transform: scale(1.2);
+  }
+}
+
+@mixin slider-base($var-name) {
+  width: 100%;
+  height: 4px;
+  -webkit-appearance: none;
+  background: linear-gradient(
+    to right,
+    var(--accent-dark) var(--#{$var-name}, 0%),
+    rgba(255, 255, 255, 0.1) var(--#{$var-name}, 0%)
+  );
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.player-empty {
+  @include flex-center;
   background-color: var(--black-3);
   color: var(--gray);
   font-size: 1.2rem;
 }
 
 .player {
-  height: 8rem;
-  width: calc(100% - 32px);
+  height: $player-height-mobile;
+  width: calc(100% - #{2 * $player-padding});
   display: flex;
   flex-direction: row;
   align-items: center;
   background-color: var(--black-3);
-  padding: 16px;
+  padding: $player-padding;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
 
-  @media (min-width: 768px) {
+  @media (min-width: $mobile-breakpoint) {
     max-width: 50vw;
     max-height: 100vh;
-    height: calc(100dvh - 32px);
+    height: calc(100dvh - #{2 * $player-padding});
     flex-direction: column;
     justify-content: space-between;
   }
+}
 
-  &-controls {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    width: 100%;
-    padding: 0 1rem;
+.player-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: $gap-small;
+  width: 100%;
 
-    @media (min-width: 768px) {
-      flex-direction: column;
-      height: 100%;
-      padding: 0;
-      flex: 1;
-    }
+  @media (max-width: $mobile-breakpoint) {
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    grid-template-rows: auto auto;
+    grid-template-areas: 
+    "sliders sliders"
+      "text play-button";
+  }
+}
 
-    &-text {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
+.player-controls-text {
+  grid-area: text;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: $gap-small;
 
-      h2 {
-        font-size: 3rem;
-        font-weight: 600;
-        color: var(--accent);
-      }
+  h2 {
+    font-weight: 600;
+    color: var(--accent);
+    line-height: 100%;
+    font-size: clamp(1.5rem, 5vw, 3rem);
 
-      p {
-        font-size: 1.2rem;
-        font-weight: 400;
+    @media (max-width: $mobile-breakpoint) {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      
+      &::after {
+        content: " -";
         color: var(--gray);
-      }
-    }
-
-    &-sliders {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 0 1rem;
-      color: var(--accent);
-
-      @media (min-width: 768px) {
-        padding: 0;
-      }
-    }
-
-    &-progress-wrapper {
-      flex: 1;
-      height: 24px;
-      display: flex;
-      align-items: center;
-      cursor: pointer;
-      padding: 8px 0;
-    }
-
-    &-progress {
-      width: 100%;
-      height: 4px;
-      -webkit-appearance: none;
-      background: linear-gradient(to right, var(--accent-dark) var(--progress, 0%), rgba(255, 255, 255, 0.1) var(--progress, 0%));
-      border-radius: 2px;
-      outline: none;
-      cursor: pointer;
-
-      &::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background: var(--accent);
-        cursor: pointer;
-        transition: all 0.15s ease-in-out;
-      }
-
-      &::-webkit-slider-thumb:hover {
-        transform: scale(1.2);
-      }
-
-      &::-moz-range-thumb {
-        width: 12px;
-        height: 12px;
-        border: none;
-        border-radius: 50%;
-        background: var(--accent);
-        cursor: pointer;
-        transition: all 0.15s ease-in-out;
-      }
-
-      &::-moz-range-thumb:hover {
-        transform: scale(1.2);
-      }
-    }
-
-    &-volume-wrapper {
-      width: 100px;
-      height: 24px;
-      display: flex;
-      align-items: center;
-      cursor: pointer;
-      padding: 8px 0;
-    }
-
-    &-volume {
-      --volume: 100%;
-
-      width: 100%;
-      height: 4px;
-      -webkit-appearance: none;
-      background: linear-gradient(to right, var(--accent-dark) var(--volume, 0%), rgba(255, 255, 255, 0.1) var(--volume, 0%));
-      border-radius: 2px;
-      outline: none;
-      cursor: pointer;
-
-      &::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background: var(--accent);
-        cursor: pointer;
-        transition: all 0.15s ease-in-out;
-      }
-
-      &::-webkit-slider-thumb:hover {
-        transform: scale(1.2);
-      }
-
-      &::-moz-range-thumb {
-        width: 12px;
-        height: 12px;
-        border: none;
-        border-radius: 50%;
-        background: var(--accent);
-        cursor: pointer;
-        transition: all 0.15s ease-in-out;
-      }
-
-      &::-moz-range-thumb:hover {
-        transform: scale(1.2);
-      }
-    }
-
-    &-play-button {
-      color: var(--gray);
-      height: 3rem;
-      background: none;
-      border: none;
-      min-width: 3rem;
-
-      @media (min-width: 768px) {
-        height: 6rem;
+        font-size: min(1.5rem, 4vw);
+        align-self: flex-end;
       }
     }
   }
 
-  &-header {
+  p {
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    color: var(--gray);
+  }
+
+  @media (max-width: $mobile-breakpoint) {
     flex-direction: row;
     align-items: center;
-    gap: 1rem;
-    padding: 0.5rem;
-    display: none;
+    line-height: 100%;
+  }
+}
+
+.player-controls-sliders {
+  grid-area: sliders;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: $gap-medium;
+  padding: 0 $gap-medium;
+  color: var(--accent);
+
+  @media (max-width: $mobile-breakpoint) {
+    padding: 0;
+  }
+}
+
+.player-controls-progress-wrapper {
+  flex: 1;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.player-controls-progress {
+  @include slider-base("progress");
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    @include slider-thumb;
+  }
+
+  &::-moz-range-thumb {
+    border: none;
+    @include slider-thumb;
+  }
+}
+
+.player-controls-volume-wrapper {
+  width: 100px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.player-controls-volume {
+  @include slider-base("volume");
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    @include slider-thumb;
+  }
+
+  &::-moz-range-thumb {
+    border: none;
+    @include slider-thumb;
+  }
+}
+
+.player-controls-play-button {
+  grid-area: play-button;
+  color: var(--gray);
+  height: 3rem;
+  background: none;
+  border: none;
+  min-width: 3rem;
+
+  @media (min-width: $mobile-breakpoint) {
+    height: 6rem;
+  }
+}
+
+.player-header {
+  flex-direction: row;
+  align-items: center;
+  gap: $gap-medium;
+  padding: $gap-small;
+  display: none;
+  width: 100%;
+
+  @media (min-width: $mobile-breakpoint) {
+    display: flex;
+    flex-direction: column;
+    height: 80%;
+    justify-content: space-between;
+    padding: 0;
+    flex: 2;
+  }
+
+  &-img {
+    height: 100%;
     width: 100%;
+    object-fit: cover;
+    aspect-ratio: 1;
 
-    @media (min-width: 768px) {
-      display: flex;
-      flex-direction: column;
-      height: 80%;
-      justify-content: space-between;
-      padding: 0;
-      flex: 2;
-    }
+    &-container {
+      height: 6rem;
+      width: 6rem;
+      flex-shrink: 0;
 
-    &-img {
-      height: 100%;
-      width: 100%;
-      object-fit: cover;
-      aspect-ratio: 1;
-
-      &-container {
-        height: 6rem;
-        width: 6rem;
-        flex-shrink: 0;
-
-        @media (min-width: 768px) {
-          width: 100%;
-          height: auto;
-          aspect-ratio: 1;
-          display: flex;
-          justify-content: end;
-        }
+      @media (min-width: $mobile-breakpoint) {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1;
+        display: flex;
+        justify-content: end;
       }
     }
   }

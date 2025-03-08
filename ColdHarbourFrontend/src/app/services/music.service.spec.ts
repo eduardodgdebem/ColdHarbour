@@ -3,18 +3,26 @@ import { MusicService } from './music.service';
 import { ApiService } from './api.service';
 import { ColorService } from './color.service';
 import { of, throwError } from 'rxjs';
+import type { Music, Playlist } from './music.service';
 
 describe('MusicService', () => {
   let service: MusicService;
   let apiService: jasmine.SpyObj<ApiService>;
   let colorService: jasmine.SpyObj<ColorService>;
 
-  const mockMusic = {
+  const mockMusic: Music = {
     id: 1,
     name: "Baby You're Bad",
     author: "HONNE",
     audioRef: "/Baby You're Bad - HONNE.mp3",
     imageRef: "/babyyourebad.jpg"
+  };
+
+  const mockPlaylist: Playlist = {
+    id: 1,
+    name: "Test Playlist",
+    imageRef: "/playlist.jpg",
+    musics: [mockMusic]
   };
 
   beforeEach(() => {
@@ -42,11 +50,10 @@ describe('MusicService', () => {
     expect(service.isLoading()).toBeTrue();
     expect(service.error()).toBeNull();
     expect(service.currentMusic()).toBeNull();
-    expect(service.currentPlayList()).toEqual([]);
+    expect(service.currentPlayList()).toBeNull();
   });
 
   it('should load playlist successfully', () => {
-    const mockPlaylist = [mockMusic];
     apiService.getPlaylist.and.returnValue(of(mockPlaylist));
 
     // Trigger loadPlaylist by creating a new instance
@@ -64,7 +71,7 @@ describe('MusicService', () => {
     // Trigger loadPlaylist by creating a new instance
     service = new MusicService(apiService, colorService);
 
-    expect(service.currentPlayList()).toEqual([]);
+    expect(service.currentPlayList()).toBeNull();
     expect(service.isLoading()).toBeFalse();
     expect(service.error()).toBe('Failed to load playlist');
   });
@@ -77,7 +84,7 @@ describe('MusicService', () => {
   });
 
   it('should handle spaces in image URL when extracting color', () => {
-    const musicWithSpaces = {
+    const musicWithSpaces: Music = {
       ...mockMusic,
       imageRef: '/image with spaces.jpg'
     };
@@ -93,7 +100,7 @@ describe('MusicService', () => {
     const result = service.isCurrentMusic(mockMusic);
     expect(result).toBeTrue();
 
-    const differentMusic = { ...mockMusic, id: 2 };
+    const differentMusic: Music = { ...mockMusic, id: 2 };
     const resultDifferent = service.isCurrentMusic(differentMusic);
     expect(resultDifferent).toBeFalse();
   });

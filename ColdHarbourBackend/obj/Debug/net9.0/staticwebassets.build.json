@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "8IppSrFUrq8P/FJU69yA57rjHFLuspBxrUu/9kHqiyM=",
+  "Hash": "kMM+zq0lrQU38yppxlKctkKsKGhteUgf00lWq6HyEsA=",
   "Source": "ColdHarbourBackend",
   "BasePath": "_content/ColdHarbourBackend",
   "Mode": "Default",
@@ -57,6 +57,27 @@
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
       "OriginalItemSpec": "wwwroot/assets/images/liz.jpg"
+    },
+    {
+      "Identity": "/Users/eduardogoulartdebem/Projects/ColdHarbour/ColdHarbourBackend/wwwroot/assets/images/playlist1.jpg",
+      "SourceId": "ColdHarbourBackend",
+      "SourceType": "Discovered",
+      "ContentRoot": "/Users/eduardogoulartdebem/Projects/ColdHarbour/ColdHarbourBackend/wwwroot/",
+      "BasePath": "_content/ColdHarbourBackend",
+      "RelativePath": "assets/images/playlist1#[.{fingerprint}]?.jpg",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "Fingerprint": "2e1wt6ztq7",
+      "Integrity": "9qsvAZpaD5+4FubejnS2zbGnMkRLs1oomtxqu9kbjXg=",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot/assets/images/playlist1.jpg"
     },
     {
       "Identity": "/Users/eduardogoulartdebem/Projects/ColdHarbour/ColdHarbourBackend/wwwroot/assets/music/babyyourebad.mp3",
@@ -263,6 +284,88 @@
         {
           "Name": "integrity",
           "Value": "sha256-vQPnDjVitsHGwPcQFwqBDqxuLheWB1/Dh5xRaA28r0I="
+        }
+      ]
+    },
+    {
+      "Route": "assets/images/playlist1.2e1wt6ztq7.jpg",
+      "AssetFile": "/Users/eduardogoulartdebem/Projects/ColdHarbour/ColdHarbourBackend/wwwroot/assets/images/playlist1.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "4079429"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"9qsvAZpaD5+4FubejnS2zbGnMkRLs1oomtxqu9kbjXg=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Fri, 07 Mar 2025 22:55:43 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=31536000, immutable"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "fingerprint",
+          "Value": "2e1wt6ztq7"
+        },
+        {
+          "Name": "label",
+          "Value": "assets/images/playlist1.jpg"
+        },
+        {
+          "Name": "integrity",
+          "Value": "sha256-9qsvAZpaD5+4FubejnS2zbGnMkRLs1oomtxqu9kbjXg="
+        }
+      ]
+    },
+    {
+      "Route": "assets/images/playlist1.jpg",
+      "AssetFile": "/Users/eduardogoulartdebem/Projects/ColdHarbour/ColdHarbourBackend/wwwroot/assets/images/playlist1.jpg",
+      "Selectors": [],
+      "ResponseHeaders": [
+        {
+          "Name": "Accept-Ranges",
+          "Value": "bytes"
+        },
+        {
+          "Name": "Content-Length",
+          "Value": "4079429"
+        },
+        {
+          "Name": "Content-Type",
+          "Value": "image/jpeg"
+        },
+        {
+          "Name": "ETag",
+          "Value": "\"9qsvAZpaD5+4FubejnS2zbGnMkRLs1oomtxqu9kbjXg=\""
+        },
+        {
+          "Name": "Last-Modified",
+          "Value": "Fri, 07 Mar 2025 22:55:43 GMT"
+        },
+        {
+          "Name": "Cache-Control",
+          "Value": "max-age=3600, must-revalidate"
+        }
+      ],
+      "EndpointProperties": [
+        {
+          "Name": "integrity",
+          "Value": "sha256-9qsvAZpaD5+4FubejnS2zbGnMkRLs1oomtxqu9kbjXg="
         }
       ]
     },

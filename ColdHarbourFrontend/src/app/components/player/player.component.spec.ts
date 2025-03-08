@@ -66,7 +66,7 @@ describe('PlayerComponent', () => {
   });
 
   it('should toggle play/pause on main button click when music is available', () => {
-    component.mainButtonClick();
+    component.mainButtonClick({} as Event);
     expect(audioService.playToggle).toHaveBeenCalled();
   });
 
@@ -79,7 +79,7 @@ describe('PlayerComponent', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
     
-    component.mainButtonClick();
+    component.mainButtonClick({} as Event);
     expect(audioService.playToggle).not.toHaveBeenCalled();
   });
 
@@ -121,5 +121,76 @@ describe('PlayerComponent', () => {
     component.onVolumeChange(mockEvent);
     
     expect(audioService.setVolume).toHaveBeenCalledWith(0.5);
+  });
+
+  it('should handle keyboard space bar to toggle play/pause', () => {
+    const spaceEvent = new KeyboardEvent('keydown', { code: 'Space' });
+    document.dispatchEvent(spaceEvent);
+    
+    expect(audioService.playToggle).toHaveBeenCalled();
+  });
+
+  it('should handle keyboard controls', () => {
+    const mockEvent = new Event('keydown');
+    const volumeInput = document.createElement('input');
+    component.volumeInput = { nativeElement: volumeInput } as any;
+    
+    // Test volume up
+    Object.defineProperty(mockEvent, 'key', { value: 'ArrowUp' });
+    document.dispatchEvent(mockEvent);
+    expect(audioService.volume()).toBe(0.6);
+    
+    // Test volume down
+    Object.defineProperty(mockEvent, 'key', { value: 'ArrowDown' });
+    document.dispatchEvent(mockEvent);
+    expect(audioService.volume()).toBe(0.4);
+  });
+
+  it('should clamp volume between 0 and 1', () => {
+    const mockEvent = new Event('change');
+    const mockInput = document.createElement('input');
+    component.volumeInput = { nativeElement: mockInput } as any;
+    
+    // Test upper bound
+    mockInput.value = '1.5';
+    Object.defineProperty(mockEvent, 'target', { value: mockInput });
+    component.onVolumeChange(mockEvent);
+    expect(audioService.setVolume).toHaveBeenCalledWith(1);
+    
+    // Test lower bound
+    mockInput.value = '-0.5';
+    Object.defineProperty(mockEvent, 'target', { value: mockInput });
+    component.onVolumeChange(mockEvent);
+    expect(audioService.setVolume).toHaveBeenCalledWith(0);
+  });
+
+  it('should handle audio loading errors', () => {
+    const errorSpy = spyOn(console, 'error');
+    audioService.loadMusic.and.throwError('Failed to load audio');
+    
+    musicService.currentMusic.set({...mockMusic});
+    
+    expect(errorSpy).toHaveBeenCalled();
+    expect(audioService.isPlaying.set).toHaveBeenCalledWith(false);
+  });
+
+  it('should update progress during playback', () => {
+    const duration = 100;
+    const currentTime = 50;
+    audioService.duration.and.returnValue(duration);
+    
+    const mockEvent = new MouseEvent('click', {
+      clientX: currentTime
+    });
+    const mockWrapper = document.createElement('div');
+    spyOn(mockWrapper, 'getBoundingClientRect').and.returnValue({
+      left: 0,
+      width: duration
+    } as DOMRect);
+    
+    Object.defineProperty(mockEvent, 'currentTarget', { value: mockWrapper });
+    component.onSliderClick(mockEvent);
+    
+    expect(audioService.seekTo).toHaveBeenCalledWith(50);
   });
 });

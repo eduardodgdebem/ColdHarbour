@@ -1,0 +1,10 @@
+<main class="content">
+  <section class="music-list-container">
+    <header>
+      <img [src]="currentPlayList()?.imageRef" [alt]="currentPlayList()?.name"/>
+      <h1>{{ currentPlayList()?.name }}</h1>
+    </header>
+    <app-music-list />
+  </section>
+  <app-player />
+</main>

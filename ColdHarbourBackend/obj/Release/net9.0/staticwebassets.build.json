@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "RXr+sahWfd6T+Zy56AK8Je9/CTEc3jLpjmMM1L2vbig=",
+  "Source": "ColdHarbourBackend",
+  "BasePath": "_content/ColdHarbourBackend",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}

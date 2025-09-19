@@ -1,0 +1,90 @@
+import { Component, effect, ElementRef, ViewChild } from '@angular/core';
+import { AudioService } from '../../services/audio.service';
+import { MusicService } from '../../services/music.service';
+import { PlayIconComponent } from '../../icons/play-icon/play-icon.component';
+import { PauseIconComponent } from '../../icons/play-icon/pause-icon.component';
+import { CommonModule } from '@angular/common';
+
+type SlidersId = "volume" | "progress";
+
+@Component({
+  selector: 'app-player',
+  standalone: true,
+  imports: [PlayIconComponent, PauseIconComponent, CommonModule],
+  templateUrl: './player.component.html',
+  styleUrl: './player.component.scss',
+})
+export class PlayerComponent {
+  @ViewChild('volumeInput') volumeInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('progressInput') progressInput!: ElementRef<HTMLInputElement>;
+
+  constructor(
+    public audioService: AudioService,
+    public musicService: MusicService
+  ) {
+    this.setupEffects();
+  }
+
+  private setupEffects() {
+    effect(() => {
+      const music = this.musicService.currentMusic();
+      if (music?.audioRef) {
+        this.audioService.isPlaying.set(false);
+        this.audioService.loadMusic(music.audioRef);
+      }
+    });
+
+    effect(() => {
+      const volume = this.audioService.volume();
+      if (this.volumeInput) {
+        const volumePercentage = volume * 100;
+        this.volumeInput.nativeElement.style.setProperty('--volume', `${volumePercentage}%`);
+      }
+    });
+
+    effect(() => {
+      const duration = this.audioService.duration();
+      const currentTime = this.audioService.currentTime();
+      if (duration && currentTime) {
+        const progressPercentage = (currentTime / duration) * 100;
+        this.progressInput.nativeElement.style.setProperty('--progress', `${progressPercentage}%`);
+      }
+    });
+  }
+
+  public mainButtonClick(e: Event) {
+    const button = e.target as HTMLButtonElement;
+    button.blur();
+    if (this.musicService.currentMusic()) {
+      this.audioService.playToggle();
+    }
+  }
+
+  public onInputChange(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const newTime = parseFloat(input.value);
+    this.audioService.seekTo(newTime);
+  }
+
+  public onSliderClick(e: MouseEvent) {
+    const wrapper = e.currentTarget as HTMLDivElement;
+    const rect = wrapper.getBoundingClientRect();
+    const ratio = (e.clientX - rect.left) / rect.width;
+    const newValue = ratio * this.audioService.duration();
+    const input = wrapper.querySelector("input") as HTMLInputElement;
+    switch (input.id as SlidersId) {
+      case 'progress':
+        this.audioService.seekTo(newValue);
+        break;
+      case 'volume':
+        this.audioService.volume.set(newValue / this.audioService.duration());
+        break;
+    }
+  }
+
+  public onVolumeChange(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const volume = parseFloat(input.value);
+    this.audioService.setVolume(volume);
+  }
+}

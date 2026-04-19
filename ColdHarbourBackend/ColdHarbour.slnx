@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ColdHarbour.Api/ColdHarbour.Api.csproj" />
+    <Project Path="src/ColdHarbour.Application/ColdHarbour.Application.csproj" />
+    <Project Path="src/ColdHarbour.Domain/ColdHarbour.Domain.csproj" />
+    <Project Path="src/ColdHarbour.Infrastructure/ColdHarbour.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ColdHarbour.Api.IntegrationTests/ColdHarbour.Api.IntegrationTests.csproj" />
+    <Project Path="tests/ColdHarbour.Application.Tests/ColdHarbour.Application.Tests.csproj" />
+    <Project Path="tests/ColdHarbour.Domain.Tests/ColdHarbour.Domain.Tests.csproj" />
+  </Folder>
+</Solution>

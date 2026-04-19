@@ -3,11 +3,11 @@ import { MusicListComponent } from '../../components/music-list/music-list.compo
 import { PlayerComponent } from '../../components/player/player.component';
 import { ActivatedRoute } from '@angular/router';
 import { MusicService, Playlist } from '../../services/music.service';
-import { CommonModule } from '@angular/common';
+
 
 @Component({
   selector: 'app-playlist-page',
-  imports: [CommonModule ,MusicListComponent, PlayerComponent],
+  imports: [MusicListComponent, PlayerComponent],
   templateUrl: './playlist-page.component.html',
   styleUrl: './playlist-page.component.scss',
 })

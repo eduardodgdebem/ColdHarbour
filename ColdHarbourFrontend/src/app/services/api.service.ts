@@ -2,13 +2,14 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import type { Playlist } from './music.service';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root',
 })
 export class ApiService {
-  private readonly API_URL = 'http://localhost:8080/api';
-  private readonly ASSETS_URL = 'http://localhost:8080';
+  private readonly API_URL = environment.apiBase;
+  private readonly ASSETS_URL = environment.assetsBase;
 
   constructor(private http: HttpClient) {}
 

@@ -1,12 +1,12 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { MusicService } from '../../services/music.service';
 import type { Music } from '../../services/music.service';
 
 @Component({
   selector: 'app-music-list',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './music-list.component.html',
   styleUrl: './music-list.component.scss'
 })

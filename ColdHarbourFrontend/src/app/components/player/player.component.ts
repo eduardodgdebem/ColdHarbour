@@ -3,14 +3,14 @@ import { AudioService } from '../../services/audio.service';
 import { MusicService } from '../../services/music.service';
 import { PlayIconComponent } from '../../icons/play-icon/play-icon.component';
 import { PauseIconComponent } from '../../icons/play-icon/pause-icon.component';
-import { CommonModule } from '@angular/common';
+
 
 type SlidersId = "volume" | "progress";
 
 @Component({
   selector: 'app-player',
   standalone: true,
-  imports: [PlayIconComponent, PauseIconComponent, CommonModule],
+  imports: [PlayIconComponent, PauseIconComponent],
   templateUrl: './player.component.html',
   styleUrl: './player.component.scss',
 })

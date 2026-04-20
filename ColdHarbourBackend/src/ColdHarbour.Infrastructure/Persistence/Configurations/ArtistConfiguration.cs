@@ -16,5 +16,10 @@ public class ArtistConfiguration : IEntityTypeConfiguration<Artist>
         builder.Property(a => a.Name)
             .IsRequired()
             .HasMaxLength(256);
+
+        builder.HasData(
+            new { Id = Guid.Parse("11111111-0000-0000-0000-000000000001"), Name = "HONNE" },
+            new { Id = Guid.Parse("11111111-0000-0000-0000-000000000002"), Name = "Remi Wolf" }
+        );
     }
 }

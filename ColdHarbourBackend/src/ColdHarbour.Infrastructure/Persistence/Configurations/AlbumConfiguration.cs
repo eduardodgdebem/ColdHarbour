@@ -27,5 +27,24 @@ public class AlbumConfiguration : IEntityTypeConfiguration<Album>
             .WithMany()
             .HasForeignKey(a => a.ArtistId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasData(
+            new
+            {
+                Id = Guid.Parse("22222222-0000-0000-0000-000000000001"),
+                Title = "HONNE",
+                ArtistId = Guid.Parse("11111111-0000-0000-0000-000000000001"),
+                Year = (int?)null,
+                CoverPath = (string?)null
+            },
+            new
+            {
+                Id = Guid.Parse("22222222-0000-0000-0000-000000000002"),
+                Title = "Remi Wolf",
+                ArtistId = Guid.Parse("11111111-0000-0000-0000-000000000002"),
+                Year = (int?)null,
+                CoverPath = (string?)null
+            }
+        );
     }
 }

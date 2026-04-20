@@ -33,12 +33,13 @@ public class DbContextTests : IAsyncLifetime
     [Fact]
     public async Task MigrateAsync_AppliesCleanly_OnFreshDatabase()
     {
-        // MigrateAsync already ran in InitializeAsync — just assert the schema is there.
+        // MigrateAsync already ran in InitializeAsync — just assert the schema is there
+        // and that seed data landed (2 seed artists from SeedInitialLibrary migration).
         await using var context = CreateContext();
 
         var artistCount = await context.Artists.CountAsync();
 
-        artistCount.Should().Be(0);
+        artistCount.Should().Be(2);
     }
 
     [Fact]

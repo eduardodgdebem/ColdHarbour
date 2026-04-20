@@ -24,11 +24,7 @@ try
 
     var app = builder.Build();
 
-    using (var scope = app.Services.CreateScope())
-    {
-        var db = scope.ServiceProvider.GetRequiredService<ColdHarbour.Infrastructure.Persistence.ColdHarbourDbContext>();
-        await db.Database.MigrateAsync();
-    }
+    await app.Services.MigrateDatabaseAsync();
 
     app.UseRouting();
     app.UseCors("AllowAll");

@@ -18,4 +18,11 @@ public static class DependencyInjection
 
         return services;
     }
+
+    public static async Task MigrateDatabaseAsync(this IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ColdHarbourDbContext>();
+        await db.Database.MigrateAsync();
+    }
 }

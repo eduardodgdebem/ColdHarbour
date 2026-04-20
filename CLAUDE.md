@@ -4,6 +4,27 @@
 
 ---
 
+## Working agreement (read this first)
+
+**TDD is mandatory. No exceptions.** Every piece of production code is preceded by a failing test. The loop is always `red → green → refactor`:
+
+1. Write a failing test that expresses the desired behavior.
+2. Run it; confirm it fails for the right reason.
+3. Write the minimum production code to make it pass.
+4. Refactor with the test as a safety net.
+
+Rules:
+- No production code without a test that drove it into existence. "I'll add tests after" is not acceptable.
+- Every PR includes the tests written first. Commit order should reflect this (test commit before impl commit when practical).
+- Bug fixes follow the same loop: reproduce with a failing test, then fix.
+- xUnit + FluentAssertions on the backend (one test project per layer: `ColdHarbour.Domain.Tests`, `ColdHarbour.Application.Tests`, `ColdHarbour.Api.IntegrationTests`). Jasmine/Karma on the frontend.
+- Integration tests hit a real Postgres (Testcontainers), never mocks of `DbContext`.
+- Prefer behavior-level tests over mock-heavy unit tests. A test that breaks when internals change but behavior doesn't is a liability.
+
+**Progress tracking.** `MIGRATION.md` is the single source of truth for phase progress. When a phase completes, mark it `✅ Done` in that file and update this document if the phase changed any architectural fact described here.
+
+---
+
 ## Architecture overview
 
 ColdHarbour is a self-hosted music server that runs entirely in Docker on the user's machine. It will eventually be exposed to the public internet over a tunnel (Cloudflare Tunnel / Tailscale Funnel / similar), so the threat model is **not** "trusted LAN."
@@ -12,7 +33,7 @@ ColdHarbour is a self-hosted music server that runs entirely in Docker on the us
 ┌─────────────┐   ┌──────────┐   ┌───────────┐
 │    caddy    │──▶│   api    │──▶│ postgres  │
 │  (reverse   │   │ (ASP.NET │   │           │
-│   proxy +   │   │  .NET 9) │   │           │
+│   proxy +   │   │  .NET 10) │   │           │
 │   static)   │   └──────────┘   └───────────┘
 └─────────────┘          │
        ▲                 ▼
@@ -52,7 +73,7 @@ Three cross-cutting design axes shape everything below:
 - **MusicKit JS** (client-only) for Apple Music playback — loaded lazily when a user links an Apple Music account
 
 **Backend** — target stack
-- .NET 9 / ASP.NET Core
+- .NET 10 / ASP.NET Core 10
 - **MediatR** for CQRS-lite (commands return `Unit`, queries return DTOs)
 - **EF Core 9 + Npgsql** for persistence
 - **FluentValidation** on command/query inputs (as a MediatR pipeline behavior)

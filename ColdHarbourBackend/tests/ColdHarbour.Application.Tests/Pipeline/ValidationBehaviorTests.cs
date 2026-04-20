@@ -18,7 +18,7 @@ public sealed class ValidationBehaviorTests
         var behavior = new ValidationBehavior<TestRequest, TestResponse>([]);
         var handlerCalled = false;
 
-        Task<TestResponse> Next()
+        Task<TestResponse> Next(CancellationToken ct)
         {
             handlerCalled = true;
             return Task.FromResult(new TestResponse("ok"));
@@ -38,7 +38,7 @@ public sealed class ValidationBehaviorTests
 
         Func<Task> act = () => behavior.Handle(
             new TestRequest(),
-            () => Task.FromResult(new TestResponse("ok")),
+            ct => Task.FromResult(new TestResponse("ok")),
             CancellationToken.None);
 
         await act.Should().ThrowAsync<ValidationException>();

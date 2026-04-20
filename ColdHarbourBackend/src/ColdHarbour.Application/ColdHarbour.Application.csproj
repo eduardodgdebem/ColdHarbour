@@ -11,8 +11,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.*" />
     <PackageReference Include="MediatR" Version="12.*" />
     <PackageReference Include="FluentValidation" Version="11.*" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.*" />
   </ItemGroup>
 
 </Project>

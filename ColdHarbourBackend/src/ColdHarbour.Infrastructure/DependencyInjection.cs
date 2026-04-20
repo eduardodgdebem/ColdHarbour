@@ -1,4 +1,6 @@
+using ColdHarbour.Application.Identity.Ports;
 using ColdHarbour.Application.Library.Ports;
+using ColdHarbour.Infrastructure.Identity;
 using ColdHarbour.Infrastructure.Library;
 using ColdHarbour.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +17,11 @@ public static class DependencyInjection
             opts.UseNpgsql(config.GetConnectionString("DefaultConnection")));
 
         services.AddScoped<ILibraryReadRepository, LibraryReadRepository>();
+
+        services.AddScoped<IPasswordHasher, PasswordHasher>();
+        services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
         return services;
     }

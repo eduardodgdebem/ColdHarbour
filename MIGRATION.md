@@ -3,6 +3,21 @@
 > Path from the current seed (Angular SPA + flat ASP.NET controller + Postgres + two nginx containers, mock playlist only) to the MVP described in `CLAUDE.md` (Caddy, Clean Architecture backend, JWT auth, upload-driven library, Range+transcode streaming, device handoff).
 >
 > Seven phases. Each phase ends with a **working, deployable system** — no phase breaks the app. Land each phase as its own branch/PR so regressions stay bisectable. Apple Music, HLS, and Redis are explicitly out of scope for MVP.
+>
+> **This file is the progress tracker.** When a phase completes, flip its heading to `✅ Done` and leave a one-line note on when it landed (merge commit + date). If the work changed any architectural fact, update `CLAUDE.md` in the same PR.
+
+## Status
+
+| Phase | Title | Status |
+|---|---|---|
+| 0 | Baseline | ✅ Done |
+| 1 | Infrastructure swap | ✅ Done — merged to main 2026-04-19 (`44f2e2c`) |
+| 2 | Clean Architecture skeleton + EF Core | ✅ Done — landed on phase-2-clean-arch 2026-04-20 |
+| 3 | Authentication | ⏳ Not started |
+| 4 | Library CRUD + artwork | ⏳ Not started |
+| 5 | Streaming upgrade | ⏳ Not started |
+| 6 | Playback session + device handoff | ⏳ Not started |
+| 7 | Operational hygiene | ⏳ Not started |
 
 ---
 
@@ -19,7 +34,10 @@ Don't refactor anything yet — just confirm `docker compose up --build` works e
 
 ---
 
-## Phase 1 — Infrastructure swap (Caddy, secrets, Postgres lockdown)
+## Phase 1 — Infrastructure swap (Caddy, secrets, Postgres lockdown) ✅ Done
+
+> Landed on `main` at commit `44f2e2c` (merge of `phase-1-infra-swap`), 2026-04-19. `docker compose up --build` confirmed end-to-end.
+
 
 **Goal.** Same behavior as today, fewer containers, with secrets out of the repo.
 
@@ -38,7 +56,9 @@ Don't refactor anything yet — just confirm `docker compose up --build` works e
 
 ---
 
-## Phase 2 — Clean Architecture skeleton + EF Core
+## Phase 2 — Clean Architecture skeleton + EF Core ✅ Done
+
+> Landed on branch phase-2-clean-arch, 2026-04-20.
 
 **Goal.** Backend is split into four layered projects; persistence is real. Mock endpoint behavior unchanged.
 

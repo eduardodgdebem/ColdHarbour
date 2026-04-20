@@ -9,5 +9,6 @@
     <Project Path="tests/ColdHarbour.Api.IntegrationTests/ColdHarbour.Api.IntegrationTests.csproj" />
     <Project Path="tests/ColdHarbour.Application.Tests/ColdHarbour.Application.Tests.csproj" />
     <Project Path="tests/ColdHarbour.Domain.Tests/ColdHarbour.Domain.Tests.csproj" />
+    <Project Path="tests/ColdHarbour.Infrastructure.Tests/ColdHarbour.Infrastructure.Tests.csproj" />
   </Folder>
 </Solution>

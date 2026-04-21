@@ -29,7 +29,9 @@ public static class DependencyInjection
     public static async Task MigrateDatabaseAsync(this IServiceProvider services)
     {
         using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ColdHarbourDbContext>();
+        var db = scope.ServiceProvider.GetService<ColdHarbourDbContext>();
+        if (db is null)
+            return; // DbContext was not registered (e.g., integration test environment)
         await db.Database.MigrateAsync();
     }
 }

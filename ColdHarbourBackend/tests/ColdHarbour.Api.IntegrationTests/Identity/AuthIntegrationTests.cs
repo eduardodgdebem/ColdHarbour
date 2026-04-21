@@ -8,73 +8,190 @@ using System.Text.Json;
 using ColdHarbour.Application.Identity.Ports;
 using ColdHarbour.Application.Library.Ports;
 using ColdHarbour.Domain.Identity;
-using Microsoft.Extensions.Configuration;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 
 namespace ColdHarbour.Api.IntegrationTests.Identity;
 
+// ── shared in-memory stubs ───────────────────────────────────────────────────
+
+internal sealed class InMemoryUserRepository : IUserRepository
+{
+    private readonly ConcurrentDictionary<string, User> _byEmail = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<Guid, User> _byId = new();
+
+    public void Clear() { _byEmail.Clear(); _byId.Clear(); }
+
+    public Task<User?> FindByEmailAsync(string email, CancellationToken ct = default)
+        => Task.FromResult(_byEmail.TryGetValue(email, out var u) ? u : null);
+
+    public Task<User?> FindByIdAsync(Guid id, CancellationToken ct = default)
+        => Task.FromResult(_byId.TryGetValue(id, out var u) ? u : null);
+
+    public Task AddAsync(User user, CancellationToken ct = default)
+    {
+        _byEmail[user.Email] = user;
+        _byId[user.Id] = user;
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> AnyUsersExistAsync(CancellationToken ct = default)
+        => Task.FromResult(!_byEmail.IsEmpty);
+
+    public Task SaveChangesAsync(CancellationToken ct = default)
+        => Task.CompletedTask;
+}
+
+internal sealed class InMemoryRefreshTokenRepository : IRefreshTokenRepository
+{
+    private readonly ConcurrentDictionary<string, RefreshToken> _byHash = new(StringComparer.OrdinalIgnoreCase);
+
+    public void Clear() => _byHash.Clear();
+
+    public Task<RefreshToken?> FindByTokenHashAsync(string tokenHash, CancellationToken ct = default)
+        => Task.FromResult(_byHash.TryGetValue(tokenHash, out var t) ? t : null);
+
+    public Task AddAsync(RefreshToken token, CancellationToken ct = default)
+    {
+        _byHash[token.TokenHash] = token;
+        return Task.CompletedTask;
+    }
+
+    public Task RevokeFamilyAsync(Guid familyId, CancellationToken ct = default)
+    {
+        foreach (var token in _byHash.Values.Where(t => t.FamilyId == familyId))
+            token.Revoke();
+        return Task.CompletedTask;
+    }
+
+    public Task SaveChangesAsync(CancellationToken ct = default)
+        => Task.CompletedTask;
+}
+
+internal sealed class FakePasswordHasher : IPasswordHasher
+{
+    public string Hash(string plaintext) => $"FAKE:{plaintext}";
+    public bool Verify(string plaintext, string hash) => hash == $"FAKE:{plaintext}";
+}
+
+internal sealed class FakeTokenService(string signingKey, string issuer, string audience) : ITokenService
+{
+    public string GenerateAccessToken(User user, string deviceId)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(ClaimTypes.Role, user.Role.ToString()),
+            new Claim("deviceId", deviceId),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        var token = new JwtSecurityToken(
+            issuer: issuer,
+            audience: audience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(15),
+            signingCredentials: creds);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public string GenerateRefreshTokenPlaintext()
+        => Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+}
+
+internal sealed class FakeLibraryReadRepository : ILibraryReadRepository
+{
+    public Task<IReadOnlyList<TrackReadModel>> GetAllTracksAsync(CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<TrackReadModel>>(Array.Empty<TrackReadModel>());
+}
+
+// ── dedicated factory for auth tests ─────────────────────────────────────────
+
+/// <summary>
+/// Custom factory that stubs all identity ports and injects the test JWT signing key.
+/// Using a dedicated subclass avoids IClassFixture sharing issues between test classes.
+/// </summary>
+public sealed class AuthTestFactory : WebApplicationFactory<Program>
+{
+    internal const string SigningKey = "coldharbour-test-signing-key-32bytes!!";
+    internal const string Issuer = "coldharbour";
+    internal const string Audience = "coldharbour-web";
+
+    internal readonly InMemoryUserRepository UserRepo = new();
+    internal readonly InMemoryRefreshTokenRepository TokenRepo = new();
+
+    protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
+    {
+        builder.ConfigureAppConfiguration((_, cfg) =>
+        {
+            cfg.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["COLDHARBOUR_JWT_SIGNING_KEY"] = SigningKey,
+                ["COLDHARBOUR_JWT_ISSUER"] = Issuer,
+                ["COLDHARBOUR_JWT_AUDIENCE"] = Audience,
+                ["COLDHARBOUR_TEST_MODE"] = "true"
+            });
+        });
+
+        builder.ConfigureServices(services =>
+        {
+            // Remove EF / real DB
+            services.RemoveAll<ColdHarbour.Infrastructure.Persistence.ColdHarbourDbContext>();
+            services.RemoveAll(typeof(Microsoft.EntityFrameworkCore.DbContextOptions<
+                ColdHarbour.Infrastructure.Persistence.ColdHarbourDbContext>));
+
+            // Stub library repo (used by MusicController)
+            services.RemoveAll<ILibraryReadRepository>();
+            services.AddScoped<ILibraryReadRepository>(_ => new FakeLibraryReadRepository());
+
+            // Stub identity ports
+            services.RemoveAll<IUserRepository>();
+            services.AddSingleton<IUserRepository>(UserRepo);
+
+            services.RemoveAll<IRefreshTokenRepository>();
+            services.AddSingleton<IRefreshTokenRepository>(TokenRepo);
+
+            services.RemoveAll<IPasswordHasher>();
+            services.AddSingleton<IPasswordHasher>(new FakePasswordHasher());
+
+            services.RemoveAll<ITokenService>();
+            services.AddSingleton<ITokenService>(new FakeTokenService(SigningKey, Issuer, Audience));
+        });
+    }
+}
+
+// ── auth integration tests ───────────────────────────────────────────────────
+
 /// <summary>
 /// Stubs all identity ports so no Postgres connection is needed.
 /// A real JWT is generated with a deterministic test key so JwtBearer validation passes.
 /// </summary>
-public class AuthIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+[Collection("IntegrationTests")]
+public class AuthIntegrationTests : IClassFixture<AuthTestFactory>
 {
-    // ── test constants ──────────────────────────────────────────────────────────
-    private const string TestSigningKey = "coldharbour-test-signing-key-32bytes!!";
-    private const string TestIssuer = "coldharbour";
-    private const string TestAudience = "coldharbour-web";
+    private const string TestSigningKey = AuthTestFactory.SigningKey;
+    private const string TestIssuer = AuthTestFactory.Issuer;
+    private const string TestAudience = AuthTestFactory.Audience;
     private const string TestEmail = "test@example.com";
     private const string TestPassword = "password123";
     private const string TestDeviceId = "device-test-001";
 
     private readonly HttpClient _client;
-    private readonly InMemoryUserRepository _userRepo = new();
-    private readonly InMemoryRefreshTokenRepository _tokenRepo = new();
+    private readonly InMemoryUserRepository _userRepo;
+    private readonly InMemoryRefreshTokenRepository _tokenRepo;
 
-    public AuthIntegrationTests(WebApplicationFactory<Program> factory)
+    public AuthIntegrationTests(AuthTestFactory factory)
     {
-        _client = factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureAppConfiguration((_, cfg) =>
-            {
-                // Override JWT config with deterministic test values
-                cfg.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    ["COLDHARBOUR_JWT_SIGNING_KEY"] = TestSigningKey,
-                    ["COLDHARBOUR_JWT_ISSUER"] = TestIssuer,
-                    ["COLDHARBOUR_JWT_AUDIENCE"] = TestAudience
-                });
-            });
-
-            builder.ConfigureServices(services =>
-            {
-                // Remove EF / real DB
-                services.RemoveAll<ColdHarbour.Infrastructure.Persistence.ColdHarbourDbContext>();
-                services.RemoveAll(typeof(Microsoft.EntityFrameworkCore.DbContextOptions<
-                    ColdHarbour.Infrastructure.Persistence.ColdHarbourDbContext>));
-
-                // Stub library repo (used by MusicController)
-                services.RemoveAll<ILibraryReadRepository>();
-                services.AddScoped<ILibraryReadRepository>(_ => new FakeLibraryReadRepository());
-
-                // Stub identity ports
-                services.RemoveAll<IUserRepository>();
-                services.AddSingleton<IUserRepository>(_userRepo);
-
-                services.RemoveAll<IRefreshTokenRepository>();
-                services.AddSingleton<IRefreshTokenRepository>(_tokenRepo);
-
-                services.RemoveAll<IPasswordHasher>();
-                services.AddSingleton<IPasswordHasher>(new FakePasswordHasher());
-
-                services.RemoveAll<ITokenService>();
-                services.AddSingleton<ITokenService>(new FakeTokenService(TestSigningKey, TestIssuer, TestAudience));
-            });
-        }).CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        _userRepo = factory.UserRepo;
+        _tokenRepo = factory.TokenRepo;
+        _client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────
@@ -110,7 +227,7 @@ public class AuthIntegrationTests : IClassFixture<WebApplicationFactory<Program>
     public async Task Register_SecondUser_Returns403()
     {
         _userRepo.Clear();
-        await RegisterAsync();                            // first user
+        await RegisterAsync();                                     // first user
         var response = await RegisterAsync("second@example.com"); // second user
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -153,7 +270,11 @@ public class AuthIntegrationTests : IClassFixture<WebApplicationFactory<Program>
         var response = await LoginAsync();
 
         response.Headers.TryGetValues("Set-Cookie", out var cookies).Should().BeTrue();
-        cookies!.Should().Contain(c => c.StartsWith("refreshToken=") && c.Contains("HttpOnly") && c.Contains("SameSite=Strict"));
+        // Cookie attribute names are lowercased by ASP.NET Core's HttpClient handler
+        cookies!.Should().Contain(c =>
+            c.StartsWith("refreshToken=", StringComparison.OrdinalIgnoreCase) &&
+            c.Contains("httponly", StringComparison.OrdinalIgnoreCase) &&
+            c.Contains("samesite=strict", StringComparison.OrdinalIgnoreCase));
     }
 
     // ── refresh tests ────────────────────────────────────────────────────────────
@@ -211,7 +332,10 @@ public class AuthIntegrationTests : IClassFixture<WebApplicationFactory<Program>
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
         response.Headers.TryGetValues("Set-Cookie", out var respCookies).Should().BeTrue();
-        respCookies!.Should().Contain(c => c.StartsWith("refreshToken=") && c.Contains("Max-Age=0"));
+        // max-age=0 clears the cookie; attribute names are lowercased
+        respCookies!.Should().Contain(c =>
+            c.StartsWith("refreshToken=", StringComparison.OrdinalIgnoreCase) &&
+            c.Contains("max-age=0", StringComparison.OrdinalIgnoreCase));
     }
 
     // ── playlist auth guard tests ────────────────────────────────────────────────
@@ -237,100 +361,5 @@ public class AuthIntegrationTests : IClassFixture<WebApplicationFactory<Program>
 
         var response = await _client.SendAsync(request);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-    }
-
-    // ── in-memory stubs ──────────────────────────────────────────────────────────
-
-    private sealed class InMemoryUserRepository : IUserRepository
-    {
-        private readonly ConcurrentDictionary<string, User> _byEmail = new(StringComparer.OrdinalIgnoreCase);
-        private readonly ConcurrentDictionary<Guid, User> _byId = new();
-
-        public void Clear() { _byEmail.Clear(); _byId.Clear(); }
-
-        public Task<User?> FindByEmailAsync(string email, CancellationToken ct = default)
-            => Task.FromResult(_byEmail.TryGetValue(email, out var u) ? u : null);
-
-        public Task<User?> FindByIdAsync(Guid id, CancellationToken ct = default)
-            => Task.FromResult(_byId.TryGetValue(id, out var u) ? u : null);
-
-        public Task AddAsync(User user, CancellationToken ct = default)
-        {
-            _byEmail[user.Email] = user;
-            _byId[user.Id] = user;
-            return Task.CompletedTask;
-        }
-
-        public Task<bool> AnyUsersExistAsync(CancellationToken ct = default)
-            => Task.FromResult(!_byEmail.IsEmpty);
-
-        public Task SaveChangesAsync(CancellationToken ct = default)
-            => Task.CompletedTask;
-    }
-
-    private sealed class InMemoryRefreshTokenRepository : IRefreshTokenRepository
-    {
-        private readonly ConcurrentDictionary<string, RefreshToken> _byHash = new(StringComparer.OrdinalIgnoreCase);
-
-        public void Clear() => _byHash.Clear();
-
-        public Task<RefreshToken?> FindByTokenHashAsync(string tokenHash, CancellationToken ct = default)
-            => Task.FromResult(_byHash.TryGetValue(tokenHash, out var t) ? t : null);
-
-        public Task AddAsync(RefreshToken token, CancellationToken ct = default)
-        {
-            _byHash[token.TokenHash] = token;
-            return Task.CompletedTask;
-        }
-
-        public async Task RevokeFamilyAsync(Guid familyId, CancellationToken ct = default)
-        {
-            foreach (var token in _byHash.Values.Where(t => t.FamilyId == familyId))
-                token.Revoke();
-            await Task.CompletedTask;
-        }
-
-        public Task SaveChangesAsync(CancellationToken ct = default)
-            => Task.CompletedTask;
-    }
-
-    private sealed class FakePasswordHasher : IPasswordHasher
-    {
-        public string Hash(string plaintext) => $"FAKE:{plaintext}";
-        public bool Verify(string plaintext, string hash) => hash == $"FAKE:{plaintext}";
-    }
-
-    private sealed class FakeTokenService(string signingKey, string issuer, string audience) : ITokenService
-    {
-        public string GenerateAccessToken(User user, string deviceId)
-        {
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var claims = new[]
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(ClaimTypes.Role, user.Role.ToString()),
-                new Claim("deviceId", deviceId),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
-
-            var token = new JwtSecurityToken(
-                issuer: issuer,
-                audience: audience,
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(15),
-                signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
-
-        public string GenerateRefreshTokenPlaintext()
-            => Convert.ToBase64String(Guid.NewGuid().ToByteArray());
-    }
-
-    private sealed class FakeLibraryReadRepository : ILibraryReadRepository
-    {
-        public Task<IReadOnlyList<TrackReadModel>> GetAllTracksAsync(CancellationToken ct = default)
-            => Task.FromResult<IReadOnlyList<TrackReadModel>>(Array.Empty<TrackReadModel>());
     }
 }

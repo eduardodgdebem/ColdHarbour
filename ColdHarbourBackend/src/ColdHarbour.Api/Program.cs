@@ -1,5 +1,15 @@
+using System.Text;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using ColdHarbour.Application;
+using ColdHarbour.Application.Identity.Commands;
+using ColdHarbour.Application.Identity.Ports;
 using ColdHarbour.Infrastructure;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Mvc.Authorization;
+using Microsoft.IdentityModel.Tokens;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -14,20 +24,118 @@ try
         .ReadFrom.Configuration(ctx.Configuration)
         .WriteTo.Console());
 
-    builder.Services.AddControllers();
+    // ── CORS (environment-aware) ─────────────────────────────────────────────────
+    if (builder.Environment.IsDevelopment())
+    {
+        builder.Services.AddCors(options =>
+            options.AddPolicy("AllowAll",
+                p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+    }
+    else
+    {
+        var origin = builder.Configuration["COLDHARBOUR_PUBLIC_ORIGIN"]
+            ?? throw new InvalidOperationException("COLDHARBOUR_PUBLIC_ORIGIN must be set in Production.");
+        builder.Services.AddCors(options =>
+            options.AddPolicy("Production",
+                p => p.WithOrigins(origin).AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
+    }
+
+    // ── JWT authentication ───────────────────────────────────────────────────────
+    // JWT options are configured via IConfiguration injection so that test factories
+    // (which inject config via ConfigureAppConfiguration) are seen at resolution time.
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer();
+
+    builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+        .Configure<IConfiguration>((opts, config) =>
+        {
+            var key = config["COLDHARBOUR_JWT_SIGNING_KEY"]
+                ?? throw new InvalidOperationException("COLDHARBOUR_JWT_SIGNING_KEY is not configured.");
+            opts.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = config["COLDHARBOUR_JWT_ISSUER"] ?? "coldharbour",
+                ValidateAudience = true,
+                ValidAudience = config["COLDHARBOUR_JWT_AUDIENCE"] ?? "coldharbour-web",
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key))
+            };
+        });
+
+    builder.Services.AddAuthorization();
+
+    // ── Rate limiting ────────────────────────────────────────────────────────────
+    // Non-production environments (Development, Testing) use a very high limit so
+    // integration tests don't exhaust the rate-limiter window mid-suite.
+    var isProduction = builder.Environment.IsProduction();
+    builder.Services.AddRateLimiter(opts =>
+    {
+        opts.AddFixedWindowLimiter("login", o =>
+        {
+            o.PermitLimit = isProduction ? 5 : 10_000;
+            o.Window = TimeSpan.FromMinutes(1);
+            o.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            o.QueueLimit = 0;
+        });
+        opts.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    });
+
+    // ── Forwarded headers (Caddy/tunnel trust) ───────────────────────────────────
+    builder.Services.Configure<ForwardedHeadersOptions>(opts =>
+    {
+        opts.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        // Trust any internal proxy for now; Phase 7 will lock to specific Caddy IP.
+        opts.KnownNetworks.Clear();
+        opts.KnownProxies.Clear();
+    });
+
+    // ── MVC with global [Authorize] ──────────────────────────────────────────────
+    builder.Services.AddControllers(opts =>
+    {
+        opts.Filters.Add(new AuthorizeFilter());
+    });
+
     builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddCors(options =>
-        options.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
 
     var app = builder.Build();
 
+    // ── Database migration ───────────────────────────────────────────────────────
     await app.Services.MigrateDatabaseAsync();
 
+    // ── Bootstrap owner ──────────────────────────────────────────────────────────
+    using (var scope = app.Services.CreateScope())
+    {
+        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+        if (!await userRepo.AnyUsersExistAsync())
+        {
+            var email = app.Configuration["COLDHARBOUR_BOOTSTRAP_EMAIL"];
+            var password = app.Configuration["COLDHARBOUR_BOOTSTRAP_PASSWORD"];
+            if (email != null && password != null)
+            {
+                var mediator = scope.ServiceProvider.GetRequiredService<MediatR.IMediator>();
+                await mediator.Send(new RegisterUserCommand(email, "Owner", password));
+                Log.Information("Bootstrap owner created: {Email}", email);
+            }
+        }
+    }
+
+    // ── Pipeline ─────────────────────────────────────────────────────────────────
+    app.UseForwardedHeaders();
+
     app.UseRouting();
-    app.UseCors("AllowAll");
+
+    if (app.Environment.IsDevelopment())
+        app.UseCors("AllowAll");
+    else
+        app.UseCors("Production");
+
+    app.UseRateLimiter();
+    app.UseAuthentication();
+    app.UseAuthorization();
     app.UseStaticFiles();
     app.UseWebSockets();
     app.MapControllers();

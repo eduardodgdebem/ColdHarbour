@@ -1,8 +1,25 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import type { Music, Playlist } from './music.service';
-import { environment } from '../../environments/environment';
+import { environment } from '../../../environments/environment';
+
+export type Music = {
+  id: number;
+  trackId: string;
+  albumId: string;
+  name: string;
+  author: string;
+  audioRef: string;
+  imageRef: string;
+  durationSeconds: number;
+};
+
+export type Playlist = {
+  name: string;
+  imageRef: string;
+  id: number;
+  musics: Music[];
+};
 
 export type LibrarySyncItem = { path: string; title: string | null; artist: string | null };
 export type LibrarySyncDiff = {
@@ -25,8 +42,6 @@ export class ApiService {
     return this.http.get<Playlist>(`${this.API_URL}/music/playlist/${id}`).pipe(
       map((playlist) => ({
         ...playlist,
-        // audioRef and imageRef are already /api/... paths from the server;
-        // prepend assetsBase (empty in prod, absolute host in dev) so they resolve.
         musics: playlist.musics.map((music: Music) => ({
           ...music,
           audioRef: `${this.ASSETS_URL}${music.audioRef}`,

@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Injectable, signal } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 
 @Injectable({
   providedIn: 'root'
@@ -10,7 +10,7 @@ export class ColorService {
   private defaultColor = '#000000';
 
   constructor() {
-    this.worker = new Worker(new URL('../../assets/color-worker.ts', import.meta.url), { type: 'module' });
+    this.worker = new Worker(new URL('../workers/color-worker.ts', import.meta.url), { type: 'module' });
     
     this.worker.onmessage = (e: MessageEvent) => {
       if (e.data.error) {

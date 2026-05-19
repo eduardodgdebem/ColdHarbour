@@ -1,8 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MusicListComponent } from './music-list.component';
-import { MusicService } from '../../services/music.service';
-import { LibraryService } from '../../services/library.service';
-import type { Music, Playlist } from '../../services/music.service';
+import { MusicService } from '../../../player/services/music.service';
+import { LibraryService } from '../../library.service';
+import type { Music, Playlist } from '../../../../core/api/api.service';
 import { By } from '@angular/platform-browser';
 import { signal } from '@angular/core';
 

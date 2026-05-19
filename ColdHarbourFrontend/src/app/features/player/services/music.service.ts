@@ -1,24 +1,8 @@
 import { effect, Injectable, signal } from '@angular/core';
-import { ApiService } from './api.service';
+import { ApiService, Music, Playlist } from '../../../core/api/api.service';
 import { ColorService } from './color.service';
 
-export type Music = {
-  id: number;
-  trackId: string;
-  albumId: string;
-  name: string;
-  author: string;
-  audioRef: string;
-  imageRef: string;
-  durationSeconds: number;
-};
-
-export type Playlist = {
-  name: string;
-  imageRef: string;
-  id: number;
-  musics: Music[];
-};
+export type { Music, Playlist };
 
 @Injectable({
   providedIn: 'root',

@@ -3,7 +3,7 @@ import { PlayerComponent } from './player.component';
 import { AudioService } from '../../services/audio.service';
 import { MusicService } from '../../services/music.service';
 import { signal } from '@angular/core';
-import type { Music } from '../../services/music.service';
+import type { Music } from '../../../../core/api/api.service';
 
 describe('PlayerComponent', () => {
   let component: PlayerComponent;

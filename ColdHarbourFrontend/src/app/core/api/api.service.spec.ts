@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { ApiService } from './api.service';
-import type { Music, Playlist } from './music.service';
+import type { Music, Playlist } from './api.service';
 
 const makeMusic = (overrides: Partial<Music>): Music => ({
   id: 1,

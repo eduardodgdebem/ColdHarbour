@@ -1,9 +1,10 @@
 import { Component, OnInit, Signal } from '@angular/core';
 import { MusicListComponent } from '../../components/music-list/music-list.component';
-import { PlayerComponent } from '../../components/player/player.component';
+import { PlayerComponent } from '../../../player/components/player/player.component';
 import { ActivatedRoute } from '@angular/router';
-import { MusicService, Playlist } from '../../services/music.service';
-import { LibraryService } from '../../services/library.service';
+import { MusicService } from '../../../player/services/music.service';
+import type { Playlist } from '../../../../core/api/api.service';
+import { LibraryService } from '../../library.service';
 
 
 @Component({

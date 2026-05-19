@@ -1,8 +1,8 @@
 import { Component } from '@angular/core';
 
-import { MusicService } from '../../services/music.service';
-import type { Music } from '../../services/music.service';
-import { LibraryService } from '../../services/library.service';
+import { MusicService } from '../../../player/services/music.service';
+import type { Music } from '../../../../core/api/api.service';
+import { LibraryService } from '../../library.service';
 
 @Component({
   selector: 'app-music-list',

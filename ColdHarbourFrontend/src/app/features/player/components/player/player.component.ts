@@ -1,8 +1,8 @@
 import { Component, effect, ElementRef, ViewChild } from '@angular/core';
 import { AudioService } from '../../services/audio.service';
 import { MusicService } from '../../services/music.service';
-import { PlayIconComponent } from '../../icons/play-icon/play-icon.component';
-import { PauseIconComponent } from '../../icons/play-icon/pause-icon.component';
+import { PlayIconComponent } from '../../../../shared/icons/play-icon.component';
+import { PauseIconComponent } from '../../../../shared/icons/pause-icon.component';
 
 
 type SlidersId = "volume" | "progress";

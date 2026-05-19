@@ -5,9 +5,9 @@ import { of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 
 import { routes } from './app.routes';
-import { authInterceptor } from './interceptors/auth.interceptor';
-import { AuthService } from './services/auth.service';
-import { DeviceService } from './services/device.service';
+import { authInterceptor } from './core/auth/auth.interceptor';
+import { AuthService } from './core/auth/auth.service';
+import { DeviceService } from './features/devices/device.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [

@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { MusicService } from './music.service';
-import { ApiService } from './api.service';
+import { ApiService } from '../../../core/api/api.service';
 import { ColorService } from './color.service';
 import { of, throwError } from 'rxjs';
-import type { Music, Playlist } from './music.service';
+import type { Music, Playlist } from '../../../core/api/api.service';
 
 describe('MusicService', () => {
   let service: MusicService;

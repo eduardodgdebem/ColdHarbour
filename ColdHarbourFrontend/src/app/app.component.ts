@@ -1,7 +1,7 @@
 import { Component, effect, OnInit } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
-import { ControllerService } from './services/controller.service';
+import { ControllerService } from './features/player/services/controller.service';
 @Component({
   standalone: true,
     selector: 'app-root',

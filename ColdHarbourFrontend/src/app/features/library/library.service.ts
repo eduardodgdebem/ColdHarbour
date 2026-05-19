@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
-import { ApiService, LibrarySyncDiff } from './api.service';
-import { MusicService } from './music.service';
+import { ApiService, LibrarySyncDiff } from '../../core/api/api.service';
+import { MusicService } from '../player/services/music.service';
 
 @Injectable({ providedIn: 'root' })
 export class LibraryService {

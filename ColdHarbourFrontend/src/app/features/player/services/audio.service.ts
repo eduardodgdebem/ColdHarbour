@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { LocalAudioSource } from './local-audio-source';
+import { LocalAudioSource } from '../audio/local-audio-source';
 
 @Injectable({ providedIn: 'root' })
 export class AudioService {

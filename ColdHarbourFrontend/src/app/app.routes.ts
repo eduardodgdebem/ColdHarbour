@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
-import { PlaylistPageComponent } from './pages/playlist-page/playlist-page.component';
-import { LoginPageComponent } from './pages/login-page/login-page.component';
-import { authGuard } from './guards/auth.guard';
+import { PlaylistPageComponent } from './features/library/pages/playlist-page/playlist-page.component';
+import { LoginPageComponent } from './features/auth/pages/login-page/login-page.component';
+import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
   {

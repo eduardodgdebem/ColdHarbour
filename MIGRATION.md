@@ -15,7 +15,7 @@
 | 2 | Clean Architecture skeleton + EF Core | ✅ Done — landed on phase-2-clean-arch 2026-04-20 |
 | 3 | Authentication | ✅ Done — merged to main 2026-04-20 (`phase-3-auth`) |
 | 4 | Library CRUD + artwork | ✅ Done — landed on main 2026-05-19 |
-| 5 | Streaming upgrade | ⏳ Not started |
+| 5 | Streaming upgrade | ✅ Done — merged to main 2026-05-19 (`phase-5-streaming`) |
 | 6 | Playback session + device handoff | ⏳ Not started |
 | 7 | Operational hygiene | ⏳ Not started |
 
@@ -141,7 +141,9 @@ Don't refactor anything yet — just confirm `docker compose up --build` works e
 
 ---
 
-## Phase 5 — Streaming upgrade (Range + transcode-on-demand)
+## Phase 5 — Streaming upgrade (Range + transcode-on-demand) ✅ Done
+
+> Merged to `main` 2026-05-19 (merge of `phase-5-streaming`). 141 backend + 43 frontend tests, all green.
 
 **Goal.** `/api/stream/{trackId}` replaces direct asset URLs. Seeks are instant. FLAC plays on Safari.
 

@@ -2,9 +2,11 @@
   <section class="library">
     <header class="library-header">
       <div class="header-identity">
-        <div class="header-art">
-          <img [src]="currentPlayList()?.imageRef || ''" [alt]="currentPlayList()?.name || ''">
-        </div>
+        @if (currentPlayList()?.imageRef) {
+          <div class="header-art">
+            <img [src]="currentPlayList()?.imageRef || ''" [alt]="currentPlayList()?.name || ''">
+          </div>
+        }
         <h1 class="header-title">{{ currentPlayList()?.name || 'Loading…' }}</h1>
       </div>
 
@@ -18,6 +20,7 @@
                 [disabled]="libraryService.isSyncing()">
           SYNC LIBRARY
         </button>
+        <a class="btn header-btn" routerLink="/devices">DEVICES</a>
       </div>
     </header>
 

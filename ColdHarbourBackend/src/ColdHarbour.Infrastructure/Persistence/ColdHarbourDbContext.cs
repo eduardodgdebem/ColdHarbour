@@ -13,6 +13,7 @@ public class ColdHarbourDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Device> Devices => Set<Device>();
+    public DbSet<PlayEvent> PlayEvents => Set<PlayEvent>();
 
     public ColdHarbourDbContext(DbContextOptions<ColdHarbourDbContext> options) : base(options) { }
 

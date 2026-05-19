@@ -4,6 +4,9 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+// ListDevicesQuery lives in Commands namespace (file: Queries/ListDevicesQuery.cs)
+// Fully qualified to avoid ambiguity.
+
 namespace ColdHarbour.Api.Controllers;
 
 [ApiController]
@@ -11,15 +14,22 @@ namespace ColdHarbour.Api.Controllers;
 [Authorize]
 public sealed class DevicesController(IMediator mediator) : ControllerBase
 {
+    private Guid UserId => Guid.Parse(
+        User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
+
+    // ── GET /api/devices ─────────────────────────────────────────────────────────
+    [HttpGet]
+    public async Task<IActionResult> List(CancellationToken ct)
+    {
+        var devices = await mediator.Send(new ListDevicesQuery(UserId), ct);
+        return Ok(devices);
+    }
+
     // ── POST /api/devices ────────────────────────────────────────────────────────
     [HttpPost]
     public async Task<IActionResult> Register([FromBody] RegisterDeviceRequest req, CancellationToken ct)
     {
-        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? User.FindFirstValue("sub");
-
-        if (!Guid.TryParse(userIdClaim, out var userId))
-            return Unauthorized();
+        var userId = UserId;
 
         await mediator.Send(new RegisterDeviceCommand(
             req.DeviceId,

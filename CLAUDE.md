@@ -1,6 +1,19 @@
 # ColdHarbour
 
-> Self-hosted music player. The repo today is a minimal seed (Angular SPA + flat ASP.NET + Postgres + two nginx instances, with a mocked `MusicController`). This document describes **the direction of the architecture**, not the frozen state of the code. When code and doc diverge, the code is authoritative — but the divergence must be reconciled (either update this doc or realign the code).
+> Self-hosted music player. Phases 0–6 are complete and running. This document describes the **actual current architecture** plus the intended direction for anything still pending. When code and doc diverge, the code is authoritative — but the divergence must be reconciled (either update this doc or realign the code).
+
+---
+
+## Design system
+
+The visual design is defined in [`DESIGN.md`](./DESIGN.md) and is named **Sonic Brutalism**. All UI work must align with it.
+
+Key rules from that document:
+- **Neo-Brutalism aesthetic** — raw, print-first, unapologetic. No gradients, no soft shadows, no rounded corners.
+- **Palette:** Stark Black (`#000000`), Off-White (`#F9F9F9`), Acidic Yellow / `--accent` (`#D3F000` default, overridden per-album by `ColorService`).
+- **Typography:** Archivo Narrow (headlines, uppercase), Public Sans (body), Space Mono (labels/metadata).
+- **Borders:** 4px solid black on all interactive elements and primary containers.
+- **`--accent` CSS variable** is set dynamically from the dominant color of the current album art via `ColorService` (Web Worker). Default is `#D3F000`. Every accent-colored element reads `var(--accent)`.
 
 ---
 
@@ -27,13 +40,13 @@ Rules:
 
 ## Architecture overview
 
-ColdHarbour is a self-hosted music server that runs entirely in Docker on the user's machine. It will eventually be exposed to the public internet over a tunnel (Cloudflare Tunnel / Tailscale Funnel / similar), so the threat model is **not** "trusted LAN."
+ColdHarbour is a self-hosted music server that runs entirely in Docker on the user's machine. It is exposed to the public internet over a tunnel (Cloudflare Tunnel / Tailscale Funnel / similar), so the threat model is **not** "trusted LAN."
 
 ```
 ┌─────────────┐   ┌──────────┐   ┌───────────┐
 │    caddy    │──▶│   api    │──▶│ postgres  │
 │  (reverse   │   │ (ASP.NET │   │           │
-│   proxy +   │   │  .NET 10) │   │           │
+│   proxy +   │   │  .NET 10)│   │           │
 │   static)   │   └──────────┘   └───────────┘
 └─────────────┘          │
        ▲                 ▼
@@ -44,19 +57,19 @@ ColdHarbour is a self-hosted music server that runs entirely in Docker on the us
 ```
 
 Three processes, one host:
-- **caddy** terminates HTTP on port 80, serves the built Angular bundle as static files, and reverse-proxies `/api/*` → api and `/ws/*` → api (WebSocket). Caddy replaces the two nginx instances that exist in the current seed (edge proxy + frontend static server); they collapse into one image because Caddy does both cleanly.
-- **api** owns domain logic, auth, provider integration, and streaming for local content.
-- **db** stores catalog, users, playback sessions, refresh tokens. Audio files live on a bind-mounted volume, never inside the DB.
+- **caddy** terminates HTTP on port 80, serves the built Angular bundle as static files, and reverse-proxies `/api/*` → api and `/ws/*` → api (WebSocket upgrade).
+- **api** owns domain logic, auth, provider integration, streaming, and the raw WebSocket playback hub.
+- **db** stores catalog, users, playback history, refresh tokens. Audio files live on a bind-mounted volume, never in the DB.
 
-Three cross-cutting design axes shape everything below:
+Three cross-cutting design axes:
 
-1. **Server-owned playback session.** The active device is a property of the server, not the client. Clients publish/subscribe; the server arbitrates.
+1. **Server-owned playback session.** `PlaybackSession` (one per user) lives in-memory on the server. Clients publish/subscribe over WebSocket; the server arbitrates which device is active. Material events (`PlayStarted`, `PlayEnded`) are persisted as `PlayEvent` rows.
 2. **Provider abstraction.** A `Track` has a provider (`local`, `apple_music`, …). Local tracks stream through the backend; third-party tracks play on the client via the provider's SDK — the backend never proxies DRM'd audio.
 3. **DDD + Clean Architecture on the backend.** Dependencies point inward: `Api → Application → Domain` and `Infrastructure → Application → Domain`. The domain has no framework references.
 
-**MVP scope.** The provider abstraction is preserved as an architectural seam, but v1 ships with a single provider (`local`) only. Apple Music integration (MusicKit developer tokens, Music User Tokens, `AppleMusicAudioSource`, related env vars and jobs) is explicitly deferred until after the MVP is running end-to-end.
+**MVP scope.** The provider abstraction is preserved as an architectural seam, but v1 ships with a single provider (`local`) only. Apple Music integration is explicitly deferred until after the MVP is running end-to-end.
 
-**Library management is upload-driven, not folder-driven.** The primary path is: user uploads a track through the frontend → api writes it to `library/` at a canonical path → extracts metadata → inserts the DB row. Deletes go through the frontend too. `POST /api/library/sync` is a **secondary** path for reconciling when files land on disk out-of-band (e.g., user drops a bunch of files directly into the mount). The sync button reports a diff (additions/removals/renames) and applies it on confirmation. No filesystem watcher, no weekly full scan — reconciliation is always user-triggered.
+**Library management is upload-driven, not folder-driven.** The primary path is: user uploads a track through the frontend → api writes it to `library/` at a canonical path → extracts metadata → inserts the DB row. `POST /api/library/sync` is a secondary path for reconciling files dropped directly onto the mount. Sync reports a diff and applies it on confirmation. No filesystem watcher, no scheduled full scan — reconciliation is always user-triggered.
 
 ---
 
@@ -65,85 +78,86 @@ Three cross-cutting design axes shape everything below:
 **Frontend**
 - Angular 20 — standalone components, **zoneless** change detection, Signals
 - TypeScript 5.9
-- RxJS 7.8 — used only at the HTTP boundary
-- SCSS
-- Web Worker API (`color-worker.ts` for dominant-color extraction)
+- RxJS 7.8 — used only at the HTTP boundary (Observables die at `ApiService`; everything downstream is signals)
+- SCSS (design tokens from `DESIGN.md` as CSS custom properties)
+- Web Worker API (`color-worker.ts` for dominant-color extraction → `--accent` CSS var)
 - `MediaSession` API (OS-level transport controls)
-- `HTMLAudioElement` for local playback (no player libs)
-- **MusicKit JS** (client-only) for Apple Music playback — loaded lazily when a user links an Apple Music account
+- `HTMLAudioElement` for local playback via `LocalAudioSource` (no player libs)
+- Raw WebSocket client in `PlaybackSessionService` for device handoff
+- **MusicKit JS** (client-only) for Apple Music playback — loaded lazily, post-MVP
 
-**Backend** — target stack
+**Backend**
 - .NET 10 / ASP.NET Core 10
 - **MediatR** for CQRS-lite (commands return `Unit`, queries return DTOs)
 - **EF Core 9 + Npgsql** for persistence
-- **FluentValidation** on command/query inputs (as a MediatR pipeline behavior)
+- **FluentValidation** on command/query inputs (MediatR pipeline behavior)
 - **Microsoft.AspNetCore.Authentication.JwtBearer** for access tokens
-- **Isopoh.Cryptography.Argon2** (or equivalent) for password hashing
-- **TagLibSharp** for ID3/FLAC/OGG metadata
-- **FFmpeg** (shelled out, or via `FFMpegCore`) for transcoding audio
-- **SkiaSharp** (or ImageSharp) for artwork thumbnail generation
-- **Hangfire** *or* `IHostedService` for scheduled jobs (start with `IHostedService`; move to Hangfire when retries/dashboards become worth the dependency)
+- **Isopoh.Cryptography.Argon2** for password hashing (Argon2id)
+- **TagLibSharp** for ID3/FLAC/OGG metadata extraction
+- **FFmpeg** (shelled out via process) for on-demand transcoding
+- **SixLabors.ImageSharp** (or SkiaSharp) for artwork thumbnail generation
+- **`IHostedService`** for scheduled jobs (move to Hangfire when retries/dashboard become worth the dependency)
 - **Serilog** for structured logging
 - Swashbuckle OpenAPI — dev-only
 
-**Explicitly *not* in the stack (decisions, not omissions):**
-- **Redis** — the caches we need are multi-MB audio/image blobs served with HTTP Range; Redis holds values in RAM and can't do `sendfile`. Filesystem caches win. Session heartbeats stay in an in-memory `IPlaybackSessionStore` (port exists so we can swap later if we ever outgrow a single api container).
-- **HLS** — cache-first whole-file transcoding is enough for single-digit users. Revisit if mobile-on-flaky-network becomes a real pain point.
+**Explicitly *not* in the stack:**
+- **Redis** — caches are multi-MB audio/image blobs; filesystem + HTTP Range wins. `IPlaybackSessionStore` port exists to swap in Redis later if needed.
+- **HLS** — cache-first whole-file transcoding is enough for single-digit users.
 - **Lossless-to-lossless transcoding** — pointless bit repackaging; skipped.
+- **SignalR** — raw WebSocket used at `/ws/playback`; JWT supplied as `?access_token=` query param because browser WS API cannot send custom headers.
 
 **Infrastructure**
 - Docker Compose (services: caddy, api, db)
-- **Caddy** (`caddy:alpine`) — edge proxy + SPA static server (both roles in one container)
-- PostgreSQL (`postgres:latest` — pin a major version before going public)
+- **Caddy** (`caddy:alpine`) — edge proxy + SPA static server
+- PostgreSQL (pin a major version before going public)
 
-**Tooling**
-- `dotnet` CLI (local dev: `dotnet watch run`)
-- Angular CLI (local dev: `ng serve`)
-- Jasmine/Karma on frontend; xUnit + FluentAssertions on backend
+**Local dev**
+- `dotnet watch run` for the backend
+- `ng serve --proxy-config proxy.conf.json` for the frontend — proxies both `/api/*` and `/ws/*` to `http://localhost:8080` (WebSocket upgrade included). `wsBase` is derived from `window.location` at runtime so the same build works on any host (localhost, LAN IP, tunnel domain).
 
 ---
 
 ## All environment variables
-
-Defined in `docker-compose.yml` and `appsettings.*.json`. Variables not yet introduced are marked `[planned]`. Convention: project-specific vars prefixed with `COLDHARBOUR_`.
 
 ### api (ASP.NET)
 | Variable | Source | Purpose |
 |---|---|---|
 | `ASPNETCORE_URLS` | compose | Kestrel binding (`http://+:8080`) |
 | `ASPNETCORE_ENVIRONMENT` | compose | `Development` / `Production` |
-| `ConnectionStrings__DefaultConnection` | appsettings / env override | Postgres connection string |
-| `COLDHARBOUR_CONTENT_ROOT` `[planned]` | compose | Library mount point (default `/content`) |
-| `COLDHARBOUR_TRANSCODE_CACHE` `[planned]` | compose | Transcode output dir |
-| `COLDHARBOUR_TRANSCODE_CACHE_LIMIT_BYTES` `[planned]` | compose | Soft cap for `cache/transcodes/`; LRU eviction above this. Default `5368709120` (5 GB) |
-| `COLDHARBOUR_ART_CACHE_LIMIT_BYTES` `[planned]` | compose | Soft cap for `cache/art/`. Default `536870912` (512 MB) |
-| `COLDHARBOUR_FFMPEG_PATH` `[planned]` | compose | Path to `ffmpeg` binary (default `/usr/bin/ffmpeg` — installed in the api image) |
-| `COLDHARBOUR_SCAN_CRON` `[planned]` | compose | Scanner cron (see pipeline) |
-| `COLDHARBOUR_JWT_SIGNING_KEY` `[planned]` | `.env` (secret) | HS256 signing key — ≥256 bits, random |
-| `COLDHARBOUR_JWT_ISSUER` `[planned]` | compose | `coldharbour` |
-| `COLDHARBOUR_JWT_AUDIENCE` `[planned]` | compose | `coldharbour-web` |
-| `COLDHARBOUR_ACCESS_TOKEN_TTL` `[planned]` | compose | Default `15m` |
-| `COLDHARBOUR_REFRESH_TOKEN_TTL` `[planned]` | compose | Default `14d` |
-| `COLDHARBOUR_PUBLIC_ORIGIN` `[planned]` | compose | e.g. `https://music.example.com` — CORS allowlist + cookie domain |
-| `COLDHARBOUR_APPLE_TEAM_ID` `[planned]` | `.env` (secret) | Apple Developer Team ID |
-| `COLDHARBOUR_APPLE_KEY_ID` `[planned]` | `.env` (secret) | MusicKit key ID |
-| `COLDHARBOUR_APPLE_PRIVATE_KEY_PATH` `[planned]` | `.env` (secret) | Path to `.p8` file mounted into the container |
-| `COLDHARBOUR_PROVIDER_CREDENTIALS_KEY` `[planned]` | `.env` (secret) | AES-256 key encrypting per-user provider tokens at rest |
+| `ConnectionStrings__DefaultConnection` | appsettings / env | Postgres connection string |
+| `COLDHARBOUR_CONTENT_ROOT` | compose | Library mount point (default `/content`) |
+| `COLDHARBOUR_TRANSCODE_CACHE_LIMIT_BYTES` | compose | Soft cap for `cache/transcodes/`; LRU eviction. Default 5 GB |
+| `COLDHARBOUR_ART_CACHE_LIMIT_BYTES` | compose | Soft cap for `cache/art/`. Default 512 MB |
+| `COLDHARBOUR_FFMPEG_PATH` | compose | Path to `ffmpeg` binary (default `/usr/bin/ffmpeg`) |
+| `COLDHARBOUR_JWT_SIGNING_KEY` | `.env` (secret) | HS256 signing key — ≥256 bits, random |
+| `COLDHARBOUR_JWT_ISSUER` | compose | `coldharbour` |
+| `COLDHARBOUR_JWT_AUDIENCE` | compose | `coldharbour-web` |
+| `COLDHARBOUR_ACCESS_TOKEN_TTL` | compose | Default `15m` |
+| `COLDHARBOUR_REFRESH_TOKEN_TTL` | compose | Default `14d` |
+| `COLDHARBOUR_PUBLIC_ORIGIN` | compose | e.g. `https://music.example.com` — CORS allowlist + cookie domain |
+| `COLDHARBOUR_BOOTSTRAP_EMAIL` / `_PASSWORD` | `.env` | First-run owner seed (printed once to log, then unset) |
+| `COLDHARBOUR_APPLE_TEAM_ID` `[post-MVP]` | `.env` (secret) | Apple Developer Team ID |
+| `COLDHARBOUR_APPLE_KEY_ID` `[post-MVP]` | `.env` (secret) | MusicKit key ID |
+| `COLDHARBOUR_APPLE_PRIVATE_KEY_PATH` `[post-MVP]` | `.env` (secret) | Path to `.p8` file |
+| `COLDHARBOUR_PROVIDER_CREDENTIALS_KEY` `[post-MVP]` | `.env` (secret) | AES-256 key for per-user provider token encryption |
 
 ### caddy
 | Variable | Purpose |
 |---|---|
-| `COLDHARBOUR_PUBLIC_HOSTNAME` `[planned]` | Hostname the tunnel forwards to — used by the Caddyfile |
+| `COLDHARBOUR_PUBLIC_HOSTNAME` | Hostname the tunnel forwards to — used by the Caddyfile |
 
 ### db (Postgres)
 | Variable | Purpose |
 |---|---|
-| `POSTGRES_USER` | `user` — replace before exposure |
-| `POSTGRES_PASSWORD` | **rotate before exposing via tunnel** |
+| `POSTGRES_USER` | Replace before tunnel exposure |
+| `POSTGRES_PASSWORD` | **Rotate before exposing via tunnel** |
 | `POSTGRES_DB` | `coldharbourdb` |
 
 ### frontend build
-No runtime env vars — the bundle is static. The API base URL must be **relative** in production (`/api`) so the same-origin Caddy routes it; the hardcoded `http://localhost:8080` in `ApiService` today is a dev-only shortcut (see hurdle #1).
+No runtime env vars — the bundle is static. All URLs use relative paths (`/api`, `/ws`) so Caddy routes them. `wsBase` is computed at module load from `window.location` (not hardcoded), making the same build work on any hostname.
+
+### Cookie security
+`Secure` flag on auth cookies (`refreshToken`, `media_token`) is set to `!env.IsDevelopment()`. In dev (`ASPNETCORE_ENVIRONMENT=Development`) cookies are sent over plain HTTP, enabling LAN/mobile testing. In production they require HTTPS.
 
 ### Secrets hygiene
 - Secrets never in-repo. `.env` is gitignored; mount the `.p8` as a read-only Docker secret.
@@ -153,68 +167,58 @@ No runtime env vars — the bundle is static. The API base URL must be **relativ
 
 ## Content directory structure
 
-The media library lives **outside** the image, bind-mounted at `/content` in the api container.
-
 ```
 /content/
 ├── library/
 │   ├── {artist}/
 │   │   └── {album}/
 │   │       ├── 01 - {track}.flac
-│   │       ├── 01 - {track}.mp3        # optional pre-generated transcode
 │   │       ├── cover.jpg               # preferred UI artwork
 │   │       └── album.json              # metadata override (optional)
 │   └── ...
 ├── playlists/
-│   └── {id}.m3u8                       # imported playlists
+│   └── {id}.m3u8
 ├── cache/
 │   ├── transcodes/
 │   │   └── {cacheKey}.{ext}            # cacheKey = sha256(AudioSha1 || profile)
 │   └── art/
-│       ├── {artSha1}-source.{jpg|png|webp}   # original extracted art
-│       ├── {artSha1}-64.webp                 # thumb (list rows)
-│       ├── {artSha1}-256.webp                # tile (grid views)
-│       └── {artSha1}-1024.webp               # full (player hero)
+│       ├── {artSha1}-source.{jpg|png|webp}
+│       ├── {artSha1}-64.webp
+│       ├── {artSha1}-256.webp
+│       └── {artSha1}-1024.webp
 └── backups/
-    └── coldharbour-{YYYYMMDD}.sql.gz   # nightly Postgres dumps
+    └── coldharbour-{YYYYMMDD}.sql.gz
 ```
 
-**Current state:** sample assets live in `ColdHarbourBackend/wwwroot/assets/`. That is a temporary placeholder and must move to the layout above when the scanner is implemented.
-
 Rules:
-- The scanner never **writes** into `library/` — it only reads. All writes go to `cache/`.
+- The app never **writes** into `library/` — all app writes go to `cache/` or `backups/`.
 - `album.json`, when present, overrides ID3 tags.
-- Directory names are a fallback source of truth when tags are missing or mojibake'd.
+- Directory names are a fallback when tags are missing or mojibake'd.
 
 ---
 
 ## Backend layout (DDD + Clean Architecture)
 
-Current state is a single flat project (`ColdHarbourBackend/` with `Program.cs`, `Controllers/`). Target layout splits it into layered projects inside a solution:
-
 ```
 ColdHarbourBackend/
-├── ColdHarbour.sln
 ├── src/
-│   ├── ColdHarbour.Domain/          # entities, VOs, domain events, domain services, interfaces
-│   ├── ColdHarbour.Application/     # use cases (commands/queries), DTOs, validators, ports
-│   ├── ColdHarbour.Infrastructure/  # EF Core, repositories, provider adapters, auth infra
-│   └── ColdHarbour.Api/             # controllers, middleware, SignalR/WS hub, composition root
+│   ├── ColdHarbour.Domain/          # entities, VOs, domain events, interfaces
+│   ├── ColdHarbour.Application/     # commands/queries, DTOs, validators, ports
+│   ├── ColdHarbour.Infrastructure/  # EF Core, repositories, auth infra, jobs
+│   └── ColdHarbour.Api/             # controllers, WS hub, middleware, DI root
 └── tests/
     ├── ColdHarbour.Domain.Tests/
     ├── ColdHarbour.Application.Tests/
     └── ColdHarbour.Api.IntegrationTests/
 ```
 
-**Dependency rule:** `Domain` references nothing. `Application` references `Domain`. `Infrastructure` references `Application` + `Domain`. `Api` references `Application` (+ `Infrastructure` only for DI registration, via a `DependencyInjection.cs` extension method per layer).
+**Dependency rule:** `Domain` → nothing. `Application` → `Domain`. `Infrastructure` → `Application + Domain`. `Api` → `Application` (+ `Infrastructure` only in `DependencyInjection.cs` extension methods).
 
-**Bounded contexts** inside `Domain`:
+**Bounded contexts inside `Domain`:**
 - **Library** — `Track`, `Album`, `Artist`; aggregate boundary on `Album`.
-- **Playback** — `PlaybackSession` (aggregate root per user), `Device` (entity), `PlayEvent`.
-- **Identity** — `User` (aggregate root), `RefreshToken` (entity), value objects `PasswordHash`, `Role`.
-- **Integration** — `ProviderLink` (per-user, per-provider credentials), adapter ports for each provider.
-
-Entities are **rich** (behavior lives with data): e.g. `PlaybackSession.TransferTo(deviceId)` enforces that the requesting user owns the device and emits a `PlaybackTransferred` domain event.
+- **Playback** — `PlaybackSession` (in-memory aggregate per user), `Device` (entity), `PlayEvent` (persisted).
+- **Identity** — `User` (aggregate root), `RefreshToken` (entity), `PasswordHash` (VO), `Role` enum.
+- **Integration** — `ProviderLink` (post-MVP), adapter ports per provider.
 
 ---
 
@@ -222,14 +226,13 @@ Entities are **rich** (behavior lives with data): e.g. `PlaybackSession.Transfer
 
 ### Audio streaming
 
-**Endpoint:** `GET /api/stream/{trackId}` — authorized. Resolves `Track.Id → Track.LocalPath` from the DB. The URL never takes a filesystem path (eliminates path-traversal).
+**Endpoint:** `GET /api/stream/{trackId}?profile=...` — authorized. Resolves `Track.Id → Track.LocalPath`. URL never accepts a filesystem path.
 
-**Two serving modes, decided per request:**
+**Two serving modes:**
+- **Pass-through** — device natively decodes the codec, no bitrate cap. `PhysicalFile(path, mime, enableRangeProcessing: true)`. Kernel `sendfile`, zero CPU.
+- **Transcoded** — FFmpeg converts source → content-addressed cache file → served with Range. First play warms cache (~1–3s); seeks and replays are instant.
 
-- **Pass-through** when the requesting device can natively decode the track's codec, and no bitrate cap is in effect. `PhysicalFile(path, mime, enableRangeProcessing: true)` — ASP.NET handles `Range`, `206`, `ETag`, `RequestAborted` cancellation. Kernel `sendfile`; zero CPU.
-- **Transcoded** otherwise. FFmpeg converts the source → a cache file → served with Range support on subsequent reads. **First play warms the cache (~1–3s); every seek and replay is instant.**
-
-**Transcode profiles** (finite, named set):
+**Transcode profiles:**
 
 | Profile | Codec / bitrate | Use case |
 |---|---|---|
@@ -238,211 +241,202 @@ Entities are **rich** (behavior lives with data): e.g. `PlaybackSession.Transfer
 | `aac-192` | AAC 192 kbps | Safari-safe fallback |
 | `mp3-192` | MP3 192 kbps | Legacy playback |
 
-Lossless-to-lossless transcoding is intentionally absent. Clients advertise codec capabilities + preferred profile when they register as a `Device`; the server picks the cheapest profile that works.
+Clients advertise codec capabilities + preferred profile at `RegisterDevice` time. Server picks cheapest profile that works.
 
-**Content-addressed cache.** Cache key = `sha256(AudioSha1 || profile)`. File lives at `/content/cache/transcodes/{cacheKey}.{ext}`. Reusable across users — same FLAC + same profile = same cache hit. `ETag: "{cacheKey}"`, `Cache-Control: max-age=31536000, immutable`.
+**Content-addressed cache.** Key = `sha256(AudioSha1 || profile)`. `ETag: "{cacheKey}"`, `Cache-Control: max-age=31536000, immutable`.
 
-**Concurrency.** If two clients request the same uncached transcode at once, only one FFmpeg process runs; the second waits on the same tempfile→rename completion. Implement with a keyed `SemaphoreSlim` map. Temp filename is `{cacheKey}.{ext}.tmp-{uuid}`; atomic rename on success.
+**Concurrency.** Keyed `SemaphoreSlim` in `TranscodeService` — only one FFmpeg process per `(AudioSha1, profile)`. Temp file `{cacheKey}.{ext}.tmp-{uuid}`, atomic rename on success, delete on cancellation.
 
-**Cancellation.** `HttpContext.RequestAborted` tokens the file read. For in-progress transcodes, killing the response kills the FFmpeg process via the token; the partial tempfile is deleted.
+### `media_token` cookie
 
-**Not in v1:** HLS, DASH, gapless playback across tracks.
-
-### Supported formats (first pass)
-
-| Format | Tag extraction | Browser decode | Serving mode |
-|---|---|---|---|
-| MP3 | ✅ | universal | pass-through |
-| FLAC | ✅ | Chrome/FF/Edge, Safari 14+ | pass-through; transcode for older Safari |
-| M4A / AAC | ✅ | universal | pass-through |
-| ALAC (.m4a) | ✅ | Safari only | transcode for non-Safari |
-| Ogg Vorbis | ✅ | Chrome/FF, **not** Safari | transcode for Safari |
-| Opus | ✅ | Chrome/FF, Safari 14+ | pass-through |
-| WAV | ✅ | universal | pass-through |
-| WMA, APE, DSD, CUE+FLAC | — | — | **out of scope v1** |
+`<audio src>` and `<img src>` tags can't attach `Authorization` headers. The backend mints a short-lived JWT as an `HttpOnly` cookie (`media_token`, scoped to `/api`, 8h TTL) on every login and refresh. The JWT middleware reads it via `JwtBearerEvents.OnMessageReceived` as a fallback for `/api/stream` and `/api/artwork`. The `Secure` flag follows the environment (see Cookie security above).
 
 ### Artwork
 
-**Source priority** (decided at scan time, recorded on `Album.CoverArtSha1`):
-1. **Embedded image** (ID3 `APIC`, FLAC picture block, Vorbis `METADATA_BLOCK_PICTURE`, MP4 `covr`). Extracted once, dumped to `cache/art/{artSha1}-source.{ext}`.
-2. **Sidecar file** next to the audio: `cover.jpg`, `folder.jpg`, `album.jpg` (first match, case-insensitive).
-3. **Generated placeholder** — deterministic gradient seeded by the album name hash; also cached.
+**Endpoint:** `GET /api/artwork/{albumId}?size=64|256|1024`. Generates WebP thumbnail on first request, caches to `cache/art/`, serves with `max-age=immutable`.
 
-**Endpoint:** `GET /api/artwork/{albumId}?size=64|256|1024`. Generates the requested size on first request (SkiaSharp, WebP q=85), caches to `cache/art/{artSha1}-{size}.webp`, serves. ETag = `{artSha1}-{size}`. Same `max-age=immutable` rules.
-
-### Storage rules
-
-- **DB holds metadata only.** Never blobs. Rows hold paths relative to `COLDHARBOUR_CONTENT_ROOT`, so the root is relocatable.
-- **`library/` is read-only to the app.** All app writes go to `cache/`.
-- **Cached files are derived and content-addressed** — safe to delete any subset; LRU prune is safe.
-- **No file cache in Redis, ever.** See tech stack for the reasoning.
+**Source priority:** embedded image → sidecar `cover.jpg` → deterministic placeholder.
 
 ---
 
-## Services, jobs, and models per app
+## WebSocket playback hub
+
+**Endpoint:** `GET /ws/playback?access_token={jwt}` — raw WebSocket (no SignalR).
+
+JWT is supplied as a query param because the browser WebSocket API cannot set custom headers. On token expiry the server closes with code `4001`; the client calls `/api/auth/refresh` and reconnects.
+
+**Server → client messages:**
+- `{ type: "session", session: PlaybackSessionDto }` — broadcast after every state mutation and on initial connect.
+- `{ type: "devices", devices: DeviceDto[] }` — broadcast after connect and after transfer.
+
+**Client → server messages (all include `deviceId`):**
+- `{ type: "start", deviceId, trackId }` — begin playing a track on this device.
+- `{ type: "heartbeat", deviceId, positionMs }` — every 2s from the active device.
+- `{ type: "pause", deviceId, positionMs }` — user paused.
+- `{ type: "resume", deviceId }` — user resumed.
+- `{ type: "transfer", deviceId, positionMs }` — hand off to `deviceId` at `positionMs`.
+- `{ type: "stop", deviceId }` — clear session.
+
+**Active-device guard:** `heartbeat`, `pause`, `resume`, and `stop` messages are silently dropped if the `deviceId` in the message does not match `session.ActiveDeviceId`. This prevents stale events from a previously active device from corrupting the session after a transfer.
+
+**Transfer position rule:** when an inactive device sends `transfer` (pulling playback to itself), `positionMs` must come from the server session's last known position — not from the requesting device's local audio clock (which would be 0 if it wasn't playing). The frontend `PlaybackSessionService` enforces this.
+
+---
+
+## Services, jobs, and models
 
 ### api (ColdHarbour.*)
 
 **Domain aggregates / entities**
-- `Track { Id, Title, Artist, Album, Duration, Provider, ProviderRef, LocalPath?, Format, Bitrate, AudioSha1 }`
-- `Album { Id, Title, Artist, Year, CoverPath, Tracks[] }` (aggregate root for tracks)
+- `Track { Id, Title, Artist, Album, Duration, Provider, LocalPath?, Format, Bitrate, AudioSha1 }`
+- `Album { Id, Title, Artist, Year, CoverArtSha1, Tracks[] }` (aggregate root for tracks)
 - `Artist { Id, Name }`
-- `Playlist { Id, OwnerId, Name, Description, CoverPath, Tracks[] }`
-- `User { Id, Name, Email, PasswordHash, Role, TotpSecret?, CreatedAt }` (role: `owner` | `user`)
-- `RefreshToken { Id, UserId, DeviceId, TokenHash, ExpiresAt, RevokedAt?, ReplacedById?, CreatedByIp, UserAgent, FamilyId }`
-- `Device { Id, UserId, Name, UserAgent, Capabilities (providers it can play), LastSeenAt }`
-- `PlaybackSession { UserId (PK), ActiveDeviceId, TrackId, Provider, ProviderRef, PositionMs, IsPlaying, UpdatedAt }` — one per user
-- `PlayEvent { Id, UserId, TrackId, Provider, StartedAt, EndedAt, CompletedRatio }`
-- `ProviderLink { UserId, Provider, EncryptedCredentials, LinkedAt }`
+- `User { Id, Name, Email, PasswordHash, Role, TotpSecret?, CreatedAt }`
+- `RefreshToken { Id, UserId, DeviceId, TokenHash, ExpiresAt, RevokedAt?, FamilyId }`
+- `Device { Id, UserId, Name, UserAgent, SupportedCodecs, PreferredProfile, BitrateCap?, LastSeenAt }`
+- `PlaybackSession { UserId, ActiveDeviceId, TrackId, PositionMs, IsPlaying, UpdatedAt }` — in-memory, one per user
+- `PlayEvent { Id, UserId, DeviceId, TrackId, StartedAt, EndedAt?, CompletedRatio? }` — persisted
 
-**Application use cases** (CQRS via MediatR)
-- Commands: `RegisterUser`, `AuthenticateUser`, `RefreshAccessToken`, `RevokeRefreshTokenFamily`, `RegisterDevice`, `TransferPlayback`, `UpdatePlaybackPosition`, `UploadTrack`, `DeleteTrack`, `SyncLibrary`, `ImportPlaylist`
-- Queries: `GetPlaylist`, `SearchTracks`, `GetActiveSession`, `ListDevices`, `GetTopArtists`, `PreviewLibrarySync` (dry-run: returns the diff without applying it)
+**Application commands / queries**
+- Commands: `RegisterUser`, `AuthenticateUser`, `RefreshAccessToken`, `Logout`, `RegisterDevice`, `StartPlayback`, `UpdatePlaybackPosition`, `TransferPlayback`, `UploadTrack`, `DeleteTrack`, `SyncLibrary`
+- Queries: `GetPlaylist`, `GetActiveSession`, `ListDevices`, `PreviewLibrarySync`
 
-**Domain/Infrastructure services**
-- `TrackIngestService` (Infrastructure, implements `ITrackIngestService` from Application) — handles upload path: validates file, computes `AudioSha1`, extracts tags via TagLibSharp, writes to canonical `library/` path, persists `Track`/`Album`/`Artist` aggregates. Also the sole caller on delete. Never mutates existing tracks' audio content.
-- `LibraryReconciler` (Infrastructure, implements `ILibraryReconciler` from Application) — backs the sync button. Walks `library/`, compares to DB, emits a diff (new / missing / changed-in-place via `AudioSha1`). User confirms → reconciler applies. Holds an advisory Postgres lock while running; never touches files under an active play session.
-- `TranscodeService` — on-demand audio conversion, content-addressed output.
-- `ArtworkService` — extract/store thumbnails (client-side worker handles color extraction).
-- `AppleMusicAdapter` — issues MusicKit developer tokens, refreshes Music User Tokens. **Does not proxy audio.**
-- `LocalStreamingService` — serves bytes with Range support from `library/`.
-- `TokenService` — signs JWTs, mints+rotates refresh tokens, handles theft detection.
-- `PasswordHasher` — Argon2id wrapper.
-- `PlaybackSessionHub` — SignalR (or raw WebSocket) hub; brokers device events.
-- `IPlaybackSessionStore` (port in `Application`, impl in `Infrastructure`) — backs `PlaybackSession` state + position heartbeats. Ship with `InMemoryPlaybackSessionStore` (`ConcurrentDictionary<UserId, PlaybackSession>`). Material playback events (play/pause/complete) persist to Postgres through repositories; heartbeat positions stay in-memory. Swap to a Redis impl later only if multi-instance api or restart-durable sessions become real requirements.
+**Infrastructure services**
+- `TrackIngestService` — upload flow: validate, hash, extract tags (TagLibSharp), canonical path write, extract art, upsert DB rows.
+- `LibraryReconciler` — sync button: walks `library/`, diffs against DB, applies on confirmation. Advisory Postgres lock while running.
+- `TranscodeService` — on-demand FFmpeg, keyed `SemaphoreSlim`, content-addressed output.
+- `ArtworkService` — thumbnail generation (ImageSharp/SkiaSharp), content-addressed cache.
+- `LocalStreamingService` — Range-capable pass-through from `library/`.
+- `TokenService` — JWT sign, refresh rotation, family revocation, `media_token` minting.
+- `PasswordHasher` — Argon2id.
+- `PlaybackSessionHub` — raw WebSocket handler at `/ws/playback`.
+- `InMemoryPlaybackSessionStore` — `ConcurrentDictionary<Guid, PlaybackSession>` behind `IPlaybackSessionStore`.
+- `DeviceRepository`, `PlayEventRepository` — EF Core repositories for persisted playback data.
 
-**Scheduled jobs** (`Jobs/`, `IHostedService` at first)
-- `BackupJob` — `pg_dump` to `/content/backups/`.
-- `CachePruneJob` — LRU eviction on `cache/transcodes`.
-- `ArtCachePruneJob` — LRU eviction on `cache/art`.
-- `PlaybackStatsJob` — rebuild weekly aggregates.
-- `IntegrityCheckJob` — sample-verify `AudioSha1` of 5% of tracks; flag drift in the DB but never auto-delete.
-- `RefreshTokenSweepJob` — delete expired/revoked refresh tokens nightly.
+**Scheduled jobs (`IHostedService`)**
+- `CachePruneJob` — Thursday 03:00 — LRU eviction on `cache/transcodes`.
+- `ArtCachePruneJob` — Thursday 03:15 — LRU eviction on `cache/art`.
+- `PlaybackStatsJob` — Friday 03:00 — weekly aggregate materialization.
+- `BackupJob` — Saturday 03:00 — `pg_dump` → `/content/backups/`, retain 4 latest.
+- `IntegrityCheckJob` — Sunday 03:00 — sample-verify 5% of `AudioSha1`; flag drift, never auto-delete.
+- `RefreshTokenSweepJob` — daily 04:00 — purge expired/revoked refresh tokens.
 
-Library sync is **user-triggered**, not scheduled. No filesystem watcher, no weekly full walk.
-`MusicKitDeveloperTokenRotationJob` is post-MVP (returns when the Apple Music adapter ships).
+All times `America/Sao_Paulo`. Library sync is user-triggered, not scheduled.
 
 ### frontend (`ColdHarbourFrontend/src/app/`)
 
-**Services** (`services/`, `providedIn: 'root'`)
-- `ApiService` — single HTTP boundary; attaches bearer token; handles `401 → refresh → retry once`.
-- `AuthService` — login/logout, holds access token in memory, schedules silent refresh.
-- `MusicService` — domain state signals (current music, playlist, navigation).
-- `AudioSource` interface with two implementations:
-  - `LocalAudioSource` — wraps `HTMLAudioElement`.
-  - `AppleMusicAudioSource` — wraps MusicKit JS instance.
-  Both expose the same signals (`isPlaying`, `position`, `duration`, `volume`). Selected based on the current track's provider.
-- `PlaybackSessionService` — WebSocket client; publishes heartbeats when this device is active, subscribes to server events when it isn't.
-- `ColorService` — dominant-color extraction via Web Worker, exposed as CSS var `--accent`.
+**Services (`providedIn: 'root'`)**
+- `ApiService` — HTTP boundary; attaches `Authorization: Bearer`; handles `401 → refresh → retry once`.
+- `AuthService` — login/logout; access token in memory; schedules silent refresh; `generateUUID()` fallback for non-HTTPS contexts (plain HTTP LAN access).
+- `MusicService` — current track + playlist signals; `selectMusic`, `nextMusic`, `previousMusic`.
+- `AudioService` — delegates to `LocalAudioSource`; exposes `isPlaying`, `currentTime`, `duration`, `volume`, `ended` signals.
+- `LocalAudioSource` — wraps `HTMLAudioElement`. `loadMusic(src)` is a no-op if `src` is already loaded (prevents restart on component re-mount). `cleanup()` on every track switch.
+- `PlaybackSessionService` — WebSocket client; auto-connects on `accessToken()`. Heartbeats every 2s from the active device. Reacts to incoming session changes: when this device becomes active it auto-loads the track and seeks to the transferred position; when it loses active status it pauses local audio without sending a WS event back. Uses `queueMicrotask` for signal writes that originate from effects.
+- `DeviceService` — `register()` (called on login), `listDevices()`, `getOrCreateDeviceId()`.
+- `ColorService` — dominant-color extraction via Web Worker → `--accent` CSS custom property. Default `#D3F000`.
 - `ControllerService` — keyboard shortcuts + `MediaSession` integration.
 
-**Components / pages / icons / workers** — as they exist today, plus: `LoginPageComponent`, `DevicesPageComponent` (list + "play here"), `AccountPageComponent` (link Apple Music).
+**Pages**
+- `LoginPageComponent` — `/login`
+- `PlaylistPageComponent` — `/playlist/:id` — main library view + inline upload/sync
+- `DevicesPageComponent` — `/devices` — device list, PLAYING / THIS DEVICE badges, PLAY HERE button, back button (`Location.back()`)
+
+**Key frontend patterns**
+- Player component uses `allowSignalWrites: true` on its music-load effect; it never writes `isPlaying` directly — `loadMusic` handles cleanup internally.
+- `wsBase` is derived at module load: `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`. The ng serve proxy forwards `/ws/*` with WebSocket upgrade, so this works on any hostname including LAN IPs.
+- `--accent` replaces all `--yellow` references. Interactive states (hover, active track) use `var(--accent)` throughout.
 
 ---
 
 ## Authentication (internet-exposed)
 
-Because the server is reachable over a tunnel, the auth story is non-trivial.
-
 **Tokens**
-- **Access token**: JWT, HS256, ~15min TTL, claims `sub`, `role`, `jti`, `deviceId`. Held **in memory** by the SPA; sent as `Authorization: Bearer`. Never in localStorage.
-- **Refresh token**: opaque random 256-bit, delivered as `HttpOnly` + `Secure` + `SameSite=Strict` cookie scoped to `/api/auth`. ~14 day TTL. **Rotated on every use** (single-use); reuse of an already-consumed token revokes the entire token `FamilyId` (theft detection).
+- **Access token**: JWT, HS256, ~15min TTL, claims `sub`, `role`, `jti`, `deviceId`. Held in memory; sent as `Authorization: Bearer`. Never in localStorage.
+- **Refresh token**: opaque 256-bit random, `HttpOnly` + `Secure`* + `SameSite=Strict`, scoped to `/api/auth`, ~14d TTL. Rotated on every use; reuse revokes the entire `FamilyId`.
+- **Media token**: short-lived JWT in an `HttpOnly` cookie scoped to `/api`, used as auth fallback for `<audio>` and `<img>` tags.
 
-**Storage**
-- `RefreshToken` holds only a SHA-256 hash of the token value. Plaintext never persisted.
-- One family per login; "logout everywhere" = revoke the family.
-
-**Password + defenses**
-- Argon2id (current OWASP recommendation).
-- ASP.NET `RateLimiter` on `/api/auth/login` (e.g. 5/min/IP, 10/hr/user) and `/api/auth/refresh`.
-- Account lockout: 10 failed attempts → 15 min cooldown.
-- Optional TOTP 2FA for the `owner` role.
+\* `Secure` flag is `false` in `Development` so plain-HTTP LAN testing works.
 
 **WebSocket auth**
-- Handshake carries the access token. On `exp`, server closes with code `4001`; client refreshes and reconnects. Simpler than in-band refresh messaging.
+- JWT via `?access_token=` query param. Server closes with code `4001` on expiry; client refreshes and reconnects.
 
-**Edge hardening (Caddy + tunnel)**
-- Tunnel terminates TLS. Do **not** also do TLS in Caddy — `auto_https off` in the Caddyfile.
-- Configure `ForwardedHeaders` middleware in ASP.NET with the tunnel's internal IP as the sole trusted proxy.
-- Security headers via Caddy: `Strict-Transport-Security`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and a CSP that allows MusicKit origins (`js-cdn.music.apple.com`, `play.music.apple.com`).
+**Edge hardening**
+- `auto_https off` in Caddyfile (tunnel handles TLS).
+- `ForwardedHeaders` middleware trusts only the tunnel's internal IP.
+- Security headers in Caddyfile: `Strict-Transport-Security`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, CSP.
 
 ---
 
-## 12 common hurdles with documented solutions
+## Documented hurdles and solutions
 
 1. **`ApiService` hardcodes `http://localhost:8080` — breaks in production.**
-   *Fix:* use relative `/api` in prod so Caddy handles it. Keep the absolute URL only in `environment.development.ts`.
+   Use relative `/api`; keep the absolute URL only in `environment.development.ts`.
 
-2. **`AllowAll` CORS policy leaks to production.**
-   *Fix:* in `Production`, restrict origins to `COLDHARBOUR_PUBLIC_ORIGIN`; keep `AllowAll` in `Development` only.
+2. **`AllowAll` CORS leaks to production.**
+   In `Production`, restrict to `COLDHARBOUR_PUBLIC_ORIGIN`. Keep `AllowAll` in `Development` only.
 
-3. **Seek on large files stalls because the endpoint doesn't support Range.**
-   *Fix:* `PhysicalFile(path, mime, enableRangeProcessing: true)`. Return `206 Partial Content`.
+3. **Seek on large files stalls — endpoint doesn't support Range.**
+   `PhysicalFile(path, mime, enableRangeProcessing: true)`. Return `206 Partial Content`.
 
 4. **Two concurrent requests race on the same refresh token.**
-   *Fix:* refresh rotation is single-use — wrap "mark used + issue new" in a serializable transaction. Reuse of an already-consumed token revokes the entire `FamilyId` and forces re-login.
+   Rotation is single-use — serializable transaction. Reuse of a consumed token revokes the entire `FamilyId`.
 
-5. **Access token expires mid-WebSocket; the socket silently serves a stale identity.**
-   *Fix:* server closes with code `4001` when `exp` is reached; client catches, calls `/auth/refresh`, reconnects.
+5. **Access token expires mid-WebSocket.**
+   Server closes with code `4001`; client refreshes and reconnects.
 
-6. **MusicKit developer token expires (Apple caps at 6 months) and Apple Music playback breaks for all users at once.**
-   *Fix:* `MusicKitDeveloperTokenRotationJob` regenerates from the `.p8` key weekly. Clients fetch on init and on `401` from MusicKit.
+6. **`media_token` cookie not sent — 401 on `<audio>`/`<img>` endpoints.**
+   The `Secure` flag must be `false` in `Development` (plain HTTP). Cookie is `HttpOnly` and scoped to `/api`. The JWT middleware reads it via `OnMessageReceived` as a fallback for `/api/stream` and `/api/artwork`.
 
-7. **Trying to proxy Apple Music audio to unify streaming — DRM kills it.**
-   *Fix:* don't. The backend only stores the catalog ID. The active client plays via MusicKit. Linux/Android clients can't be the active playback device for Apple Music tracks — platform constraint, not a bug.
+7. **`crypto.randomUUID` throws on plain HTTP (non-secure context).**
+   `DeviceService` and `AuthService` both have a `generateUUID()` fallback using `Math.random` for non-HTTPS origins (LAN / tunnel without TLS at the edge).
 
-8. **Fast track switching leaks `HTMLAudioElement` instances.**
-   *Fix:* `LocalAudioSource.cleanupAudio()` must `pause()`, clear `src`, and drop the element on every switch. Already handled in today's `AudioService`; preserve the pattern when splitting into sources.
+8. **WebSocket connects to `ws://localhost` from mobile — wrong host.**
+   `wsBase` is derived from `window.location` at runtime, not hardcoded. The ng serve proxy (and Caddy in production) forward `/ws/*` so no absolute WS URL is ever needed in source.
 
-9. **Duplicate tracks (same song in multiple formats) create duplicate rows.**
-   *Fix:* `Track.AudioSha1` is a hash of *audio content* (ignoring tag frames). The scanner deduplicates on it.
+9. **PLAY HERE transfers but receiving device starts at position 0.**
+   An inactive device calling `transferPlayback` must use `session().positionMs` (the server's last-known position), not its own `audioService.currentTime()` (which is 0 if it wasn't playing).
 
-10. **Trust boundary confusion when the tunnel terminates TLS.**
-    *Fix:* configure `ForwardedHeaders` middleware with the tunnel's internal IP as the only trusted proxy; otherwise `RemoteIpAddress` is meaningless and rate limiting is exploitable.
+10. **Player component restarts audio on every navigation back to the playlist page.**
+    `LocalAudioSource.loadMusic` is a no-op if the same URL is already loaded (`src === currentSrc && this.audio`). The player component's effect must not write `isPlaying` directly — `loadMusic` handles cleanup internally. Effect requires `{ allowSignalWrites: true }`.
 
-11. **Weak default DB credentials from the compose file leak into production.**
-    *Fix:* before the first tunnel bring-up, move creds to gitignored `.env`, rotate the password, and remove the `5432:5432` host port mapping so Postgres isn't reachable from the tunnel surface.
+11. **Hub accepts pause/resume/heartbeat from non-active devices after a transfer.**
+    Hub guards `pause`, `resume`, `heartbeat`, and `stop` messages against `session.ActiveDeviceId`. Messages from a device that is no longer active are silently dropped.
 
-12. **Two clients request the same uncached transcode simultaneously; FFmpeg runs twice and writes collide.**
-    *Fix:* keyed `SemaphoreSlim` (by cache key) in `TranscodeService`. Only one FFmpeg process per `(AudioSha1, profile)`; others wait on the shared completion. Write to `{cacheKey}.{ext}.tmp-{uuid}`, atomic rename on success, delete on cancellation. Disk fill is a separate concern handled by `CachePruneJob` + `COLDHARBOUR_TRANSCODE_CACHE_LIMIT_BYTES`.
+12. **Duplicate tracks (same song in multiple formats).**
+    `Track.AudioSha1` is a hash of audio content only (ignoring tag frames). Scanner deduplicates on it.
+
+13. **Two clients request the same uncached transcode simultaneously.**
+    Keyed `SemaphoreSlim` in `TranscodeService`. One FFmpeg process per `(AudioSha1, profile)`; others wait. Atomic rename on success; partial tempfile deleted on cancellation.
+
+14. **Trust boundary confusion when the tunnel terminates TLS.**
+    `ForwardedHeaders` middleware trusts only the tunnel's internal IP. Otherwise `RemoteIpAddress` is meaningless and rate limiting is exploitable.
+
+15. **MusicKit developer token expires — Apple Music breaks for all users.**
+    `MusicKitDeveloperTokenRotationJob` regenerates from the `.p8` weekly. Post-MVP.
+
+16. **Trying to proxy Apple Music audio — DRM kills it.**
+    Don't. The backend stores the catalog ID only. The client plays via MusicKit. Post-MVP.
 
 ---
 
-## 14 design patterns of the project
+## Design patterns
 
 1. **Standalone components** — no NgModule; every component declares its own `imports`.
 2. **Zoneless change detection + Signals** — `provideZonelessChangeDetection()`; UI state is signals, not subjects.
 3. **RxJS at the HTTP boundary only** — Observables die at `ApiService`; everything downstream is signals.
 4. **Web Worker for CPU-bound work** — color extraction in a worker; any pixel/buffer loop >~10ms goes off-thread.
-5. **Clean Architecture layering** — strict inward dependency direction: `Api → Application → Domain`; `Infrastructure → Application → Domain`. `Domain` has zero framework refs.
-6. **Rich DDD aggregates** — behavior lives on entities (`PlaybackSession.TransferTo(...)`, `RefreshToken.Rotate(...)`), not in anemic services.
+5. **Clean Architecture layering** — strict inward dependency: `Api → Application → Domain`; `Infrastructure → Application → Domain`. `Domain` has zero framework refs.
+6. **Rich DDD aggregates** — behavior lives on entities (`PlaybackSession.Transfer(...)`, `RefreshToken.Rotate(...)`), not in anemic services.
 7. **Repository + Unit of Work via `DbContext`** — one repository per aggregate root; `SaveChangesAsync` is the transaction boundary.
-8. **CQRS-lite via MediatR** — commands mutate and return `Unit`; queries return DTOs; validators run as a pipeline behavior.
-9. **Provider adapter pattern** — `IAudioSource` on the client, `IProviderAdapter` on the server. Adding Spotify means one new adapter, not a change to the core.
-10. **Server-owned playback session** — canonical `PlaybackSession` lives in the DB; clients are views with optional playback capability.
-11. **Refresh token rotation + family revocation** — every refresh mints a new token and invalidates the previous; reuse triggers family-wide revocation.
+8. **CQRS-lite via MediatR** — commands return `Unit`; queries return DTOs; validators as a pipeline behavior.
+9. **Provider adapter pattern** — `IAudioSource` on the client, `IProviderAdapter` on the server. Adding a new provider means one new adapter.
+10. **Server-owned playback session** — `PlaybackSession` lives in-memory on the server; clients are subscribers. `PlayEvent` rows are the durable record.
+11. **Refresh token rotation + family revocation** — every refresh mints a new token; reuse triggers family-wide revocation.
 12. **Content-addressed cache** — transcode and thumbnail outputs named by hash of inputs; invalidation is implicit.
-13. **Idempotent scanner** — running the scanner N times produces the same state (`AudioSha1` is the key).
-14. **Graceful degradation + keyboard parity** — MediaSession, MusicKit, and all mouse actions have working fallbacks; every mouse control has a keyboard shortcut.
-
----
-
-## Complete weekly pipeline with schedules
-
-All times in `America/Sao_Paulo` (`TZ` on the api container). Scheduler is `IHostedService` at first.
-
-| Day | Time | Job | What it does |
-|---|---|---|---|
-| Thursday | 03:00 | `CachePruneJob` | LRU eviction on `cache/transcodes` |
-| Thursday | 03:15 | `ArtCachePruneJob` | LRU eviction on `cache/art` |
-| Friday | 03:00 | `PlaybackStatsJob` | Recompute weekly aggregates (top artists/albums) |
-| Saturday | 03:00 | `BackupJob` | `pg_dump` → `/content/backups/`, retain 4 latest |
-| Sunday | 03:00 | `IntegrityCheckJob` | Sample-verify `AudioSha1` on 5% of tracks; DB flag only |
-| Daily | 04:00 | `RefreshTokenSweepJob` | Delete expired/revoked refresh tokens |
-
-User-triggered, event-driven:
-- `SyncLibrary` — runs on the sync button; walks `library/`, emits diff, applies on confirmation.
-- `TranscodeOnDemand` — fired when a client requests a format/bitrate not in the cache.
+13. **Idempotent ingest** — `AudioSha1` is the dedup key; running ingest N times produces the same state.
+14. **Active-device guard on WS hub** — only the active device's state mutations are accepted; stale events from previously active devices are dropped.
+15. **`--accent` as a live CSS variable** — UI accent color updates per-track from album art without a re-render; components read `var(--accent)` and get the change for free.
+16. **`loadMusic` idempotency** — loading the same URL twice is a no-op if the audio element is already set up; prevents restarts on component re-mount.
 
 ---
 
@@ -450,23 +444,25 @@ User-triggered, event-driven:
 
 Before any feature is considered done:
 
-- [ ] **Runs outside Docker:** `dotnet watch run` + `ng serve` still work (fast dev loop).
-- [ ] **Runs inside Docker:** `docker compose up --build` succeeds and the end-to-end flow still works.
-- [ ] **Layer discipline:** no `Domain` reference to EF Core/ASP.NET; no `Infrastructure` leaking into `Api` except via DI registration.
+- [ ] **Runs outside Docker:** `dotnet watch run` + `ng serve --proxy-config proxy.conf.json` work.
+- [ ] **Runs inside Docker:** `docker compose up --build` succeeds end-to-end.
+- [ ] **Layer discipline:** no `Domain` → EF Core/ASP.NET; no `Infrastructure` leaking into `Api` except via DI extension.
 - [ ] **DTO ≠ entity:** responses never expose EF entities directly.
-- [ ] **Validation at the edge:** every command/query has a `FluentValidation` validator registered.
-- [ ] **Auth coverage:** new endpoints declare `[Authorize]` (or `[AllowAnonymous]` with a comment saying why).
-- [ ] **Rate-limited where appropriate:** login, refresh, registration covered by the limiter.
-- [ ] **WebSocket safe:** if the feature mutates playback state, it goes through the session hub, not a REST side-channel.
+- [ ] **Validation at the edge:** every command/query has a `FluentValidation` validator.
+- [ ] **Auth coverage:** new endpoints declare `[Authorize]` (or `[AllowAnonymous]` with a comment).
+- [ ] **Rate-limited where appropriate:** login, refresh, registration covered.
+- [ ] **WebSocket safe:** playback state mutations go through the session hub, not a REST side-channel.
+- [ ] **Active-device guard:** WS messages that should only come from the active device are guarded.
 - [ ] **Type alignment:** frontend types match DTOs (camelCase, nullability).
 - [ ] **Loading + error states:** components reflect `isLoading()` and `error()` signals.
+- [ ] **Design system:** new UI follows `DESIGN.md` — 4px borders, no rounded corners, `var(--accent)` for accent colour, correct font assignments.
 - [ ] **Keyboard parity:** every new mouse control has a shortcut.
 - [ ] **MediaSession coherent:** if playback is affected, `ControllerService` is updated.
-- [ ] **No leaks:** new `HTMLAudioElement`s, timers, workers, and subscriptions clean up via `DestroyRef` / `ngOnDestroy`.
-- [ ] **Idempotency:** scheduled jobs can run twice without corruption.
-- [ ] **No absolute origins:** no new hardcoded `http://localhost` in frontend source.
-- [ ] **Proxy reviewed:** new routes or WebSockets have the right Caddyfile entry.
+- [ ] **No leaks:** `HTMLAudioElement`s, timers, workers, WebSockets, and subscriptions clean up via `DestroyRef`.
+- [ ] **No absolute origins:** no hardcoded `http://localhost` or `ws://localhost` in frontend source.
+- [ ] **Proxy reviewed:** new routes or WebSockets have matching entries in `proxy.conf.json` and the Caddyfile.
+- [ ] **Cookie Secure flag:** any new cookie follows the `!env.IsDevelopment()` pattern.
 - [ ] **Content-addressed where applicable:** new caches use input-hash keys.
 - [ ] **Backup-safe:** schema changes restore cleanly into an empty Postgres.
-- [ ] **Secrets absent:** no new env var with a value committed; `.env.example` updated.
-- [ ] **Doc reconciled:** if behavior diverged from this file, either update here or revert the code.
+- [ ] **Secrets absent:** no new env var value committed; `.env.example` updated.
+- [ ] **Doc reconciled:** if behaviour diverged from this file, update here or revert the code.

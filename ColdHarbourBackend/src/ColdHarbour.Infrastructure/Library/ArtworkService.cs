@@ -30,6 +30,8 @@ public sealed class ArtworkService(
 
         var sha1 = album.CoverArtSha1;
         var artDir = Path.Combine(ContentRoot, "cache", "art");
+        Directory.CreateDirectory(artDir);
+
         var thumbPath = Path.Combine(artDir, $"{sha1}-{size}.webp");
 
         if (File.Exists(thumbPath))
@@ -41,8 +43,6 @@ public sealed class ArtworkService(
 
         if (sourcePath is null)
             return null;
-
-        Directory.CreateDirectory(artDir);
 
         try
         {

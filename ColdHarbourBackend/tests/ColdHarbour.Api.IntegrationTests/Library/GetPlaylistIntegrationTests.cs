@@ -109,6 +109,12 @@ public class GetPlaylistIntegrationTests : IClassFixture<WebApplicationFactory<P
 
                 services.RemoveAll<IRefreshTokenRepository>();
                 services.AddSingleton<IRefreshTokenRepository>(new FakeRefreshTokenRepository());
+
+                services.RemoveAll<ColdHarbour.Application.Playback.Ports.IDeviceRepository>();
+                services.AddScoped<ColdHarbour.Application.Playback.Ports.IDeviceRepository>(_ => new NullDeviceRepo());
+
+                services.RemoveAll<ColdHarbour.Application.Playback.Ports.ITranscodeService>();
+                services.AddScoped<ColdHarbour.Application.Playback.Ports.ITranscodeService>(_ => new NullTranscodeService());
             });
         }).CreateClient();
 
@@ -267,5 +273,17 @@ public class GetPlaylistIntegrationTests : IClassFixture<WebApplicationFactory<P
     private sealed class FakeArtworkService : ColdHarbour.Application.Library.Ports.IArtworkService
     {
         public Task<string?> GetThumbnailPathAsync(Guid albumId, int size, CancellationToken ct = default) => Task.FromResult<string?>(null);
+    }
+
+    private sealed class NullDeviceRepo : ColdHarbour.Application.Playback.Ports.IDeviceRepository
+    {
+        public Task<ColdHarbour.Domain.Playback.Device?> FindByIdAsync(Guid deviceId, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Playback.Device?>(null);
+        public Task AddAsync(ColdHarbour.Domain.Playback.Device device, CancellationToken ct = default) => Task.CompletedTask;
+        public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
+    }
+
+    private sealed class NullTranscodeService : ColdHarbour.Application.Playback.Ports.ITranscodeService
+    {
+        public Task<string?> GetOrTranscodeAsync(string sourcePath, string audioSha1, string profile, CancellationToken ct = default) => Task.FromResult<string?>(null);
     }
 }

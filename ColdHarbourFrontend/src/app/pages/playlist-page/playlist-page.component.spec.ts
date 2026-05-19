@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-
 import { PlaylistPageComponent } from './playlist-page.component';
+import { provideHttpClient } from '@angular/common/http';
+import { provideRouter } from '@angular/router';
 
 describe('PlaylistPageComponent', () => {
   let component: PlaylistPageComponent;
@@ -8,9 +9,12 @@ describe('PlaylistPageComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [PlaylistPageComponent]
-    })
-    .compileComponents();
+      imports: [PlaylistPageComponent],
+      providers: [
+        provideHttpClient(),
+        provideRouter([]),
+      ]
+    }).compileComponents();
 
     fixture = TestBed.createComponent(PlaylistPageComponent);
     component = fixture.componentInstance;

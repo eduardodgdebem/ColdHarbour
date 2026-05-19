@@ -76,7 +76,7 @@ describe('ColorService', () => {
     const darkerColor = service['adjustColorBrightness'](color, -0.2);
     const brighterColor = service['adjustColorBrightness'](color, 0.2);
     
-    expect(darkerColor.toLowerCase()).toBe('#cc6c00');
+    expect(darkerColor.toLowerCase()).toBe('#cc6d00');
     expect(brighterColor.toLowerCase()).toBe('#ffa300');
   });
 

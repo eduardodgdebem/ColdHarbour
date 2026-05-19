@@ -17,15 +17,13 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
         Secure = true,
         SameSite = SameSiteMode.Strict,
         Path = "/api/auth",
-        MaxAge = TimeSpan.FromDays(14)
+        MaxAge = TimeSpan.FromDays(14),
     };
 
     // ── POST /api/auth/register ──────────────────────────────────────────────────
     [AllowAnonymous]
     [HttpPost("register")]
-    public async Task<IActionResult> Register(
-        [FromBody] RegisterRequest req,
-        CancellationToken ct)
+    public async Task<IActionResult> Register([FromBody] RegisterRequest req, CancellationToken ct)
     {
         try
         {
@@ -42,23 +40,29 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
     [AllowAnonymous]
     [EnableRateLimiting("login")]
     [HttpPost("login")]
-    public async Task<IActionResult> Login(
-        [FromBody] LoginRequest req,
-        CancellationToken ct)
+    public async Task<IActionResult> Login([FromBody] LoginRequest req, CancellationToken ct)
     {
         try
         {
             var result = await mediator.Send(
-                new AuthenticateUserCommand(req.Email, req.Password, req.DeviceId), ct);
+                new AuthenticateUserCommand(req.Email, req.Password, req.DeviceId),
+                ct
+            );
 
-            Response.Cookies.Append(RefreshTokenCookieName, result.RefreshTokenPlaintext, RefreshCookieOptions);
+            Response.Cookies.Append(
+                RefreshTokenCookieName,
+                result.RefreshTokenPlaintext,
+                RefreshCookieOptions
+            );
 
-            return Ok(new
-            {
-                result.Dto.AccessToken,
-                result.Dto.UserId,
-                result.Dto.Email
-            });
+            return Ok(
+                new
+                {
+                    result.Dto.AccessToken,
+                    result.Dto.UserId,
+                    result.Dto.Email,
+                }
+            );
         }
         catch (UnauthorizedAccessException)
         {
@@ -70,9 +74,7 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
     [AllowAnonymous]
     [EnableRateLimiting("login")]
     [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh(
-        [FromBody] RefreshRequest req,
-        CancellationToken ct)
+    public async Task<IActionResult> Refresh([FromBody] RefreshRequest req, CancellationToken ct)
     {
         var plaintext = Request.Cookies[RefreshTokenCookieName];
         if (string.IsNullOrEmpty(plaintext))
@@ -81,15 +83,24 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
         try
         {
             var result = await mediator.Send(
-                new RefreshAccessTokenCommand(plaintext, req.DeviceId), ct);
+                new RefreshAccessTokenCommand(plaintext, req.DeviceId),
+                ct
+            );
 
-            Response.Cookies.Append(RefreshTokenCookieName, result.RefreshTokenPlaintext, RefreshCookieOptions);
+            Response.Cookies.Append(
+                RefreshTokenCookieName,
+                result.RefreshTokenPlaintext,
+                RefreshCookieOptions
+            );
 
             return Ok(new { result.Dto.AccessToken });
         }
         catch (UnauthorizedAccessException)
         {
-            Response.Cookies.Delete(RefreshTokenCookieName, new CookieOptions { Path = "/api/auth" });
+            Response.Cookies.Delete(
+                RefreshTokenCookieName,
+                new CookieOptions { Path = "/api/auth" }
+            );
             return Unauthorized();
         }
     }
@@ -103,14 +114,18 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
         if (!string.IsNullOrEmpty(plaintext))
             await mediator.Send(new LogoutCommand(plaintext), ct);
 
-        Response.Cookies.Append(RefreshTokenCookieName, "", new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.Strict,
-            Path = "/api/auth",
-            MaxAge = TimeSpan.Zero
-        });
+        Response.Cookies.Append(
+            RefreshTokenCookieName,
+            "",
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Path = "/api/auth",
+                MaxAge = TimeSpan.Zero,
+            }
+        );
 
         return NoContent();
     }

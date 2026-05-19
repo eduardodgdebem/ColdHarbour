@@ -1,27 +1,22 @@
 $mobile: 768px;
-$player-mobile-h: 88px;
 
-/* ── Root layout ─────────────────────────────── */
+/* ── Root layout (column: library on top, player bar on bottom) */
 .layout {
   display: flex;
+  flex-direction: column;
   height: 100dvh;
   overflow: hidden;
   background: var(--off-white);
 }
 
-/* ── Library panel (left / full-width on mobile) */
+/* ── Library panel ───────────────────────────── */
 .library {
   flex: 1;
-  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-right: var(--border);
   position: relative;
-
-  @media (max-width: $mobile - 1px) {
-    border-right: none;
-  }
 }
 
 /* ── Header ─────────────────────────────────── */
@@ -160,28 +155,10 @@ $player-mobile-h: 88px;
 .library-scroll {
   flex: 1;
   overflow-y: auto;
-
-  @media (max-width: $mobile - 1px) {
-    padding-bottom: $player-mobile-h;
-  }
 }
 
-/* ── Player panel (right on desktop / bottom-fixed on mobile) */
+/* ── Player bar (always at the bottom as a flex item) */
 app-player {
   flex-shrink: 0;
-  width: 30%;
-  min-width: 280px;
-  max-width: 420px;
-
-  @media (max-width: $mobile - 1px) {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    max-width: none;
-    min-width: 0;
-    z-index: 100;
-    border-top: var(--border);
-  }
+  border-top: var(--border);
 }

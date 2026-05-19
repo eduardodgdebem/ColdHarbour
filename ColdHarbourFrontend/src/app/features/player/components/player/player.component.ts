@@ -1,4 +1,4 @@
-import { Component, effect, ElementRef, ViewChild } from '@angular/core';
+import { Component, effect, ElementRef, HostBinding, ViewChild } from '@angular/core';
 import { AudioService } from '../../services/audio.service';
 import { MusicService } from '../../services/music.service';
 import { PlayIconComponent } from '../../../../shared/icons/play-icon.component';
@@ -15,6 +15,10 @@ type SlidersId = "volume" | "progress";
   styleUrl: './player.component.scss',
 })
 export class PlayerComponent {
+  @HostBinding('style.display') get hostDisplay() {
+    return this.musicService.currentMusic() ? 'block' : 'none';
+  }
+
   @ViewChild('volumeInput') volumeInput!: ElementRef<HTMLInputElement>;
   @ViewChild('progressInput') progressInput!: ElementRef<HTMLInputElement>;
 

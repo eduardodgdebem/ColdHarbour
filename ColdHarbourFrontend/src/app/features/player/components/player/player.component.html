@@ -1,20 +1,17 @@
 @if (musicService.currentMusic(); as music) {
   <section class="player">
 
-    <!-- Album art — hidden on mobile -->
     <div class="player-art">
       <img [src]="music.imageRef" [alt]="music.name">
     </div>
 
     <div class="player-body">
 
-      <!-- Track info -->
       <div class="player-info">
         <h2 class="player-title">{{ music.name }}</h2>
         <p class="player-artist">{{ music.author }}</p>
       </div>
 
-      <!-- Progress -->
       <div class="player-progress">
         <span class="time-label">{{ formatTime(audioService.currentTime()) }}</span>
         <div class="progress-track" (click)="onSliderClick($event)">
@@ -26,7 +23,6 @@
         <span class="time-label">{{ formatTime(audioService.duration()) }}</span>
       </div>
 
-      <!-- Transport -->
       <div class="player-transport">
         <button class="transport-btn" title="Previous" (click)="musicService.previousMusic()">
           <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -49,7 +45,6 @@
         </button>
       </div>
 
-      <!-- Volume -->
       <div class="player-volume">
         <span class="vol-label">VOL</span>
         <div class="volume-track">
@@ -61,9 +56,5 @@
       </div>
 
     </div>
-  </section>
-} @else {
-  <section class="player player--empty">
-    <p class="empty-label">NO TRACK SELECTED</p>
   </section>
 }

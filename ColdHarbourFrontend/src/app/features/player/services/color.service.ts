@@ -7,7 +7,7 @@ export class ColorService {
   public accentColor = signal('');
   private worker: Worker;
   private colorCache: Map<string, string> = new Map();
-  private defaultColor = '#000000';
+  private defaultColor = '#D3F000';
 
   constructor() {
     this.worker = new Worker(new URL('../workers/color-worker.ts', import.meta.url), { type: 'module' });

@@ -1,5 +1,6 @@
 import { Component, effect, ElementRef, HostBinding, ViewChild } from '@angular/core';
 import { AudioService } from '../../services/audio.service';
+import { ColorService } from '../../services/color.service';
 import { MusicService } from '../../services/music.service';
 import { PlayIconComponent } from '../../../../shared/icons/play-icon.component';
 import { PauseIconComponent } from '../../../../shared/icons/pause-icon.component';
@@ -24,7 +25,8 @@ export class PlayerComponent {
 
   constructor(
     public audioService: AudioService,
-    public musicService: MusicService
+    public musicService: MusicService,
+    private colorService: ColorService
   ) {
     this.setupEffects();
   }
@@ -35,6 +37,7 @@ export class PlayerComponent {
       if (music?.audioRef) {
         this.audioService.isPlaying.set(false);
         this.audioService.loadMusic(music.audioRef);
+        this.colorService.extractColor(music.imageRef);
       }
     });
 

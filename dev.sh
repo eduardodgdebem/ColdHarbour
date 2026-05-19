@@ -59,6 +59,7 @@ ConnectionStrings__DefaultConnection="$DB_CONN" \
 # ── 3. Start API in watch mode ────────────────────────────────────────────────
 echo "→ Starting API (dotnet watch) on http://localhost:8080 ..."
 ASPNETCORE_ENVIRONMENT=Development \
+  ASPNETCORE_URLS=http://localhost:8080 \
   ConnectionStrings__DefaultConnection="$DB_CONN" \
   COLDHARBOUR_CONTENT_ROOT="$ROOT/content" \
   dotnet watch run \

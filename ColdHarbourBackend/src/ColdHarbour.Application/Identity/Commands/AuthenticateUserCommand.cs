@@ -55,6 +55,7 @@ public sealed class AuthenticateUserCommandHandler : IRequestHandler<Authenticat
         await _refreshTokenRepository.SaveChangesAsync(cancellationToken);
 
         var accessToken = _tokenService.GenerateAccessToken(user, request.DeviceId);
-        return new AuthenticateResult(new AuthResultDto(accessToken, user.Id, user.Email), plaintext);
+        var mediaToken = _tokenService.GenerateMediaToken(user);
+        return new AuthenticateResult(new AuthResultDto(accessToken, user.Id, user.Email), plaintext, mediaToken);
     }
 }

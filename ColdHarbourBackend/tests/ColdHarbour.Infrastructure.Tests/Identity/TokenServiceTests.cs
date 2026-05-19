@@ -51,6 +51,26 @@ public class TokenServiceTests
     }
 
     [Fact]
+    public void GenerateMediaToken_ReturnsValidJwtWithoutDeviceId()
+    {
+        var user = User.Create(
+            "media@example.com",
+            "Media User",
+            PasswordHash.From("$argon2id$v=19$m=65536,t=3,p=4$fakehash"));
+
+        var token = _sut.GenerateMediaToken(user);
+
+        token.Should().NotBeNullOrWhiteSpace();
+
+        var handler = new JwtSecurityTokenHandler();
+        var parsed = handler.ReadJwtToken(token);
+
+        parsed.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.Sub && c.Value == user.Id.ToString());
+        parsed.Claims.Should().NotContain(c => c.Type == "deviceId");
+        parsed.ValidTo.Should().BeAfter(DateTime.UtcNow.AddHours(7));
+    }
+
+    [Fact]
     public void GenerateRefreshTokenPlaintext_Returns64CharHexString()
     {
         var token = _sut.GenerateRefreshTokenPlaintext();

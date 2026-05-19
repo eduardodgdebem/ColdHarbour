@@ -8,6 +8,7 @@ public class Track
     public Guid Id { get; private set; }
     public string Title { get; private set; } = default!;
     public Guid AlbumId { get; private set; }
+    public int? TrackNumber { get; private set; }
     public TimeSpan Duration { get; private set; }
     public string Provider { get; private set; } = default!;
     public string? ProviderRef { get; private set; }
@@ -27,7 +28,8 @@ public class Track
         int bitrate,
         string audioSha1,
         string? providerRef = null,
-        string? localPath = null)
+        string? localPath = null,
+        int? trackNumber = null)
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("Track title must not be null or whitespace.", nameof(title));
@@ -55,6 +57,7 @@ public class Track
             Id = Guid.NewGuid(),
             Title = title.Trim(),
             AlbumId = albumId,
+            TrackNumber = trackNumber,
             Duration = duration,
             Provider = provider.Trim(),
             ProviderRef = providerRef,

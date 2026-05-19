@@ -65,6 +65,7 @@ public sealed class RefreshAccessTokenCommandHandler : IRequestHandler<RefreshAc
         await _refreshTokenRepository.SaveChangesAsync(cancellationToken);
 
         var accessToken = _tokenService.GenerateAccessToken(user, request.DeviceId);
-        return new AuthenticateResult(new AuthResultDto(accessToken, user.Id, user.Email), newPlaintext);
+        var mediaToken = _tokenService.GenerateMediaToken(user);
+        return new AuthenticateResult(new AuthResultDto(accessToken, user.Id, user.Email), newPlaintext, mediaToken);
     }
 }

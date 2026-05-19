@@ -3,11 +3,14 @@ import { ApiService } from './api.service';
 import { ColorService } from './color.service';
 
 export type Music = {
+  id: number;
+  trackId: string;
+  albumId: string;
   name: string;
   author: string;
   audioRef: string;
   imageRef: string;
-  id: number;
+  durationSeconds: number;
 };
 
 export type Playlist = {
@@ -34,8 +37,7 @@ export class MusicService {
     effect(() => {
       const music = this.currentMusic();
       if (music?.imageRef) {
-        const encodedImageRef = music.imageRef.replace(/ /g, '%20');
-        this.colorService.extractColor(encodedImageRef);
+        this.colorService.extractColor(music.imageRef);
       }
     });
   }

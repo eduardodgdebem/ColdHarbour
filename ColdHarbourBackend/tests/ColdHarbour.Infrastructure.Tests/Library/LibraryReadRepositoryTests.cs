@@ -1,3 +1,4 @@
+using ColdHarbour.Domain.Library;
 using ColdHarbour.Infrastructure.Library;
 using ColdHarbour.Infrastructure.Persistence;
 using FluentAssertions;
@@ -30,17 +31,49 @@ public class LibraryReadRepositoryTests : IAsyncLifetime
     public async Task DisposeAsync() => await _postgres.DisposeAsync();
 
     [Fact]
-    public async Task GetAllTracksAsync_ReturnsSeedData_AfterMigration()
+    public async Task GetAllTracksAsync_ReturnsEmpty_WhenNoTracksExist()
     {
         await using var context = CreateContext();
         var repo = new LibraryReadRepository(context);
 
         var tracks = await repo.GetAllTracksAsync();
 
-        tracks.Should().HaveCount(2);
-        tracks.Select(t => t.Title).Should().Contain("Baby You're Bad").And.Contain("Liz");
-        tracks.Select(t => t.ArtistName).Should().Contain("HONNE").And.Contain("Remi Wolf");
-        tracks.Should().Contain(t => t.LocalPath == "/assets/music/babyyourebad.mp3");
-        tracks.Should().Contain(t => t.LocalPath == "/assets/music/liz.mp3");
+        tracks.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetAllTracksAsync_ReturnsTracksWithAllFields()
+    {
+        var sha1 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+        await using (var ctx = CreateContext())
+        {
+            var artist = Artist.Create("Pink Floyd");
+            var album = Album.Create("The Wall", artist.Id, 1979);
+            var track = Track.Create("Comfortably Numb", album.Id,
+                TimeSpan.FromSeconds(382), "local", "flac", 900, sha1,
+                localPath: "/content/library/Pink Floyd/The Wall/comfortably_numb.flac",
+                trackNumber: 6);
+
+            ctx.Artists.Add(artist);
+            ctx.Albums.Add(album);
+            ctx.Tracks.Add(track);
+            await ctx.SaveChangesAsync();
+        }
+
+        await using (var ctx = CreateContext())
+        {
+            var repo = new LibraryReadRepository(ctx);
+            var tracks = await repo.GetAllTracksAsync();
+
+            tracks.Should().HaveCount(1);
+            var t = tracks[0];
+            t.Title.Should().Be("Comfortably Numb");
+            t.ArtistName.Should().Be("Pink Floyd");
+            t.AlbumTitle.Should().Be("The Wall");
+            t.Duration.Should().Be(TimeSpan.FromSeconds(382));
+            t.LocalPath.Should().Contain("comfortably_numb");
+            t.AlbumId.Should().NotBeEmpty();
+        }
     }
 }

@@ -11,6 +11,8 @@ namespace ColdHarbour.Api.Controllers;
 public sealed class AuthController(IMediator mediator) : ControllerBase
 {
     private const string RefreshTokenCookieName = "refreshToken";
+    private const string MediaTokenCookieName = "media_token";
+
     private static readonly CookieOptions RefreshCookieOptions = new()
     {
         HttpOnly = true,
@@ -18,6 +20,17 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
         SameSite = SameSiteMode.Strict,
         Path = "/api/auth",
         MaxAge = TimeSpan.FromDays(14),
+    };
+
+    // Scoped to /api so the browser sends it on img/audio requests to /api/stream and /api/artwork.
+    // 8h TTL matches the silent-refresh cadence — access token refresh also rotates this cookie.
+    private static readonly CookieOptions MediaCookieOptions = new()
+    {
+        HttpOnly = true,
+        Secure = true,
+        SameSite = SameSiteMode.Strict,
+        Path = "/api",
+        MaxAge = TimeSpan.FromHours(8),
     };
 
     // ── POST /api/auth/register ──────────────────────────────────────────────────
@@ -49,20 +62,10 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
                 ct
             );
 
-            Response.Cookies.Append(
-                RefreshTokenCookieName,
-                result.RefreshTokenPlaintext,
-                RefreshCookieOptions
-            );
+            Response.Cookies.Append(RefreshTokenCookieName, result.RefreshTokenPlaintext, RefreshCookieOptions);
+            Response.Cookies.Append(MediaTokenCookieName, result.MediaToken, MediaCookieOptions);
 
-            return Ok(
-                new
-                {
-                    result.Dto.AccessToken,
-                    result.Dto.UserId,
-                    result.Dto.Email,
-                }
-            );
+            return Ok(new { result.Dto.AccessToken, result.Dto.UserId, result.Dto.Email });
         }
         catch (UnauthorizedAccessException)
         {
@@ -87,11 +90,8 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
                 ct
             );
 
-            Response.Cookies.Append(
-                RefreshTokenCookieName,
-                result.RefreshTokenPlaintext,
-                RefreshCookieOptions
-            );
+            Response.Cookies.Append(RefreshTokenCookieName, result.RefreshTokenPlaintext, RefreshCookieOptions);
+            Response.Cookies.Append(MediaTokenCookieName, result.MediaToken, MediaCookieOptions);
 
             return Ok(new { result.Dto.AccessToken });
         }
@@ -114,18 +114,9 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
         if (!string.IsNullOrEmpty(plaintext))
             await mediator.Send(new LogoutCommand(plaintext), ct);
 
-        Response.Cookies.Append(
-            RefreshTokenCookieName,
-            "",
-            new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Path = "/api/auth",
-                MaxAge = TimeSpan.Zero,
-            }
-        );
+        Response.Cookies.Append(RefreshTokenCookieName, "",
+            new CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.Strict, Path = "/api/auth", MaxAge = TimeSpan.Zero });
+        Response.Cookies.Delete(MediaTokenCookieName, new CookieOptions { Path = "/api" });
 
         return NoContent();
     }

@@ -14,6 +14,9 @@ services:
       - ASPNETCORE_URLS=http://+:8080
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      - COLDHARBOUR_CONTENT_ROOT=/content
+    volumes:
+      - coldharbour_content:/content
     depends_on:
       - db
 
@@ -23,3 +26,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+
+volumes:
+  coldharbour_content:

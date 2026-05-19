@@ -7,19 +7,28 @@ namespace ColdHarbour.Application.Tests.Library;
 
 public sealed class GetPlaylistQueryHandlerTests
 {
+    private static readonly Guid AlbumId1 = Guid.Parse("22222222-0000-0000-0000-000000000001");
+    private static readonly Guid AlbumId2 = Guid.Parse("22222222-0000-0000-0000-000000000002");
+
     private static readonly IReadOnlyList<TrackReadModel> TwoTracks =
     [
         new TrackReadModel(
             Id: Guid.Parse("33333333-0000-0000-0000-000000000001"),
+            AlbumId: AlbumId1,
             Title: "Baby You're Bad",
             ArtistName: "HONNE",
+            AlbumTitle: "HONNE",
+            Duration: TimeSpan.FromSeconds(210),
             LocalPath: "/assets/music/babyyourebad.mp3",
             Format: "mp3",
             Bitrate: 128),
         new TrackReadModel(
             Id: Guid.Parse("33333333-0000-0000-0000-000000000002"),
+            AlbumId: AlbumId2,
             Title: "Liz",
             ArtistName: "Remi Wolf",
+            AlbumTitle: "Remi Wolf",
+            Duration: TimeSpan.FromSeconds(210),
             LocalPath: "/assets/music/liz.mp3",
             Format: "mp3",
             Bitrate: 128)
@@ -55,15 +64,27 @@ public sealed class GetPlaylistQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ReturnsMusicWithCorrectAudioRef()
+    public async Task Handle_ReturnsMusicWithStreamAudioRef()
     {
         var handler = BuildHandler();
         var query = new GetPlaylistQuery(1);
 
         var result = await handler.Handle(query, CancellationToken.None);
 
-        result.Musics.Should().Contain(m => m.AudioRef == "/assets/music/babyyourebad.mp3");
-        result.Musics.Should().Contain(m => m.AudioRef == "/assets/music/liz.mp3");
+        result.Musics.Should().Contain(m =>
+            m.AudioRef == $"/api/stream/{Guid.Parse("33333333-0000-0000-0000-000000000001")}");
+    }
+
+    [Fact]
+    public async Task Handle_ReturnsMusicWithArtworkImageRef()
+    {
+        var handler = BuildHandler();
+        var query = new GetPlaylistQuery(1);
+
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        result.Musics.Should().Contain(m =>
+            m.ImageRef == $"/api/artwork/{AlbumId1}?size=256");
     }
 
     [Fact]
@@ -99,6 +120,29 @@ public sealed class GetPlaylistQueryHandlerTests
         var result = await handler.Handle(query, CancellationToken.None);
 
         result.Name.Should().Be("Library");
+    }
+
+    [Fact]
+    public async Task Handle_ExposesTrackIdAndAlbumId()
+    {
+        var handler = BuildHandler();
+        var query = new GetPlaylistQuery(1);
+
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        result.Musics[0].TrackId.Should().Be(Guid.Parse("33333333-0000-0000-0000-000000000001"));
+        result.Musics[0].AlbumId.Should().Be(AlbumId1);
+    }
+
+    [Fact]
+    public async Task Handle_ExposesDurationSeconds()
+    {
+        var handler = BuildHandler();
+        var query = new GetPlaylistQuery(1);
+
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        result.Musics[0].DurationSeconds.Should().BeApproximately(210, 0.001);
     }
 
     // --- hand-crafted stub (no mocking library) ---

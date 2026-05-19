@@ -31,12 +31,14 @@ public class RefreshAccessTokenCommandHandlerTests
         _userRepo.FindByIdAsync(user.Id, Arg.Any<CancellationToken>()).Returns(user);
         _tokenService.GenerateRefreshTokenPlaintext().Returns("new_plaintext_token_xxxxxxxxxx");
         _tokenService.GenerateAccessToken(user, "device-1").Returns("new_access_token");
+        _tokenService.GenerateMediaToken(user).Returns("new_media_token");
 
         var handler = CreateHandler();
         var result = await handler.Handle(new RefreshAccessTokenCommand("valid_plaintext", "device-1"), CancellationToken.None);
 
         result.Dto.AccessToken.Should().Be("new_access_token");
         result.RefreshTokenPlaintext.Should().Be("new_plaintext_token_xxxxxxxxxx");
+        result.MediaToken.Should().Be("new_media_token");
     }
 
     [Fact]

@@ -14,7 +14,7 @@
 | 1 | Infrastructure swap | ✅ Done — merged to main 2026-04-19 (`44f2e2c`) |
 | 2 | Clean Architecture skeleton + EF Core | ✅ Done — landed on phase-2-clean-arch 2026-04-20 |
 | 3 | Authentication | ✅ Done — merged to main 2026-04-20 (`phase-3-auth`) |
-| 4 | Library CRUD + artwork | ⏳ Not started |
+| 4 | Library CRUD + artwork | ✅ Done — landed on main 2026-05-19 |
 | 5 | Streaming upgrade | ⏳ Not started |
 | 6 | Playback session + device handoff | ⏳ Not started |
 | 7 | Operational hygiene | ⏳ Not started |
@@ -111,7 +111,9 @@ Don't refactor anything yet — just confirm `docker compose up --build` works e
 
 ---
 
-## Phase 4 — Library CRUD (upload-driven) + artwork
+## Phase 4 — Library CRUD (upload-driven) + artwork ✅ Done
+
+> Landed on `main` 2026-05-19. 125 tests pass (48 domain, 34 application, 20 integration, 23 infrastructure).
 
 **Goal.** Users can upload, delete, and sync tracks from the frontend. Artwork extracted during upload and served via the artwork endpoint.
 

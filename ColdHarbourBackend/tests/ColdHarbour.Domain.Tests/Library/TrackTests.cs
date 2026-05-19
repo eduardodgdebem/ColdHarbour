@@ -76,4 +76,21 @@ public class TrackTests
 
         act.Should().NotThrow();
     }
+
+    [Fact]
+    public void Create_WithTrackNumber_SetsTrackNumber()
+    {
+        var track = Track.Create("Title", ValidAlbumId, ValidDuration, "local", "flac", 320, ValidSha1,
+            trackNumber: 3);
+
+        track.TrackNumber.Should().Be(3);
+    }
+
+    [Fact]
+    public void Create_WithoutTrackNumber_TrackNumberIsNull()
+    {
+        var track = Track.Create("Title", ValidAlbumId, ValidDuration, "local", "flac", 320, ValidSha1);
+
+        track.TrackNumber.Should().BeNull();
+    }
 }

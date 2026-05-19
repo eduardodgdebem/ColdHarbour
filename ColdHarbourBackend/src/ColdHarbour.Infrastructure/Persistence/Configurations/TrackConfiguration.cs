@@ -38,44 +38,21 @@ public class TrackConfiguration : IEntityTypeConfiguration<Track>
         builder.Property(t => t.Bitrate)
             .IsRequired();
 
+        builder.Property(t => t.TrackNumber)
+            .IsRequired(false);
+
         // Store Duration as long (ticks) since PostgreSQL doesn't have a native ticks type.
         builder.Property(t => t.Duration)
             .HasConversion(
                 duration => duration.Ticks,
                 ticks => TimeSpan.FromTicks(ticks));
 
+        builder.HasIndex(t => t.AudioSha1)
+            .IsUnique();
+
         builder.HasOne<Album>()
             .WithMany()
             .HasForeignKey(t => t.AlbumId)
             .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasData(
-            new
-            {
-                Id = Guid.Parse("33333333-0000-0000-0000-000000000001"),
-                Title = "Baby You're Bad",
-                AlbumId = Guid.Parse("22222222-0000-0000-0000-000000000001"),
-                Duration = TimeSpan.FromSeconds(210),
-                Provider = "local",
-                ProviderRef = (string?)null,
-                LocalPath = "/assets/music/babyyourebad.mp3",
-                Format = "mp3",
-                Bitrate = 128,
-                AudioSha1 = "0000000000000000000000000000000000000001"
-            },
-            new
-            {
-                Id = Guid.Parse("33333333-0000-0000-0000-000000000002"),
-                Title = "Liz",
-                AlbumId = Guid.Parse("22222222-0000-0000-0000-000000000002"),
-                Duration = TimeSpan.FromSeconds(210),
-                Provider = "local",
-                ProviderRef = (string?)null,
-                LocalPath = "/assets/music/liz.mp3",
-                Format = "mp3",
-                Bitrate = 128,
-                AudioSha1 = "0000000000000000000000000000000000000002"
-            }
-        );
     }
 }

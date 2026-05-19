@@ -17,6 +17,10 @@ public static class DependencyInjection
             opts.UseNpgsql(config.GetConnectionString("DefaultConnection")));
 
         services.AddScoped<ILibraryReadRepository, LibraryReadRepository>();
+        services.AddScoped<ITrackRepository, TrackRepository>();
+        services.AddScoped<ITrackIngestService, TrackIngestService>();
+        services.AddScoped<ILibraryReconciler, LibraryReconciler>();
+        services.AddScoped<IArtworkService, ArtworkService>();
 
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, TokenService>();

@@ -16,8 +16,11 @@ public sealed class LibraryReadRepository : ILibraryReadRepository
             .Join(_db.Albums, t => t.AlbumId, a => a.Id, (t, a) => new { Track = t, Album = a })
             .Join(_db.Artists, ta => ta.Album.ArtistId, ar => ar.Id, (ta, ar) => new TrackReadModel(
                 ta.Track.Id,
+                ta.Track.AlbumId,
                 ta.Track.Title,
                 ar.Name,
+                ta.Album.Title,
+                ta.Track.Duration,
                 ta.Track.LocalPath,
                 ta.Track.Format,
                 ta.Track.Bitrate))

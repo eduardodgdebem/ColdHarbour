@@ -61,6 +61,17 @@ try
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key))
             };
+            // Browser img/audio elements cannot attach an Authorization header.
+            // Fall back to the media_token HttpOnly cookie for /api/stream and /api/artwork requests.
+            opts.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = ctx =>
+                {
+                    if (string.IsNullOrEmpty(ctx.Token))
+                        ctx.Token = ctx.Request.Cookies["media_token"];
+                    return Task.CompletedTask;
+                }
+            };
         });
 
     builder.Services.AddAuthorization();

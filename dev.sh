@@ -52,6 +52,9 @@ ConnectionStrings__DefaultConnection="$DB_CONN" \
 
 # ── 3. Launch tmux session ────────────────────────────────────────────────────
 tmux kill-session -t "$SESSION" 2>/dev/null || true
+# Free ports in case a previous run left orphaned processes
+lsof -ti:8080 | xargs kill -9 2>/dev/null || true
+lsof -ti:4200 | xargs kill -9 2>/dev/null || true
 
 # Window: db (live postgres logs)
 tmux new-session -d -s "$SESSION" -n "db" -x 220 -y 50

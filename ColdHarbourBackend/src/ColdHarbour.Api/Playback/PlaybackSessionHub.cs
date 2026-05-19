@@ -6,6 +6,7 @@ using System.Text.Json.Nodes;
 using ColdHarbour.Application.Playback.Commands;
 using ColdHarbour.Application.Playback.Dtos;
 using ColdHarbour.Application.Playback.Ports;
+using ColdHarbour.Domain.Playback;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -102,19 +103,24 @@ public sealed class PlaybackSessionHub(
                 }
                 case "pause":
                 {
-                    var posMs = node!["positionMs"]?.GetValue<long>() ?? 0;
                     var session = store.GetOrCreate(userId);
+                    if (!IsActiveDevice(node!, session)) break;
+                    var posMs = node!["positionMs"]?.GetValue<long>() ?? 0;
                     session.UpdatePosition(posMs);
                     session.Pause();
                     break;
                 }
                 case "resume":
                 {
-                    store.GetOrCreate(userId).Resume();
+                    var session = store.GetOrCreate(userId);
+                    if (!IsActiveDevice(node!, session)) break;
+                    session.Resume();
                     break;
                 }
                 case "heartbeat":
                 {
+                    var session = store.GetOrCreate(userId);
+                    if (!IsActiveDevice(node!, session)) break;
                     var posMs = node!["positionMs"]!.GetValue<long>();
                     await mediator.Send(new UpdatePlaybackPositionCommand(userId, posMs), ct);
                     break;
@@ -129,7 +135,9 @@ public sealed class PlaybackSessionHub(
                 }
                 case "stop":
                 {
-                    store.GetOrCreate(userId).Clear();
+                    var session = store.GetOrCreate(userId);
+                    if (!IsActiveDevice(node!, session)) break;
+                    session.Clear();
                     break;
                 }
             }
@@ -138,6 +146,15 @@ public sealed class PlaybackSessionHub(
         {
             logger.LogWarning(ex, "Error processing playback message from user {UserId}", userId);
         }
+    }
+
+    // Returns true if the message's deviceId matches the active device (or if no deviceId is provided).
+    private static bool IsActiveDevice(JsonNode node, PlaybackSession session)
+    {
+        var raw = node["deviceId"]?.GetValue<string>();
+        if (raw is null || !Guid.TryParse(raw, out var deviceId))
+            return true; // no deviceId → allow (backward compat)
+        return !session.ActiveDeviceId.HasValue || session.ActiveDeviceId.Value == deviceId;
     }
 
     private async Task BroadcastSessionAsync(Guid userId)

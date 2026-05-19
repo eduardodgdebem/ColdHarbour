@@ -8,15 +8,15 @@ namespace ColdHarbour.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public sealed class AuthController(IMediator mediator) : ControllerBase
+public sealed class AuthController(IMediator mediator, IWebHostEnvironment env) : ControllerBase
 {
     private const string RefreshTokenCookieName = "refreshToken";
     private const string MediaTokenCookieName = "media_token";
 
-    private static readonly CookieOptions RefreshCookieOptions = new()
+    private readonly CookieOptions RefreshCookieOptions = new()
     {
         HttpOnly = true,
-        Secure = true,
+        Secure = !env.IsDevelopment(),
         SameSite = SameSiteMode.Strict,
         Path = "/api/auth",
         MaxAge = TimeSpan.FromDays(14),
@@ -24,10 +24,10 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
 
     // Scoped to /api so the browser sends it on img/audio requests to /api/stream and /api/artwork.
     // 8h TTL matches the silent-refresh cadence — access token refresh also rotates this cookie.
-    private static readonly CookieOptions MediaCookieOptions = new()
+    private readonly CookieOptions MediaCookieOptions = new()
     {
         HttpOnly = true,
-        Secure = true,
+        Secure = !env.IsDevelopment(),
         SameSite = SameSiteMode.Strict,
         Path = "/api",
         MaxAge = TimeSpan.FromHours(8),
@@ -115,7 +115,7 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
             await mediator.Send(new LogoutCommand(plaintext), ct);
 
         Response.Cookies.Append(RefreshTokenCookieName, "",
-            new CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.Strict, Path = "/api/auth", MaxAge = TimeSpan.Zero });
+            new CookieOptions { HttpOnly = true, Secure = !env.IsDevelopment(), SameSite = SameSiteMode.Strict, Path = "/api/auth", MaxAge = TimeSpan.Zero });
         Response.Cookies.Delete(MediaTokenCookieName, new CookieOptions { Path = "/api" });
 
         return NoContent();

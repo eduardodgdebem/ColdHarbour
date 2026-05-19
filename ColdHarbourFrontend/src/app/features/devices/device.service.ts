@@ -1,11 +1,16 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
-import { Observable, catchError, of } from 'rxjs';
+import { Injectable, signal } from '@angular/core';
+import { Observable, catchError, of, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type { DeviceDto } from '../player/services/playback-session.service';
 
 @Injectable({ providedIn: 'root' })
 export class DeviceService {
+  // Becomes true once POST /api/devices has succeeded at least once this session.
+  // PlaybackSessionService gates the WS connection on this to ensure the device
+  // row exists before the hub broadcasts the devices list.
+  readonly registered = signal(false);
+
   constructor(private http: HttpClient) {}
 
   register(): Observable<void> {
@@ -19,7 +24,10 @@ export class DeviceService {
       supportedCodecs,
       preferredProfile,
       bitrateCap: null,
-    }).pipe(catchError(() => of(void 0)));
+    }).pipe(
+      tap(() => this.registered.set(true)),
+      catchError(() => { this.registered.set(true); return of(void 0); }),
+    );
   }
 
   listDevices(): Observable<DeviceDto[]> {

@@ -10,6 +10,7 @@ export class LocalAudioSource implements AudioSource {
   readonly ended = signal(false);
 
   private audio?: HTMLAudioElement;
+  private currentSrc = '';
   private updateInterval?: ReturnType<typeof setInterval>;
 
   constructor(private destroyRef: DestroyRef) {
@@ -30,8 +31,12 @@ export class LocalAudioSource implements AudioSource {
   }
 
   loadMusic(src: string): void {
+    // Skip if this URL is already loaded (playing or paused). This prevents the
+    // player component from restarting audio when it re-mounts on the same track.
+    if (src === this.currentSrc && this.audio) return;
     const previousVolume = this.audio?.volume ?? 1;
     this.cleanup();
+    this.currentSrc = src; // set after cleanup so cleanup's reset doesn't clobber it
     this.currentTime.set(0);
     this.duration.set(0);
     this.isPlaying.set(false);
@@ -64,6 +69,7 @@ export class LocalAudioSource implements AudioSource {
   }
 
   cleanup(): void {
+    this.currentSrc = '';
     this.isPlaying.set(false);
     this.stopTimeUpdate();
     if (this.audio) {

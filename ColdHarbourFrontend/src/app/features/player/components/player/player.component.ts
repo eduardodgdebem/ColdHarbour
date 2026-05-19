@@ -34,12 +34,12 @@ export class PlayerComponent {
   private setupEffects() {
     effect(() => {
       const music = this.musicService.currentMusic();
-      if (music?.audioRef) {
-        this.audioService.isPlaying.set(false);
-        this.audioService.loadMusic(music.audioRef);
-        this.colorService.extractColor(music.imageRef);
-      }
-    });
+      if (!music?.audioRef) return;
+      this.colorService.extractColor(music.imageRef);
+      // loadMusic is a no-op if this URL is already loaded; it handles
+      // cleanup internally when switching tracks.
+      this.audioService.loadMusic(music.audioRef);
+    }, { allowSignalWrites: true });
 
     effect(() => {
       const volume = this.audioService.volume();

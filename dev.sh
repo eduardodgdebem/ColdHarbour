@@ -5,6 +5,13 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 BACKEND="$ROOT/ColdHarbourBackend"
 FRONTEND="$ROOT/ColdHarbourFrontend"
 API_PROJECT="$BACKEND/src/ColdHarbour.Api"
+SESSION="coldharbour"
+
+# ── Require tmux ─────────────────────────────────────────────────────────────
+if ! command -v tmux &>/dev/null; then
+  echo "⚠  tmux is not installed. Install it with: brew install tmux" >&2
+  exit 1
+fi
 
 # ── Load .env (POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB) ──────────────
 if [[ -f "$ROOT/.env" ]]; then
@@ -15,19 +22,6 @@ else
 fi
 
 DB_CONN="Host=localhost;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
-
-# ── Cleanup: kill all children on Ctrl-C ────────────────────────────────────
-PIDS=()
-cleanup() {
-  echo ""
-  echo "→ Stopping..."
-  for pid in "${PIDS[@]}"; do
-    kill "$pid" 2>/dev/null || true
-  done
-  docker compose stop db 2>/dev/null || true
-  exit 0
-}
-trap cleanup INT TERM
 
 # ── 1. Start Postgres ─────────────────────────────────────────────────────────
 echo "→ Starting Postgres..."
@@ -56,30 +50,36 @@ ConnectionStrings__DefaultConnection="$DB_CONN" \
         --startup-project "$API_PROJECT"
   )
 
-# ── 3. Start API in watch mode ────────────────────────────────────────────────
-echo "→ Starting API (dotnet watch) on http://localhost:8080 ..."
-ASPNETCORE_ENVIRONMENT=Development \
-  ASPNETCORE_URLS=http://localhost:8080 \
-  ConnectionStrings__DefaultConnection="$DB_CONN" \
-  COLDHARBOUR_CONTENT_ROOT="$ROOT/content" \
-  dotnet watch run \
-    --project "$API_PROJECT" \
-    --no-hot-reload \
-  &
-PIDS+=($!)
+# ── 3. Launch tmux session ────────────────────────────────────────────────────
+tmux kill-session -t "$SESSION" 2>/dev/null || true
 
-# ── 4. Start Angular in watch mode ────────────────────────────────────────────
-echo "→ Starting Angular (ng serve) on http://localhost:4200 ..."
-(cd "$FRONTEND" && npx ng serve --open) &
-PIDS+=($!)
+# Window: db (live postgres logs)
+tmux new-session -d -s "$SESSION" -n "db" -x 220 -y 50
+tmux send-keys -t "$SESSION:db" "docker compose logs -f db" Enter
+
+# Window: api
+tmux new-window -t "$SESSION" -n "api"
+tmux send-keys -t "$SESSION:api" \
+  "ASPNETCORE_ENVIRONMENT=Development \
+   ASPNETCORE_URLS=http://localhost:8080 \
+   ConnectionStrings__DefaultConnection=\"$DB_CONN\" \
+   COLDHARBOUR_CONTENT_ROOT=\"$ROOT/content\" \
+   dotnet watch run --project \"$API_PROJECT\" --no-hot-reload" \
+  Enter
+
+# Window: ui
+tmux new-window -t "$SESSION" -n "ui"
+tmux send-keys -t "$SESSION:ui" "cd \"$FRONTEND\" && npx ng serve" Enter
+
+# Focus api window on attach
+tmux select-window -t "$SESSION:api"
 
 echo ""
-echo "  API  →  http://localhost:8080"
-echo "  UI   →  http://localhost:4200"
-echo ""
-echo "  Ctrl-C to stop everything"
+echo "  tmux session : $SESSION"
+echo "  windows      : db | api | ui   (Ctrl-B + 0/1/2 to switch)"
+echo "  API          : http://localhost:8080"
+echo "  UI           : http://localhost:4200"
+echo "  stop all     : tmux kill-session -t $SESSION"
 echo ""
 
-# ── Wait for any child to exit (signals a crash) ─────────────────────────────
-wait -n "${PIDS[@]}" 2>/dev/null || true
-cleanup
+tmux attach-session -t "$SESSION"

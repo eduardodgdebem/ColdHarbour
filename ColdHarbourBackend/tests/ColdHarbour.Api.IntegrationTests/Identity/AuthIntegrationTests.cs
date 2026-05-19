@@ -80,10 +80,19 @@ internal sealed class FakePasswordHasher : IPasswordHasher
 
 internal sealed class FakeTokenService(string signingKey, string issuer, string audience) : ITokenService
 {
-    public string GenerateAccessToken(User user, string deviceId)
+    private JwtSecurityToken BuildToken(IEnumerable<Claim> claims, int expiryMinutes)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        return new JwtSecurityToken(
+            issuer: issuer,
+            audience: audience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(expiryMinutes),
+            signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
+    }
+
+    public string GenerateAccessToken(User user, string deviceId)
+    {
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
@@ -91,15 +100,18 @@ internal sealed class FakeTokenService(string signingKey, string issuer, string 
             new Claim("deviceId", deviceId),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
+        return new JwtSecurityTokenHandler().WriteToken(BuildToken(claims, 15));
+    }
 
-        var token = new JwtSecurityToken(
-            issuer: issuer,
-            audience: audience,
-            claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(15),
-            signingCredentials: creds);
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
+    public string GenerateMediaToken(User user)
+    {
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(ClaimTypes.Role, user.Role.ToString()),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+        return new JwtSecurityTokenHandler().WriteToken(BuildToken(claims, 480));
     }
 
     public string GenerateRefreshTokenPlaintext()
@@ -110,6 +122,44 @@ internal sealed class FakeLibraryReadRepository : ILibraryReadRepository
 {
     public Task<IReadOnlyList<TrackReadModel>> GetAllTracksAsync(CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<TrackReadModel>>(Array.Empty<TrackReadModel>());
+}
+
+internal sealed class FakeTrackWriteRepo : ColdHarbour.Application.Library.Ports.ITrackRepository
+{
+    public Task<ColdHarbour.Domain.Library.Track?> FindByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Track?>(null);
+    public Task<ColdHarbour.Domain.Library.Track?> FindByAudioSha1Async(string sha1, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Track?>(null);
+    public Task<ColdHarbour.Domain.Library.Artist?> FindArtistByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Artist?>(null);
+    public Task<ColdHarbour.Domain.Library.Artist?> FindArtistByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Artist?>(null);
+    public Task<ColdHarbour.Domain.Library.Album?> FindAlbumByArtistAndTitleAsync(Guid aid, string title, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Album?>(null);
+    public Task<ColdHarbour.Domain.Library.Album?> FindAlbumByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Album?>(null);
+    public Task<int> CountTracksByAlbumIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult(0);
+    public Task<int> CountAlbumsByArtistIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult(0);
+    public Task AddArtistAsync(ColdHarbour.Domain.Library.Artist a, CancellationToken ct = default) => Task.CompletedTask;
+    public Task AddAlbumAsync(ColdHarbour.Domain.Library.Album a, CancellationToken ct = default) => Task.CompletedTask;
+    public Task AddTrackAsync(ColdHarbour.Domain.Library.Track t, CancellationToken ct = default) => Task.CompletedTask;
+    public void RemoveTrack(ColdHarbour.Domain.Library.Track t) { }
+    public void RemoveAlbum(ColdHarbour.Domain.Library.Album a) { }
+    public void RemoveArtist(ColdHarbour.Domain.Library.Artist a) { }
+    public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
+}
+
+internal sealed class FakeIngestSvc : ColdHarbour.Application.Library.Ports.ITrackIngestService
+{
+    public Task<ColdHarbour.Application.Library.Dtos.TrackUploadResultDto> IngestAsync(Stream s, string fn, CancellationToken ct = default)
+        => Task.FromResult(new ColdHarbour.Application.Library.Dtos.TrackUploadResultDto(Guid.NewGuid(), Guid.NewGuid(), false));
+    public Task RemoveTrackFilesAsync(string? path, string sha1, CancellationToken ct = default) => Task.CompletedTask;
+}
+
+internal sealed class FakeReconciler : ColdHarbour.Application.Library.Ports.ILibraryReconciler
+{
+    public Task<ColdHarbour.Application.Library.Dtos.LibrarySyncDiffDto> PreviewAsync(CancellationToken ct = default)
+        => Task.FromResult(new ColdHarbour.Application.Library.Dtos.LibrarySyncDiffDto([], [], []));
+    public Task ApplyAsync(CancellationToken ct = default) => Task.CompletedTask;
+}
+
+internal sealed class FakeArtwork : ColdHarbour.Application.Library.Ports.IArtworkService
+{
+    public Task<string?> GetThumbnailPathAsync(Guid albumId, int size, CancellationToken ct = default) => Task.FromResult<string?>(null);
 }
 
 // ── dedicated factory for auth tests ─────────────────────────────────────────
@@ -147,9 +197,22 @@ public sealed class AuthTestFactory : WebApplicationFactory<Program>
             services.RemoveAll(typeof(Microsoft.EntityFrameworkCore.DbContextOptions<
                 ColdHarbour.Infrastructure.Persistence.ColdHarbourDbContext>));
 
-            // Stub library repo (used by MusicController)
+            // Stub library read repo (used by MusicController)
             services.RemoveAll<ILibraryReadRepository>();
             services.AddScoped<ILibraryReadRepository>(_ => new FakeLibraryReadRepository());
+
+            // Stub library write-side ports so the DI container resolves them
+            services.RemoveAll<ColdHarbour.Application.Library.Ports.ITrackRepository>();
+            services.AddScoped<ColdHarbour.Application.Library.Ports.ITrackRepository>(_ => new FakeTrackWriteRepo());
+
+            services.RemoveAll<ColdHarbour.Application.Library.Ports.ITrackIngestService>();
+            services.AddScoped<ColdHarbour.Application.Library.Ports.ITrackIngestService>(_ => new FakeIngestSvc());
+
+            services.RemoveAll<ColdHarbour.Application.Library.Ports.ILibraryReconciler>();
+            services.AddScoped<ColdHarbour.Application.Library.Ports.ILibraryReconciler>(_ => new FakeReconciler());
+
+            services.RemoveAll<ColdHarbour.Application.Library.Ports.IArtworkService>();
+            services.AddScoped<ColdHarbour.Application.Library.Ports.IArtworkService>(_ => new FakeArtwork());
 
             // Stub identity ports
             services.RemoveAll<IUserRepository>();

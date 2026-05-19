@@ -17,7 +17,7 @@ namespace ColdHarbour.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.15")
+                .HasAnnotation("ProductVersion", "9.0.16")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -106,6 +106,9 @@ namespace ColdHarbour.Infrastructure.Migrations
                     b.Property<Guid>("ArtistId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("CoverArtSha1")
+                        .HasColumnType("char(40)");
+
                     b.Property<string>("CoverPath")
                         .HasColumnType("text");
 
@@ -122,20 +125,6 @@ namespace ColdHarbour.Infrastructure.Migrations
                     b.HasIndex("ArtistId");
 
                     b.ToTable("Albums");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("22222222-0000-0000-0000-000000000001"),
-                            ArtistId = new Guid("11111111-0000-0000-0000-000000000001"),
-                            Title = "HONNE"
-                        },
-                        new
-                        {
-                            Id = new Guid("22222222-0000-0000-0000-000000000002"),
-                            ArtistId = new Guid("11111111-0000-0000-0000-000000000002"),
-                            Title = "Remi Wolf"
-                        });
                 });
 
             modelBuilder.Entity("ColdHarbour.Domain.Library.Artist", b =>
@@ -151,18 +140,6 @@ namespace ColdHarbour.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Artists");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("11111111-0000-0000-0000-000000000001"),
-                            Name = "HONNE"
-                        },
-                        new
-                        {
-                            Id = new Guid("11111111-0000-0000-0000-000000000002"),
-                            Name = "Remi Wolf"
-                        });
                 });
 
             modelBuilder.Entity("ColdHarbour.Domain.Library.Track", b =>
@@ -204,37 +181,17 @@ namespace ColdHarbour.Infrastructure.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<int?>("TrackNumber")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AlbumId");
 
-                    b.ToTable("Tracks");
+                    b.HasIndex("AudioSha1")
+                        .IsUnique();
 
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("33333333-0000-0000-0000-000000000001"),
-                            AlbumId = new Guid("22222222-0000-0000-0000-000000000001"),
-                            AudioSha1 = "0000000000000000000000000000000000000001",
-                            Bitrate = 128,
-                            Duration = 2100000000L,
-                            Format = "mp3",
-                            LocalPath = "/assets/music/babyyourebad.mp3",
-                            Provider = "local",
-                            Title = "Baby You're Bad"
-                        },
-                        new
-                        {
-                            Id = new Guid("33333333-0000-0000-0000-000000000002"),
-                            AlbumId = new Guid("22222222-0000-0000-0000-000000000002"),
-                            AudioSha1 = "0000000000000000000000000000000000000002",
-                            Bitrate = 128,
-                            Duration = 2100000000L,
-                            Format = "mp3",
-                            LocalPath = "/assets/music/liz.mp3",
-                            Provider = "local",
-                            Title = "Liz"
-                        });
+                    b.ToTable("Tracks");
                 });
 
             modelBuilder.Entity("ColdHarbour.Domain.Identity.RefreshToken", b =>

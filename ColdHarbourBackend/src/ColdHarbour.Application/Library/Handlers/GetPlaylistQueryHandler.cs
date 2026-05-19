@@ -18,20 +18,23 @@ public sealed class GetPlaylistQueryHandler : IRequestHandler<GetPlaylistQuery, 
         var musics = tracks
             .Select((t, index) => new MusicDto
             {
-                Id       = index + 1,
-                Name     = t.Title,
-                Author   = t.ArtistName,
-                AudioRef = t.LocalPath ?? "",
-                ImageRef = ""
+                Id = index + 1,
+                TrackId = t.Id,
+                AlbumId = t.AlbumId,
+                Name = t.Title,
+                Author = t.ArtistName,
+                AudioRef = $"/api/stream/{t.Id}",
+                ImageRef = $"/api/artwork/{t.AlbumId}?size=256",
+                DurationSeconds = t.Duration.TotalSeconds
             })
             .ToList();
 
         return new PlaylistDto
         {
-            Id       = request.Id,
-            Name     = "Library",
+            Id = request.Id,
+            Name = "Library",
             ImageRef = "",
-            Musics   = musics
+            Musics = musics
         };
     }
 }

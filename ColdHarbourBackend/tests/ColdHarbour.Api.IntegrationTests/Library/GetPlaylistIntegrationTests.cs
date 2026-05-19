@@ -25,19 +25,28 @@ public class GetPlaylistIntegrationTests : IClassFixture<WebApplicationFactory<P
     private const string TestIssuer = "coldharbour";
     private const string TestAudience = "coldharbour-web";
 
+    private static readonly Guid AlbumId1 = Guid.Parse("22222222-0000-0000-0000-000000000001");
+    private static readonly Guid AlbumId2 = Guid.Parse("22222222-0000-0000-0000-000000000002");
+
     private static readonly IReadOnlyList<TrackReadModel> SeedTracks =
     [
         new TrackReadModel(
             Id: Guid.Parse("33333333-0000-0000-0000-000000000001"),
+            AlbumId: AlbumId1,
             Title: "Baby You're Bad",
             ArtistName: "HONNE",
+            AlbumTitle: "HONNE",
+            Duration: TimeSpan.FromSeconds(210),
             LocalPath: "/assets/music/babyyourebad.mp3",
             Format: "mp3",
             Bitrate: 128),
         new TrackReadModel(
             Id: Guid.Parse("33333333-0000-0000-0000-000000000002"),
+            AlbumId: AlbumId2,
             Title: "Liz",
             ArtistName: "Remi Wolf",
+            AlbumTitle: "Remi Wolf",
+            Duration: TimeSpan.FromSeconds(210),
             LocalPath: "/assets/music/liz.mp3",
             Format: "mp3",
             Bitrate: 128)
@@ -70,6 +79,23 @@ public class GetPlaylistIntegrationTests : IClassFixture<WebApplicationFactory<P
                 services.RemoveAll<ILibraryReadRepository>();
                 services.AddScoped<ILibraryReadRepository>(_ =>
                     new FakeLibraryReadRepository(SeedTracks));
+
+                // Stub new library write-side ports so the container resolves them
+                services.RemoveAll<ColdHarbour.Application.Library.Ports.ITrackRepository>();
+                services.AddScoped<ColdHarbour.Application.Library.Ports.ITrackRepository>(_ =>
+                    new FakeTrackRepository());
+
+                services.RemoveAll<ColdHarbour.Application.Library.Ports.ITrackIngestService>();
+                services.AddScoped<ColdHarbour.Application.Library.Ports.ITrackIngestService>(_ =>
+                    new FakeTrackIngestService());
+
+                services.RemoveAll<ColdHarbour.Application.Library.Ports.ILibraryReconciler>();
+                services.AddScoped<ColdHarbour.Application.Library.Ports.ILibraryReconciler>(_ =>
+                    new FakeLibraryReconciler());
+
+                services.RemoveAll<ColdHarbour.Application.Library.Ports.IArtworkService>();
+                services.AddScoped<ColdHarbour.Application.Library.Ports.IArtworkService>(_ =>
+                    new FakeArtworkService());
 
                 // Stub identity ports so startup bootstrap code doesn't fail
                 services.RemoveAll<IUserRepository>();
@@ -125,7 +151,29 @@ public class GetPlaylistIntegrationTests : IClassFixture<WebApplicationFactory<P
         playlist.Musics.Select(m => m.Name).Should().Contain("Liz");
     }
 
-    // --- hand-crafted stub (no mocking library) ---
+    [Fact]
+    public async Task GetPlaylist_MusicsHaveStreamAudioRef()
+    {
+        var response = await _client.GetAsync("/api/music/playlist/1");
+        var json = await response.Content.ReadAsStringAsync();
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var playlist = JsonSerializer.Deserialize<PlaylistResponse>(json, options)!;
+
+        playlist.Musics.Should().AllSatisfy(m => m.AudioRef.Should().StartWith("/api/stream/"));
+    }
+
+    [Fact]
+    public async Task GetPlaylist_MusicsHaveArtworkImageRef()
+    {
+        var response = await _client.GetAsync("/api/music/playlist/1");
+        var json = await response.Content.ReadAsStringAsync();
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var playlist = JsonSerializer.Deserialize<PlaylistResponse>(json, options)!;
+
+        playlist.Musics.Should().AllSatisfy(m => m.ImageRef.Should().StartWith("/api/artwork/"));
+    }
+
+    // --- hand-crafted stubs ---
 
     private sealed class FakeLibraryReadRepository(IReadOnlyList<TrackReadModel> tracks)
         : ILibraryReadRepository
@@ -171,6 +219,7 @@ public class GetPlaylistIntegrationTests : IClassFixture<WebApplicationFactory<P
     private sealed class FakeTokenService : ITokenService
     {
         public string GenerateAccessToken(User user, string deviceId) => "stub";
+        public string GenerateMediaToken(User user) => "stub-media";
         public string GenerateRefreshTokenPlaintext() => "stub-refresh";
     }
 
@@ -180,5 +229,43 @@ public class GetPlaylistIntegrationTests : IClassFixture<WebApplicationFactory<P
         public Task AddAsync(RefreshToken token, CancellationToken ct = default) => Task.CompletedTask;
         public Task RevokeFamilyAsync(Guid familyId, CancellationToken ct = default) => Task.CompletedTask;
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
+    }
+
+    private sealed class FakeTrackRepository : ColdHarbour.Application.Library.Ports.ITrackRepository
+    {
+        public Task<ColdHarbour.Domain.Library.Track?> FindByIdAsync(Guid trackId, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Track?>(null);
+        public Task<ColdHarbour.Domain.Library.Track?> FindByAudioSha1Async(string audioSha1, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Track?>(null);
+        public Task<ColdHarbour.Domain.Library.Artist?> FindArtistByIdAsync(Guid artistId, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Artist?>(null);
+        public Task<ColdHarbour.Domain.Library.Artist?> FindArtistByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Artist?>(null);
+        public Task<ColdHarbour.Domain.Library.Album?> FindAlbumByArtistAndTitleAsync(Guid artistId, string title, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Album?>(null);
+        public Task<ColdHarbour.Domain.Library.Album?> FindAlbumByIdAsync(Guid albumId, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Album?>(null);
+        public Task<int> CountTracksByAlbumIdAsync(Guid albumId, CancellationToken ct = default) => Task.FromResult(0);
+        public Task<int> CountAlbumsByArtistIdAsync(Guid artistId, CancellationToken ct = default) => Task.FromResult(0);
+        public Task AddArtistAsync(ColdHarbour.Domain.Library.Artist artist, CancellationToken ct = default) => Task.CompletedTask;
+        public Task AddAlbumAsync(ColdHarbour.Domain.Library.Album album, CancellationToken ct = default) => Task.CompletedTask;
+        public Task AddTrackAsync(ColdHarbour.Domain.Library.Track track, CancellationToken ct = default) => Task.CompletedTask;
+        public void RemoveTrack(ColdHarbour.Domain.Library.Track track) { }
+        public void RemoveAlbum(ColdHarbour.Domain.Library.Album album) { }
+        public void RemoveArtist(ColdHarbour.Domain.Library.Artist artist) { }
+        public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
+    }
+
+    private sealed class FakeTrackIngestService : ColdHarbour.Application.Library.Ports.ITrackIngestService
+    {
+        public Task<ColdHarbour.Application.Library.Dtos.TrackUploadResultDto> IngestAsync(Stream fileStream, string fileName, CancellationToken ct = default)
+            => Task.FromResult(new ColdHarbour.Application.Library.Dtos.TrackUploadResultDto(Guid.NewGuid(), Guid.NewGuid(), false));
+        public Task RemoveTrackFilesAsync(string? localPath, string audioSha1, CancellationToken ct = default) => Task.CompletedTask;
+    }
+
+    private sealed class FakeLibraryReconciler : ColdHarbour.Application.Library.Ports.ILibraryReconciler
+    {
+        public Task<ColdHarbour.Application.Library.Dtos.LibrarySyncDiffDto> PreviewAsync(CancellationToken ct = default)
+            => Task.FromResult(new ColdHarbour.Application.Library.Dtos.LibrarySyncDiffDto([], [], []));
+        public Task ApplyAsync(CancellationToken ct = default) => Task.CompletedTask;
+    }
+
+    private sealed class FakeArtworkService : ColdHarbour.Application.Library.Ports.IArtworkService
+    {
+        public Task<string?> GetThumbnailPathAsync(Guid albumId, int size, CancellationToken ct = default) => Task.FromResult<string?>(null);
     }
 }

@@ -28,6 +28,7 @@ public class AuthenticateUserCommandHandlerTests
         _hasher.Verify("Password1!", "hashed_password").Returns(true);
         _tokenService.GenerateRefreshTokenPlaintext().Returns("plaintext_token_32_chars_xxxxxxxxxx");
         _tokenService.GenerateAccessToken(user, "device-1").Returns("access_token");
+        _tokenService.GenerateMediaToken(user).Returns("media_token");
 
         var handler = CreateHandler();
         var result = await handler.Handle(new AuthenticateUserCommand("user@example.com", "Password1!", "device-1"), CancellationToken.None);
@@ -36,6 +37,7 @@ public class AuthenticateUserCommandHandlerTests
         result.Dto.Email.Should().Be("user@example.com");
         result.Dto.UserId.Should().Be(user.Id);
         result.RefreshTokenPlaintext.Should().Be("plaintext_token_32_chars_xxxxxxxxxx");
+        result.MediaToken.Should().Be("media_token");
     }
 
     [Fact]
@@ -72,6 +74,7 @@ public class AuthenticateUserCommandHandlerTests
         _hasher.Verify("Password1!", "hashed_password").Returns(true);
         _tokenService.GenerateRefreshTokenPlaintext().Returns("plaintext_token_32_chars_xxxxxxxxxx");
         _tokenService.GenerateAccessToken(user, "device-1").Returns("access_token");
+        _tokenService.GenerateMediaToken(user).Returns("media_token");
 
         var handler = CreateHandler();
         await handler.Handle(new AuthenticateUserCommand("user@example.com", "Password1!", "device-1"), CancellationToken.None);

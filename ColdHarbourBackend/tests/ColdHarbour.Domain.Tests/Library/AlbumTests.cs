@@ -44,4 +44,36 @@ public class AlbumTests
 
         act.Should().Throw<ArgumentException>();
     }
+
+    [Fact]
+    public void UpdateCoverArt_WithValidSha1_SetsCoverArtSha1()
+    {
+        var album = Album.Create("The Wall", ValidArtistId);
+        var sha1 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+        album.UpdateCoverArt(sha1);
+
+        album.CoverArtSha1.Should().Be(sha1);
+    }
+
+    [Fact]
+    public void UpdateCoverArt_WithNull_ClearsCoverArtSha1()
+    {
+        var album = Album.Create("The Wall", ValidArtistId);
+        album.UpdateCoverArt("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+
+        album.UpdateCoverArt(null);
+
+        album.CoverArtSha1.Should().BeNull();
+    }
+
+    [Fact]
+    public void UpdateCoverArt_WithInvalidSha1_Throws()
+    {
+        var album = Album.Create("The Wall", ValidArtistId);
+
+        var act = () => album.UpdateCoverArt("notahash");
+
+        act.Should().Throw<ArgumentException>();
+    }
 }

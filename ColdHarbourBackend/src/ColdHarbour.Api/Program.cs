@@ -27,9 +27,12 @@ try
     // ── CORS (environment-aware) ─────────────────────────────────────────────────
     if (builder.Environment.IsDevelopment())
     {
+        // AllowAnyOrigin() is incompatible with AllowCredentials() (refresh-token cookie).
+        // Pin to the ng serve origin so withCredentials requests work in local dev.
         builder.Services.AddCors(options =>
             options.AddPolicy("AllowAll",
-                p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+                p => p.WithOrigins("http://localhost:4200")
+                       .AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
     }
     else
     {

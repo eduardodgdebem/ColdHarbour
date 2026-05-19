@@ -31,7 +31,9 @@ public static class DependencyInjection
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
         services.AddScoped<IDeviceRepository, DeviceRepository>();
+        services.AddScoped<IPlayEventRepository, PlayEventRepository>();
         services.AddScoped<ITranscodeService, TranscodeService>();
+        services.AddSingleton<IPlaybackSessionStore, InMemoryPlaybackSessionStore>();
         services.AddHostedService<CachePruneJob>();
 
         return services;

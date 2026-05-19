@@ -1,4 +1,5 @@
 import { Component, OnInit, Signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { MusicListComponent } from '../../components/music-list/music-list.component';
 import { PlayerComponent } from '../../../player/components/player/player.component';
 import { ActivatedRoute } from '@angular/router';
@@ -9,7 +10,7 @@ import { LibraryService } from '../../library.service';
 
 @Component({
   selector: 'app-playlist-page',
-  imports: [MusicListComponent, PlayerComponent],
+  imports: [MusicListComponent, PlayerComponent, RouterLink],
   templateUrl: './playlist-page.component.html',
   styleUrl: './playlist-page.component.scss',
 })

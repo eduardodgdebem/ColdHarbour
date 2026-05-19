@@ -111,6 +111,10 @@ public sealed class DevicesTestFactory : WebApplicationFactory<Program>
             services.AddScoped<IDeviceRepository>(_ => _deviceRepo);
             services.RemoveAll<ITranscodeService>();
             services.AddScoped<ITranscodeService>(_ => new NullTranscodeService());
+            services.RemoveAll<ColdHarbour.Application.Playback.Ports.IPlayEventRepository>();
+            services.AddScoped<ColdHarbour.Application.Playback.Ports.IPlayEventRepository>(_ => new NullPlayEventRepo());
+            services.RemoveAll<ColdHarbour.Application.Playback.Ports.IPlaybackSessionStore>();
+            services.AddSingleton<ColdHarbour.Application.Playback.Ports.IPlaybackSessionStore>(new ColdHarbour.Infrastructure.Playback.InMemoryPlaybackSessionStore());
 
             // Identity stubs
             services.RemoveAll<IUserRepository>();
@@ -130,6 +134,8 @@ public sealed class DevicesTestFactory : WebApplicationFactory<Program>
     {
         public ColdHarbour.Domain.Playback.Device? Stored { get; private set; }
         public Task<ColdHarbour.Domain.Playback.Device?> FindByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Playback.Device?>(null);
+        public Task<IReadOnlyList<ColdHarbour.Domain.Playback.Device>> ListByUserIdAsync(Guid userId, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<ColdHarbour.Domain.Playback.Device>>(Stored is null ? [] : [Stored]);
         public Task AddAsync(ColdHarbour.Domain.Playback.Device d, CancellationToken ct = default) { Stored = d; return Task.CompletedTask; }
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
     }
@@ -183,6 +189,13 @@ public sealed class DevicesTestFactory : WebApplicationFactory<Program>
     private sealed class NullTranscodeService : ITranscodeService
     {
         public Task<string?> GetOrTranscodeAsync(string src, string sha1, string profile, CancellationToken ct = default) => Task.FromResult<string?>(null);
+    }
+
+    private sealed class NullPlayEventRepo : ColdHarbour.Application.Playback.Ports.IPlayEventRepository
+    {
+        public Task AddAsync(ColdHarbour.Domain.Playback.PlayEvent e, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<ColdHarbour.Domain.Playback.PlayEvent?> FindActiveByUserAsync(Guid userId, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Playback.PlayEvent?>(null);
+        public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
     }
 
     private sealed class AlwaysExistsUserRepo : IUserRepository

@@ -114,6 +114,7 @@ try
 
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
+    builder.Services.AddScoped<ColdHarbour.Api.Playback.PlaybackSessionHub>();
 
     var app = builder.Build();
 
@@ -153,6 +154,14 @@ try
     app.UseStaticFiles();
     app.UseWebSockets();
     app.MapControllers();
+
+    app.Map("/ws/playback", async ctx =>
+    {
+        if (!ctx.WebSockets.IsWebSocketRequest) { ctx.Response.StatusCode = 400; return; }
+        var ws = await ctx.WebSockets.AcceptWebSocketAsync();
+        var hub = ctx.RequestServices.GetRequiredService<ColdHarbour.Api.Playback.PlaybackSessionHub>();
+        await hub.HandleAsync(ctx, ws);
+    });
 
     app.Run();
 }

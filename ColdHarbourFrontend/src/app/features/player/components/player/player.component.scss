@@ -110,7 +110,6 @@ $compact: 540px;   /* below this: hide progress + volume */
   align-items: center;
   gap: 8px;
   padding: 0 16px;
-  border-left: var(--border);
 
   @media (max-width: $compact - 1px) {
     display: none;
@@ -144,18 +143,18 @@ $compact: 540px;   /* below this: hide progress + volume */
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
-  border-left: var(--border);
   height: 100%;
 }
 
 .transport-btn {
   width: 52px;
+  height: 52px;
+  margin: auto;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--off-white);
   border: none;
-  border-right: var(--border);
   color: var(--black);
   cursor: pointer;
 
@@ -166,7 +165,7 @@ $compact: 540px;   /* below this: hide progress + volume */
     height: 18px;
   }
 
-  &:hover { background: var(--accent); }
+  &:hover { background: var(--accent); border: var(--border) }
 
   &--play {
     width: 64px;
@@ -198,7 +197,6 @@ $compact: 540px;   /* below this: hide progress + volume */
   padding: 0 16px;
   width: 140px;
   flex-shrink: 0;
-  border-left: var(--border);
 
   @media (max-width: $compact - 1px) {
     display: none;

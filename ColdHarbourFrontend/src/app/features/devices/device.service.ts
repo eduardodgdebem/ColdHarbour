@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, catchError, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import type { DeviceDto } from '../player/services/playback-session.service';
 
 @Injectable({ providedIn: 'root' })
 export class DeviceService {
@@ -19,6 +20,10 @@ export class DeviceService {
       preferredProfile,
       bitrateCap: null,
     }).pipe(catchError(() => of(void 0)));
+  }
+
+  listDevices(): Observable<DeviceDto[]> {
+    return this.http.get<DeviceDto[]>(`${environment.apiBase}/devices`);
   }
 
   getOrCreateDeviceId(): string {

@@ -1,0 +1,34 @@
+<div class="devices-page">
+  <div class="devices-header">
+    <h1 class="devices-title">DEVICES</h1>
+  </div>
+
+  @if (session.devices().length === 0) {
+    <p class="devices-empty">NO DEVICES REGISTERED</p>
+  } @else {
+    <ul class="device-list">
+      @for (device of session.devices(); track device.id) {
+        <li class="device" [class.device--active]="session.session()?.activeDeviceId === device.id"
+                           [class.device--mine]="device.id === myDeviceId">
+          <div class="device-info">
+            <span class="device-name">{{ device.name }}</span>
+            <span class="device-seen">{{ device.lastSeenAt | date:'short' }}</span>
+          </div>
+          <div class="device-actions">
+            @if (session.session()?.activeDeviceId === device.id) {
+              <span class="badge badge--playing">PLAYING</span>
+            }
+            @if (device.id === myDeviceId) {
+              <span class="badge badge--this">THIS DEVICE</span>
+            }
+            @if (device.id !== myDeviceId && session.session()?.trackId) {
+              <button class="btn btn--primary play-here-btn" (click)="transfer(device.id)">
+                PLAY HERE
+              </button>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</div>

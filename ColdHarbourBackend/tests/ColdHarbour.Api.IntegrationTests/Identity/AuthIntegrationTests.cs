@@ -226,6 +226,12 @@ public sealed class AuthTestFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<ITokenService>();
             services.AddSingleton<ITokenService>(new FakeTokenService(SigningKey, Issuer, Audience));
+
+            services.RemoveAll<ColdHarbour.Application.Playback.Ports.IDeviceRepository>();
+            services.AddScoped<ColdHarbour.Application.Playback.Ports.IDeviceRepository>(_ => new NullDeviceRepo());
+
+            services.RemoveAll<ColdHarbour.Application.Playback.Ports.ITranscodeService>();
+            services.AddScoped<ColdHarbour.Application.Playback.Ports.ITranscodeService>(_ => new NullTranscodeService());
         });
     }
 }
@@ -425,4 +431,16 @@ public class AuthIntegrationTests : IClassFixture<AuthTestFactory>
         var response = await _client.SendAsync(request);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
+}
+
+internal sealed class NullDeviceRepo : ColdHarbour.Application.Playback.Ports.IDeviceRepository
+{
+    public Task<ColdHarbour.Domain.Playback.Device?> FindByIdAsync(Guid deviceId, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Playback.Device?>(null);
+    public Task AddAsync(ColdHarbour.Domain.Playback.Device device, CancellationToken ct = default) => Task.CompletedTask;
+    public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
+}
+
+internal sealed class NullTranscodeService : ColdHarbour.Application.Playback.Ports.ITranscodeService
+{
+    public Task<string?> GetOrTranscodeAsync(string sourcePath, string audioSha1, string profile, CancellationToken ct = default) => Task.FromResult<string?>(null);
 }

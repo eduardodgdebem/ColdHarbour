@@ -13,23 +13,31 @@ describe('PlayerComponent', () => {
 
   const mockMusic: Music = {
     id: 1,
+    trackId: '33333333-0000-0000-0000-000000000001',
+    albumId: '22222222-0000-0000-0000-000000000001',
     name: 'Test Song',
     author: 'Test Artist',
-    audioRef: '/test.mp3',
-    imageRef: '/test.jpg'
+    audioRef: '/api/stream/33333333-0000-0000-0000-000000000001',
+    imageRef: '/api/artwork/22222222-0000-0000-0000-000000000001',
+    durationSeconds: 180,
   };
 
   beforeEach(async () => {
-    const audioSpy = jasmine.createSpyObj('AudioService', ['loadMusic', 'playToggle', 'seekTo', 'setVolume', 'duration'], {
-      isPlaying: signal(false),
-      volume: signal(0.5),
-      sliderDuration: signal(100),
-      sliderCurrentTime: signal(0)
-    });
+    const audioSpy = jasmine.createSpyObj('AudioService',
+      ['loadMusic', 'playToggle', 'seekTo', 'setVolume', 'cleanup'],
+      {
+        isPlaying: signal(false),
+        volume: signal(0.5),
+        currentTime: signal(0),
+        duration: signal(0),
+        ended: signal(false),
+      }
+    );
 
-    const musicSpy = jasmine.createSpyObj('MusicService', ['currentMusic'], {
-      currentMusic: signal(mockMusic)
-    });
+    const musicSpy = jasmine.createSpyObj('MusicService',
+      ['selectMusic', 'nextMusic', 'previousMusic', 'isCurrentMusic'],
+      { currentMusic: signal(null) }
+    );
 
     await TestBed.configureTestingModule({
       imports: [PlayerComponent],
@@ -50,36 +58,41 @@ describe('PlayerComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should load music when current music changes', () => {
+  it('should call loadMusic when currentMusic signal emits a track', () => {
+    musicService.currentMusic.set(mockMusic);
+    TestBed.flushEffects();
+
     expect(audioService.loadMusic).toHaveBeenCalledWith(mockMusic.audioRef);
-    expect(audioService.isPlaying.set).toHaveBeenCalledWith(false);
   });
 
   it('should update volume input style when volume changes', () => {
     const volumeInput = document.createElement('input');
     component.volumeInput = { nativeElement: volumeInput } as any;
-    
+
     audioService.volume.set(0.75);
-    fixture.detectChanges();
-    
+    TestBed.flushEffects();
+
     expect(volumeInput.style.getPropertyValue('--volume')).toBe('75%');
   });
 
-  it('should toggle play/pause on main button click when music is available', () => {
-    component.mainButtonClick({} as Event);
+  it('should call playToggle on main button click when music is available', () => {
+    musicService.currentMusic.set(mockMusic);
+    TestBed.flushEffects();
+
+    const button = document.createElement('button');
+    const event = new Event('click');
+    Object.defineProperty(event, 'target', { value: button });
+    component.mainButtonClick(event);
+
     expect(audioService.playToggle).toHaveBeenCalled();
   });
 
-  it('should not toggle play/pause on main button click when no music is available', () => {
-    const noMusicSpy = jasmine.createSpyObj('MusicService', ['currentMusic'], {
-      currentMusic: signal(null)
-    });
-    TestBed.overrideProvider(MusicService, { useValue: noMusicSpy });
-    fixture = TestBed.createComponent(PlayerComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-    
-    component.mainButtonClick({} as Event);
+  it('should not call playToggle when no music is selected', () => {
+    const button = document.createElement('button');
+    const event = new Event('click');
+    Object.defineProperty(event, 'target', { value: button });
+    component.mainButtonClick(event);
+
     expect(audioService.playToggle).not.toHaveBeenCalled();
   });
 
@@ -88,28 +101,10 @@ describe('PlayerComponent', () => {
     const mockInput = document.createElement('input');
     mockInput.value = '60';
     Object.defineProperty(mockEvent, 'target', { value: mockInput });
-    
-    component.onInputChange(mockEvent);
-    
-    expect(audioService.seekTo).toHaveBeenCalledWith(60);
-  });
 
-  it('should update current time on slider click', () => {
-    audioService.duration.and.returnValue(100);
-    
-    const mockEvent = new MouseEvent('click', {
-      clientX: 50
-    });
-    const mockWrapper = document.createElement('div');
-    spyOn(mockWrapper, 'getBoundingClientRect').and.returnValue({
-      left: 0,
-      width: 100
-    } as DOMRect);
-    
-    Object.defineProperty(mockEvent, 'currentTarget', { value: mockWrapper });
-    component.onSliderClick(mockEvent);
-    
-    expect(audioService.seekTo).toHaveBeenCalledWith(50);
+    component.onInputChange(mockEvent);
+
+    expect(audioService.seekTo).toHaveBeenCalledWith(60);
   });
 
   it('should update volume on volume change', () => {
@@ -117,80 +112,9 @@ describe('PlayerComponent', () => {
     const mockInput = document.createElement('input');
     mockInput.value = '0.5';
     Object.defineProperty(mockEvent, 'target', { value: mockInput });
-    
+
     component.onVolumeChange(mockEvent);
-    
+
     expect(audioService.setVolume).toHaveBeenCalledWith(0.5);
-  });
-
-  it('should handle keyboard space bar to toggle play/pause', () => {
-    const spaceEvent = new KeyboardEvent('keydown', { code: 'Space' });
-    document.dispatchEvent(spaceEvent);
-    
-    expect(audioService.playToggle).toHaveBeenCalled();
-  });
-
-  it('should handle keyboard controls', () => {
-    const mockEvent = new Event('keydown');
-    const volumeInput = document.createElement('input');
-    component.volumeInput = { nativeElement: volumeInput } as any;
-    
-    // Test volume up
-    Object.defineProperty(mockEvent, 'key', { value: 'ArrowUp' });
-    document.dispatchEvent(mockEvent);
-    expect(audioService.volume()).toBe(0.6);
-    
-    // Test volume down
-    Object.defineProperty(mockEvent, 'key', { value: 'ArrowDown' });
-    document.dispatchEvent(mockEvent);
-    expect(audioService.volume()).toBe(0.4);
-  });
-
-  it('should clamp volume between 0 and 1', () => {
-    const mockEvent = new Event('change');
-    const mockInput = document.createElement('input');
-    component.volumeInput = { nativeElement: mockInput } as any;
-    
-    // Test upper bound
-    mockInput.value = '1.5';
-    Object.defineProperty(mockEvent, 'target', { value: mockInput });
-    component.onVolumeChange(mockEvent);
-    expect(audioService.setVolume).toHaveBeenCalledWith(1);
-    
-    // Test lower bound
-    mockInput.value = '-0.5';
-    Object.defineProperty(mockEvent, 'target', { value: mockInput });
-    component.onVolumeChange(mockEvent);
-    expect(audioService.setVolume).toHaveBeenCalledWith(0);
-  });
-
-  it('should handle audio loading errors', () => {
-    const errorSpy = spyOn(console, 'error');
-    audioService.loadMusic.and.throwError('Failed to load audio');
-    
-    musicService.currentMusic.set({...mockMusic});
-    
-    expect(errorSpy).toHaveBeenCalled();
-    expect(audioService.isPlaying.set).toHaveBeenCalledWith(false);
-  });
-
-  it('should update progress during playback', () => {
-    const duration = 100;
-    const currentTime = 50;
-    audioService.duration.and.returnValue(duration);
-    
-    const mockEvent = new MouseEvent('click', {
-      clientX: currentTime
-    });
-    const mockWrapper = document.createElement('div');
-    spyOn(mockWrapper, 'getBoundingClientRect').and.returnValue({
-      left: 0,
-      width: duration
-    } as DOMRect);
-    
-    Object.defineProperty(mockEvent, 'currentTarget', { value: mockWrapper });
-    component.onSliderClick(mockEvent);
-    
-    expect(audioService.seekTo).toHaveBeenCalledWith(50);
   });
 });

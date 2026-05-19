@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { DeviceService } from '../../services/device.service';
 
 @Component({
   selector: 'app-login-page',
@@ -19,7 +20,11 @@ export class LoginPageComponent {
   error = signal<string | null>(null);
   loading = signal(false);
 
-  constructor(private auth: AuthService, private router: Router) {}
+  constructor(
+    private auth: AuthService,
+    private device: DeviceService,
+    private router: Router
+  ) {}
 
   submit(): void {
     if (this.form.invalid) {
@@ -30,7 +35,10 @@ export class LoginPageComponent {
     this.error.set(null);
     const { email, password } = this.form.value;
     this.auth.login(email!, password!).subscribe({
-      next: () => this.router.navigate(['/']),
+      next: () => {
+        this.device.register().subscribe();
+        this.router.navigate(['/']);
+      },
       error: () => {
         this.error.set('Invalid email or password.');
         this.loading.set(false);

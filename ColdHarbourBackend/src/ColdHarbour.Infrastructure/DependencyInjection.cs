@@ -1,8 +1,11 @@
 using ColdHarbour.Application.Identity.Ports;
 using ColdHarbour.Application.Library.Ports;
+using ColdHarbour.Application.Playback.Ports;
 using ColdHarbour.Infrastructure.Identity;
+using ColdHarbour.Infrastructure.Jobs;
 using ColdHarbour.Infrastructure.Library;
 using ColdHarbour.Infrastructure.Persistence;
+using ColdHarbour.Infrastructure.Playback;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,6 +29,10 @@ public static class DependencyInjection
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+
+        services.AddScoped<IDeviceRepository, DeviceRepository>();
+        services.AddScoped<ITranscodeService, TranscodeService>();
+        services.AddHostedService<CachePruneJob>();
 
         return services;
     }

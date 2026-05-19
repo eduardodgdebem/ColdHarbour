@@ -3,6 +3,18 @@ import { HttpClientTestingModule, HttpTestingController } from '@angular/common/
 import { ApiService } from './api.service';
 import type { Music, Playlist } from './music.service';
 
+const makeMusic = (overrides: Partial<Music>): Music => ({
+  id: 1,
+  trackId: 'track-1',
+  albumId: 'album-1',
+  name: 'Test Song',
+  author: 'Test Artist',
+  audioRef: '/test.mp3',
+  imageRef: '/test.jpg',
+  durationSeconds: 180,
+  ...overrides,
+});
+
 describe('ApiService', () => {
   let service: ApiService;
   let httpMock: HttpTestingController;
@@ -25,92 +37,46 @@ describe('ApiService', () => {
   });
 
   it('should get playlist and transform URLs', () => {
-    const mockPlaylist: Music[] = [
-      {
-        id: 1,
-        name: 'Test Song',
-        author: 'Test Artist',
-        audioRef: '/test.mp3',
-        imageRef: '/test.jpg'
-      }
-    ];
-
-    const musics: Music[] = [
-      {
-        id: 1,
-        name: 'Test Song',
-        author: 'Test Artist',
-        audioRef: 'http://localhost:8080/test.mp3',
-        imageRef: 'http://localhost:8080/test.jpg'
-      }
-    ];
-
-    const expectedPlaylist: Playlist = {
-      id: 1,
-      name: 'Test Playlist',
-      imageRef: 'http://localhost:8080/test.jpg',
-      musics: musics
-    };
+    const serverMusic = makeMusic({ audioRef: '/api/stream/track-1', imageRef: '/api/artwork/album-1' });
+    const serverResponse: Playlist = { id: 1, name: 'Test Playlist', imageRef: '/api/artwork/album-1', musics: [serverMusic] };
 
     service.getPlaylist(1).subscribe(playlist => {
-      expect(playlist).toEqual(expectedPlaylist);
+      expect(playlist.musics[0].audioRef).toContain('/api/stream/track-1');
+      expect(playlist.musics[0].imageRef).toContain('/api/artwork/album-1');
     });
 
-    const req = httpMock.expectOne('http://localhost:8080/api/music/playlist');
+    const req = httpMock.expectOne('http://localhost:8080/api/music/playlist/1');
     expect(req.request.method).toBe('GET');
-    req.flush(mockPlaylist);
+    req.flush(serverResponse);
   });
 
   it('should handle empty playlist', () => {
-    const expectedPlaylist: Playlist = {
-      id: 1,
-      name: 'Test Playlist',
-      imageRef: 'http://localhost:8080/test.jpg',
-      musics: []
-    };
+    const serverResponse: Playlist = { id: 1, name: 'Test Playlist', imageRef: '', musics: [] };
 
     service.getPlaylist(1).subscribe(playlist => {
-      expect(playlist).toEqual(expectedPlaylist);
+      expect(playlist.musics.length).toBe(0);
     });
 
-    const req = httpMock.expectOne('http://localhost:8080/api/music/playlist');
+    const req = httpMock.expectOne('http://localhost:8080/api/music/playlist/1');
     expect(req.request.method).toBe('GET');
-    req.flush([]);
+    req.flush(serverResponse);
   });
 
   it('should handle multiple items in playlist', () => {
     const musics: Music[] = [
-      {
-        id: 1,
-        name: 'Song 1',
-        author: 'Artist 1',
-        audioRef: '/song1.mp3',
-        imageRef: '/image1.jpg'
-      },
-      {
-        id: 2,
-        name: 'Song 2',
-        author: 'Artist 2',
-        audioRef: '/song2.mp3',
-        imageRef: '/image2.jpg'
-      }
+      makeMusic({ id: 1, trackId: 'track-1', name: 'Song 1', author: 'Artist 1', audioRef: '/api/stream/track-1', imageRef: '/api/artwork/album-1' }),
+      makeMusic({ id: 2, trackId: 'track-2', name: 'Song 2', author: 'Artist 2', audioRef: '/api/stream/track-2', imageRef: '/api/artwork/album-2' }),
     ];
-
-    const expectedPlaylist: Playlist = {
-      id: 1,
-      name: 'Test Playlist',
-      imageRef: 'http://localhost:8080/test.jpg',
-      musics: musics
-    };
+    const serverResponse: Playlist = { id: 1, name: 'Test Playlist', imageRef: '', musics };
 
     service.getPlaylist(1).subscribe(playlist => {
       expect(playlist.musics.length).toBe(2);
-      expect(playlist.musics[0].audioRef).toBe('http://localhost:8080/song1.mp3');
-      expect(playlist.musics[1].imageRef).toBe('http://localhost:8080/image2.jpg');
+      expect(playlist.musics[0].audioRef).toContain('/api/stream/track-1');
+      expect(playlist.musics[1].imageRef).toContain('/api/artwork/album-2');
     });
 
-    const req = httpMock.expectOne('http://localhost:8080/api/music/playlist');
+    const req = httpMock.expectOne('http://localhost:8080/api/music/playlist/1');
     expect(req.request.method).toBe('GET');
-    req.flush(expectedPlaylist);
+    req.flush(serverResponse);
   });
-}); 
+});

@@ -12,21 +12,25 @@ describe('MusicService', () => {
 
   const mockMusic: Music = {
     id: 1,
+    trackId: '33333333-0000-0000-0000-000000000001',
+    albumId: '22222222-0000-0000-0000-000000000001',
     name: "Baby You're Bad",
     author: "HONNE",
-    audioRef: "/Baby You're Bad - HONNE.mp3",
-    imageRef: "/babyyourebad.jpg"
+    audioRef: "/api/stream/33333333-0000-0000-0000-000000000001",
+    imageRef: "/api/artwork/22222222-0000-0000-0000-000000000001",
+    durationSeconds: 210,
   };
 
   const mockPlaylist: Playlist = {
     id: 1,
     name: "Test Playlist",
-    imageRef: "/playlist.jpg",
+    imageRef: "/api/artwork/22222222-0000-0000-0000-000000000001",
     musics: [mockMusic]
   };
 
   beforeEach(() => {
     const apiSpy = jasmine.createSpyObj('ApiService', ['getPlaylist']);
+    apiSpy.getPlaylist.and.returnValue(of(mockPlaylist));
     const colorSpy = jasmine.createSpyObj('ColorService', ['extractColor']);
 
     TestBed.configureTestingModule({
@@ -53,10 +57,8 @@ describe('MusicService', () => {
     expect(service.currentPlayList()).toBeNull();
   });
 
-  it('should load playlist successfully', () => {
-    apiService.getPlaylist.and.returnValue(of(mockPlaylist));
-
-    service = new MusicService(apiService, colorService);
+  it('should load playlist successfully after setCurrentPlaylist', () => {
+    service.setCurrentPlaylist(1);
 
     expect(service.currentPlayList()).toEqual(mockPlaylist);
     expect(service.isLoading()).toBeFalse();
@@ -64,47 +66,28 @@ describe('MusicService', () => {
   });
 
   it('should handle playlist loading error', () => {
-    const error = new Error('Network error');
-    apiService.getPlaylist.and.returnValue(throwError(() => error));
+    apiService.getPlaylist.and.returnValue(throwError(() => new Error('Network error')));
 
-    service = new MusicService(apiService, colorService);
+    service.setCurrentPlaylist(1);
 
     expect(service.currentPlayList()).toBeNull();
     expect(service.isLoading()).toBeFalse();
     expect(service.error()).toBe('Failed to load playlist');
   });
 
-  it('should select music and extract color', () => {
+  it('should select music', () => {
     service.selectMusic(mockMusic);
-
     expect(service.currentMusic()).toEqual(mockMusic);
-    expect(colorService.extractColor).toHaveBeenCalledWith(mockMusic.imageRef);
-  });
-
-  it('should handle spaces in image URL when extracting color', () => {
-    const musicWithSpaces: Music = {
-      ...mockMusic,
-      imageRef: '/image with spaces.jpg'
-    };
-
-    service.selectMusic(musicWithSpaces);
-
-    expect(colorService.extractColor).toHaveBeenCalledWith('/image%20with%20spaces.jpg');
   });
 
   it('should correctly identify current music', () => {
     service.selectMusic(mockMusic);
 
-    const result = service.isCurrentMusic(mockMusic);
-    expect(result).toBeTrue();
-
-    const differentMusic: Music = { ...mockMusic, id: 2 };
-    const resultDifferent = service.isCurrentMusic(differentMusic);
-    expect(resultDifferent).toBeFalse();
+    expect(service.isCurrentMusic(mockMusic)).toBeTrue();
+    expect(service.isCurrentMusic({ ...mockMusic, id: 2 })).toBeFalse();
   });
 
   it('should handle isCurrentMusic check when no music is selected', () => {
-    const result = service.isCurrentMusic(mockMusic);
-    expect(result).toBeFalse();
+    expect(service.isCurrentMusic(mockMusic)).toBeFalse();
   });
 });

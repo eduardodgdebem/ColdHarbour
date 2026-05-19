@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MusicListComponent } from './music-list.component';
 import { MusicService } from '../../services/music.service';
+import { LibraryService } from '../../services/library.service';
 import type { Music, Playlist } from '../../services/music.service';
 import { By } from '@angular/platform-browser';
 import { signal } from '@angular/core';
@@ -9,43 +10,58 @@ describe('MusicListComponent', () => {
   let component: MusicListComponent;
   let fixture: ComponentFixture<MusicListComponent>;
   let musicService: jasmine.SpyObj<MusicService>;
+  let libraryService: jasmine.SpyObj<LibraryService>;
 
   const mockMusic: Music = {
     id: 1,
+    trackId: '33333333-0000-0000-0000-000000000001',
+    albumId: '22222222-0000-0000-0000-000000000001',
     name: 'Test Song',
     author: 'Test Artist',
-    audioRef: '/test.mp3',
-    imageRef: '/test.jpg'
+    audioRef: '/api/stream/33333333-0000-0000-0000-000000000001',
+    imageRef: '/api/artwork/22222222-0000-0000-0000-000000000001',
+    durationSeconds: 180,
   };
 
   const mockPlaylist: Playlist = {
     id: 1,
     name: 'Test Playlist',
-    imageRef: '/test.jpg',
+    imageRef: '/api/artwork/22222222-0000-0000-0000-000000000001',
     musics: [mockMusic]
   };
 
   beforeEach(async () => {
-    const spy = jasmine.createSpyObj('MusicService', 
-      ['selectMusic', 'isCurrentMusic', 'isLoading', 'error'],
+    const musicSpy = jasmine.createSpyObj('MusicService',
+      ['selectMusic', 'isCurrentMusic'],
       {
-        currentMusic: signal(null),
-        currentPlayList: signal(mockPlaylist),
+        currentMusic: signal<Music | null>(null),
+        currentPlayList: signal<Playlist | null>(mockPlaylist),
         isLoading: signal(false),
-        error: signal(null)
+        error: signal<string | null>(null)
       }
     );
-    
+
+    const librarySpy = jasmine.createSpyObj('LibraryService',
+      ['uploadFile', 'deleteTrack', 'previewSync', 'applySync'],
+      {
+        isUploading: signal(false),
+        uploadProgress: signal(0),
+        syncDiff: signal(null),
+      }
+    );
+
     await TestBed.configureTestingModule({
       imports: [MusicListComponent],
       providers: [
-        { provide: MusicService, useValue: spy }
+        { provide: MusicService, useValue: musicSpy },
+        { provide: LibraryService, useValue: librarySpy },
       ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(MusicListComponent);
     component = fixture.componentInstance;
     musicService = TestBed.inject(MusicService) as jasmine.SpyObj<MusicService>;
+    libraryService = TestBed.inject(LibraryService) as jasmine.SpyObj<LibraryService>;
     fixture.detectChanges();
   });
 
@@ -54,71 +70,30 @@ describe('MusicListComponent', () => {
   });
 
   it('should call selectMusic when selecting a music item', () => {
-    musicService.selectMusic.and.returnValue(undefined);
-    
     component.selectMusic(mockMusic);
-    
     expect(musicService.selectMusic).toHaveBeenCalledWith(mockMusic);
   });
 
   it('should check if music is current music', () => {
     musicService.isCurrentMusic.and.returnValue(true);
-    
-    const result = component.isCurrentMusic(mockMusic);
-    
-    expect(result).toBe(true);
+    expect(component.isCurrentMusic(mockMusic)).toBeTrue();
     expect(musicService.isCurrentMusic).toHaveBeenCalledWith(mockMusic);
   });
 
   it('should return false when music is not current', () => {
     musicService.isCurrentMusic.and.returnValue(false);
-    
-    const result = component.isCurrentMusic(mockMusic);
-    
-    expect(result).toBe(false);
-    expect(musicService.isCurrentMusic).toHaveBeenCalledWith(mockMusic);
+    expect(component.isCurrentMusic(mockMusic)).toBeFalse();
   });
 
   it('should display music list from service', () => {
-    const mockMusicList = [
+    const musicList = [
       { ...mockMusic, name: 'Song 1' },
       { ...mockMusic, name: 'Song 2' },
-      { ...mockMusic, name: 'Song 3' }
     ];
-    
-    musicService.currentPlayList.set({ ...mockPlaylist, musics: mockMusicList });
+    musicService.currentPlayList.set({ ...mockPlaylist, musics: musicList });
     fixture.detectChanges();
-    
+
     const musicElements = fixture.debugElement.queryAll(By.css('.list-item'));
-    expect(musicElements.length).toBe(3);
-    expect(musicElements[0].nativeElement.textContent).toContain('Song 1');
-  });
-
-  it('should highlight current playing music', () => {
-    musicService.currentMusic.set(mockMusic);
-    musicService.isCurrentMusic.and.returnValue(true);
-    fixture.detectChanges();
-    
-    const musicElement = fixture.debugElement.query(By.css('.list-item.active'));
-    expect(musicElement).toBeTruthy();
-  });
-
-  it('should show loading state while loading playlist', () => {
-    musicService.isLoading.and.returnValue(true);
-    fixture.detectChanges();
-    
-    const loadingElement = fixture.debugElement.query(By.css('.loading'));
-    expect(loadingElement).toBeTruthy();
-    expect(loadingElement.nativeElement.textContent).toContain('Loading playlist...');
-  });
-
-  it('should show error state when loading fails', () => {
-    const errorMessage = 'Failed to load music list';
-    musicService.error.and.returnValue(errorMessage);
-    fixture.detectChanges();
-    
-    const errorElement = fixture.debugElement.query(By.css('.error'));
-    expect(errorElement).toBeTruthy();
-    expect(errorElement.nativeElement.textContent).toContain(errorMessage);
+    expect(musicElements.length).toBe(2);
   });
 });

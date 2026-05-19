@@ -21,7 +21,7 @@
             @if (device.id === myDeviceId) {
               <span class="badge badge--this">THIS DEVICE</span>
             }
-            @if (device.id !== myDeviceId && session.session()?.trackId) {
+            @if (session.session()?.trackId && session.session()?.activeDeviceId !== device.id) {
               <button class="btn btn--primary play-here-btn" (click)="transfer(device.id)">
                 PLAY HERE
               </button>

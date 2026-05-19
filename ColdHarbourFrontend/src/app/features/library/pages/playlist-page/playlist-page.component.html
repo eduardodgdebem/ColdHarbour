@@ -1,52 +1,61 @@
-<main class="content">
-  <section class="music-list-container">
-    <header>
-      <img [src]="currentPlayList()?.imageRef" [alt]="currentPlayList()?.name"/>
-      <h1>{{ currentPlayList()?.name }}</h1>
+<main class="layout">
+  <section class="library">
+    <header class="library-header">
+      <div class="header-identity">
+        <div class="header-art">
+          <img [src]="currentPlayList()?.imageRef || ''" [alt]="currentPlayList()?.name || ''">
+        </div>
+        <h1 class="header-title">{{ currentPlayList()?.name || 'Loading…' }}</h1>
+      </div>
+
+      <div class="header-actions">
+        <label class="btn header-btn">
+          <input type="file" accept=".mp3,.flac,.m4a,.ogg,.opus,.wav"
+                 multiple (change)="onFilesSelected($event)" hidden>
+          {{ libraryService.isUploading() ? 'UPLOADING…' : '+ ADD TRACKS' }}
+        </label>
+        <button class="btn header-btn" (click)="previewSync()"
+                [disabled]="libraryService.isSyncing()">
+          SYNC LIBRARY
+        </button>
+      </div>
     </header>
 
-    <!-- Upload dropzone -->
-    <div class="library-actions">
-      <label class="upload-btn" [class.uploading]="libraryService.isUploading()">
-        <input type="file" accept=".mp3,.flac,.m4a,.ogg,.opus,.wav"
-               multiple (change)="onFilesSelected($event)" hidden>
-        {{ libraryService.isUploading() ? 'Uploading…' : '+ Add tracks' }}
-      </label>
-
-      <button class="sync-btn" (click)="previewSync()"
-              [disabled]="libraryService.isSyncing()">
-        Sync library
-      </button>
-    </div>
-
     @if (libraryService.uploadError()) {
-      <p class="upload-error">{{ libraryService.uploadError() }}</p>
+      <p class="error-strip">{{ libraryService.uploadError() }}</p>
     }
 
-    <!-- Sync diff dialog -->
     @if (libraryService.syncDiff()) {
-      <div class="sync-dialog">
-        <h2>Library sync preview</h2>
-        @if (libraryService.syncDiff()!.added.length) {
-          <p>{{ libraryService.syncDiff()!.added.length }} track(s) to add</p>
-        }
-        @if (libraryService.syncDiff()!.missing.length) {
-          <p>{{ libraryService.syncDiff()!.missing.length }} track(s) missing from disk</p>
-        }
-        @if (!libraryService.syncDiff()!.added.length && !libraryService.syncDiff()!.missing.length) {
-          <p>Library is already in sync.</p>
-        }
-        <div class="sync-dialog-actions">
-          <button (click)="applySync()" [disabled]="libraryService.isSyncing()">Apply</button>
-          <button (click)="closeSync()">Cancel</button>
+      <div class="sync-overlay">
+        <div class="sync-dialog">
+          <h2 class="sync-dialog-title">SYNC PREVIEW</h2>
+          <div class="sync-dialog-body">
+            @if (libraryService.syncDiff()!.added.length) {
+              <p>{{ libraryService.syncDiff()!.added.length }} track(s) to add</p>
+            }
+            @if (libraryService.syncDiff()!.missing.length) {
+              <p>{{ libraryService.syncDiff()!.missing.length }} track(s) missing from disk</p>
+            }
+            @if (!libraryService.syncDiff()!.added.length && !libraryService.syncDiff()!.missing.length) {
+              <p>Library is already in sync.</p>
+            }
+            @if (libraryService.syncError()) {
+              <p class="sync-error">{{ libraryService.syncError() }}</p>
+            }
+          </div>
+          <div class="sync-dialog-actions">
+            <button class="btn btn--primary" (click)="applySync()"
+                    [disabled]="libraryService.isSyncing()">APPLY</button>
+            <button class="btn" (click)="closeSync()">CANCEL</button>
+          </div>
         </div>
-        @if (libraryService.syncError()) {
-          <p class="sync-error">{{ libraryService.syncError() }}</p>
-        }
       </div>
     }
 
-    <app-music-list />
+    <div class="library-scroll">
+      <app-music-list />
+    </div>
   </section>
+
   <app-player />
 </main>

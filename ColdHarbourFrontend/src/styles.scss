@@ -1,18 +1,81 @@
-/* You can add global styles to this file, and also import other style files */
 :root {
-  --black: #15181Cff;
-  --black-2: #18191Bff;
-  --gray: #929090ff;
-  --accent: rgb(168,131,54);
-  --black-3: rgb(27,27,33);
+  --black:     #000000;
+  --off-white: #F5F5F0;
+  --yellow:    #D3F000;
+  --error-bg:  #ffdad6;
+  --error-fg:  #93000a;
+  --muted:     #4c4546;
+
+  --border-w: 4px;
+  --border:   var(--border-w) solid var(--black);
+
+  --font-headline: 'Archivo Narrow', sans-serif;
+  --font-body:     'Public Sans', sans-serif;
+  --font-mono:     'Space Mono', monospace;
 }
 
-* {
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
   padding: 0;
   margin: 0;
+  border-radius: 0 !important;
+}
 
-  font-family: "Be Vietnam Pro", serif;
-  font-weight: 300;
-  font-style: normal;
-  color: var(--gray)
+html,
+body {
+  height: 100%;
+  background: var(--off-white);
+  color: var(--black);
+  font-family: var(--font-body);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+img {
+  display: block;
+}
+
+/* Shared brutalist button */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 20px;
+  background: var(--off-white);
+  border: var(--border);
+  font-family: var(--font-headline);
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--black);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0s, color 0s;
+
+  &:hover:not(:disabled) { background: var(--yellow); }
+
+  &:active:not(:disabled) {
+    transform: translate(2px, 2px);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &--primary {
+    background: var(--yellow);
+    &:hover:not(:disabled) {
+      background: var(--black);
+      color: var(--yellow);
+    }
+  }
 }

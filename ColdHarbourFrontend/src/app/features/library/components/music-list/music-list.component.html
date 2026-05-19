@@ -1,26 +1,32 @@
 @if (musicService.isLoading()) {
-  <div class="loading">
-    <p>Loading playlist...</p>
-  </div>
+  <p class="state-msg">LOADING…</p>
 } @else if (musicService.error()) {
-  <div class="error">
-    <p>{{ musicService.error() }}</p>
-  </div>
+  <p class="state-msg state-msg--error">{{ musicService.error() }}</p>
 } @else {
-  <ul class="list">
-    @for(music of musicService.currentPlayList()?.musics; track music.id) {
-      <li class="list-item"
-          [class.active]="isCurrentMusic(music)"
+  <ul class="tracklist">
+    @for (music of musicService.currentPlayList()?.musics; track music.id; let i = $index) {
+      <li class="track"
+          [class.track--playing]="isCurrentMusic(music)"
           (click)="selectMusic(music)">
-        <div class="music-image">
+
+        <span class="track-idx">
+          {{ isCurrentMusic(music) ? '▶' : (i + 1) }}
+        </span>
+
+        <div class="track-art">
           <img [src]="music.imageRef" [alt]="music.name">
         </div>
-        <div class="music-info">
-          <h3>{{music.name}}</h3>
-          <p>{{music.author}}</p>
+
+        <div class="track-info">
+          <span class="track-name">{{ music.name }}</span>
+          <span class="track-artist">{{ music.author }}</span>
         </div>
-        <div class="music-meta">
-          <span class="duration">{{ formatDuration(music.durationSeconds) }}</span>
+
+        <div class="track-meta">
+          @if (isCurrentMusic(music)) {
+            <span class="playing-badge">PLAYING</span>
+          }
+          <span class="track-dur">{{ formatDuration(music.durationSeconds) }}</span>
           <button class="delete-btn" title="Delete track"
                   (click)="deleteTrack($event, music.trackId)">✕</button>
         </div>

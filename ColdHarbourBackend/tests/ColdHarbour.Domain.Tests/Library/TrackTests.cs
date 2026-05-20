@@ -93,4 +93,25 @@ public class TrackTests
 
         track.TrackNumber.Should().BeNull();
     }
+
+    [Fact]
+    public void Create_IntegrityStatus_IsNullByDefault()
+    {
+        var track = Track.Create("Title", ValidAlbumId, ValidDuration, "local", "flac", 320, ValidSha1);
+
+        track.IntegrityStatus.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("ok")]
+    [InlineData("mismatch")]
+    [InlineData("missing")]
+    public void FlagIntegrity_SetsIntegrityStatus(string status)
+    {
+        var track = Track.Create("Title", ValidAlbumId, ValidDuration, "local", "flac", 320, ValidSha1);
+
+        track.FlagIntegrity(status);
+
+        track.IntegrityStatus.Should().Be(status);
+    }
 }

@@ -139,6 +139,66 @@ public class RepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task RefreshTokenRepository_DeleteExpiredAndRevokedAsync_RemovesExpiredTokens()
+    {
+        var user = MakeUser("sweep-expired@example.com");
+        var valid = RefreshToken.Create(user.Id, "valid" + new string('0', 59), Guid.NewGuid(), DateTimeOffset.UtcNow.AddDays(14));
+        var expired = RefreshToken.Create(user.Id, "exp00" + new string('0', 59), Guid.NewGuid(), DateTimeOffset.UtcNow.AddDays(1));
+
+        await using (var ctx = CreateContext())
+        {
+            ctx.Users.Add(user);
+            ctx.RefreshTokens.AddRange(valid, expired);
+            await ctx.SaveChangesAsync();
+            // Back-date expiry directly so we bypass Create's validation
+            await ctx.Database.ExecuteSqlRawAsync(
+                $"UPDATE \"RefreshTokens\" SET \"ExpiresAt\" = NOW() - INTERVAL '1 day' WHERE \"Id\" = '{expired.Id}'");
+        }
+
+        await using (var ctx = CreateContext())
+        {
+            var repo = new RefreshTokenRepository(ctx);
+            await repo.DeleteExpiredAndRevokedAsync();
+        }
+
+        await using (var ctx = CreateContext())
+        {
+            var remaining = await ctx.RefreshTokens.ToListAsync();
+            remaining.Should().ContainSingle(t => t.Id == valid.Id);
+            remaining.Should().NotContain(t => t.Id == expired.Id);
+        }
+    }
+
+    [Fact]
+    public async Task RefreshTokenRepository_DeleteExpiredAndRevokedAsync_RemovesRevokedTokens()
+    {
+        var user = MakeUser("sweep-revoked@example.com");
+        var valid = RefreshToken.Create(user.Id, "ok000" + new string('0', 59), Guid.NewGuid(), DateTimeOffset.UtcNow.AddDays(14));
+        var revoked = RefreshToken.Create(user.Id, "rev00" + new string('0', 59), Guid.NewGuid(), DateTimeOffset.UtcNow.AddDays(14));
+        revoked.Revoke();
+
+        await using (var ctx = CreateContext())
+        {
+            ctx.Users.Add(user);
+            ctx.RefreshTokens.AddRange(valid, revoked);
+            await ctx.SaveChangesAsync();
+        }
+
+        await using (var ctx = CreateContext())
+        {
+            var repo = new RefreshTokenRepository(ctx);
+            await repo.DeleteExpiredAndRevokedAsync();
+        }
+
+        await using (var ctx = CreateContext())
+        {
+            var remaining = await ctx.RefreshTokens.ToListAsync();
+            remaining.Should().ContainSingle(t => t.Id == valid.Id);
+            remaining.Should().NotContain(t => t.Id == revoked.Id);
+        }
+    }
+
+    [Fact]
     public async Task RefreshTokenRepository_RevokeFamilyAsync_RevokesAllFamilyMembers()
     {
         var user = MakeUser("family@example.com");

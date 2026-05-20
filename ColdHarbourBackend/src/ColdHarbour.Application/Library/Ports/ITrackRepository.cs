@@ -19,4 +19,5 @@ public interface ITrackRepository
     void RemoveAlbum(Album album);
     void RemoveArtist(Artist artist);
     Task SaveChangesAsync(CancellationToken ct = default);
+    Task<List<Track>> GetLocalTrackSampleAsync(int maxCount, CancellationToken ct = default);
 }

@@ -70,6 +70,9 @@ internal sealed class InMemoryRefreshTokenRepository : IRefreshTokenRepository
 
     public Task SaveChangesAsync(CancellationToken ct = default)
         => Task.CompletedTask;
+
+    public Task DeleteExpiredAndRevokedAsync(CancellationToken ct = default)
+        => Task.CompletedTask;
 }
 
 internal sealed class FakePasswordHasher : IPasswordHasher
@@ -141,6 +144,8 @@ internal sealed class FakeTrackWriteRepo : ColdHarbour.Application.Library.Ports
     public void RemoveAlbum(ColdHarbour.Domain.Library.Album a) { }
     public void RemoveArtist(ColdHarbour.Domain.Library.Artist a) { }
     public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
+    public Task<List<ColdHarbour.Domain.Library.Track>> GetLocalTrackSampleAsync(int maxCount, CancellationToken ct = default)
+        => Task.FromResult(new List<ColdHarbour.Domain.Library.Track>());
 }
 
 internal sealed class FakeIngestSvc : ColdHarbour.Application.Library.Ports.ITrackIngestService

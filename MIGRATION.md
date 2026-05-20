@@ -17,7 +17,7 @@
 | 4 | Library CRUD + artwork | ✅ Done — landed on main 2026-05-19 |
 | 5 | Streaming upgrade | ✅ Done — merged to main 2026-05-19 (`phase-5-streaming`) |
 | 6 | Playback session + device handoff | ✅ Done — merged to main 2026-05-19 (`phase-6-playback-session`) |
-| 7 | Operational hygiene | ⏳ Not started |
+| 7 | Operational hygiene | ✅ Done — merged to main 2026-05-20 |
 
 ---
 

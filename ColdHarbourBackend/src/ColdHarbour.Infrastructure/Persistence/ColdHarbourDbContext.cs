@@ -1,6 +1,7 @@
 using ColdHarbour.Domain.Identity;
 using ColdHarbour.Domain.Library;
 using ColdHarbour.Domain.Playback;
+using ColdHarbour.Infrastructure.Playback;
 using Microsoft.EntityFrameworkCore;
 
 namespace ColdHarbour.Infrastructure.Persistence;
@@ -14,6 +15,7 @@ public class ColdHarbourDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Device> Devices => Set<Device>();
     public DbSet<PlayEvent> PlayEvents => Set<PlayEvent>();
+    public DbSet<PlayStats> PlayStats => Set<PlayStats>();
 
     public ColdHarbourDbContext(DbContextOptions<ColdHarbourDbContext> options) : base(options) { }
 

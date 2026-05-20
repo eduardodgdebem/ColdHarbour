@@ -47,6 +47,10 @@ public class TrackConfiguration : IEntityTypeConfiguration<Track>
                 duration => duration.Ticks,
                 ticks => TimeSpan.FromTicks(ticks));
 
+        builder.Property(t => t.IntegrityStatus)
+            .IsRequired(false)
+            .HasMaxLength(16);
+
         builder.HasIndex(t => t.AudioSha1)
             .IsUnique();
 

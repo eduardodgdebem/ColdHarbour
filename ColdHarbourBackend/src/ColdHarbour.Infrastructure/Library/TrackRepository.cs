@@ -45,4 +45,22 @@ public sealed class TrackRepository(ColdHarbourDbContext db) : ITrackRepository
     public void RemoveArtist(Artist artist) => db.Artists.Remove(artist);
 
     public Task SaveChangesAsync(CancellationToken ct = default) => db.SaveChangesAsync(ct);
+
+    public async Task<List<Track>> GetLocalTrackSampleAsync(int maxCount, CancellationToken ct = default)
+    {
+        var allIds = await db.Tracks
+            .Where(t => t.Provider == "local" && t.LocalPath != null)
+            .Select(t => t.Id)
+            .ToListAsync(ct);
+
+        var rng = new Random();
+        var sampledIds = allIds
+            .OrderBy(_ => rng.Next())
+            .Take(maxCount)
+            .ToHashSet();
+
+        return await db.Tracks
+            .Where(t => sampledIds.Contains(t.Id))
+            .ToListAsync(ct);
+    }
 }

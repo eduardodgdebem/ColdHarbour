@@ -16,6 +16,8 @@ public class Track
     public string Format { get; private set; } = default!;
     public int Bitrate { get; private set; }
     public string AudioSha1 { get; private set; } = default!;
+    // null = unchecked; "ok" | "mismatch" | "missing" set by IntegrityCheckJob
+    public string? IntegrityStatus { get; private set; }
 
     private Track() { }
 
@@ -67,4 +69,6 @@ public class Track
             AudioSha1 = audioSha1
         };
     }
+
+    public void FlagIntegrity(string status) => IntegrityStatus = status;
 }

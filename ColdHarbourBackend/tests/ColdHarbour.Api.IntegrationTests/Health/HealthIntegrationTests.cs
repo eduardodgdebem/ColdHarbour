@@ -1,8 +1,4 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Net;
-using System.Net.Http.Headers;
-using System.Security.Claims;
-using System.Text;
 using System.Text.Json;
 using ColdHarbour.Application.Identity.Ports;
 using ColdHarbour.Application.Library.Ports;
@@ -13,70 +9,45 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.IdentityModel.Tokens;
 
-namespace ColdHarbour.Api.IntegrationTests.Playback;
+namespace ColdHarbour.Api.IntegrationTests.Health;
 
 [Collection("IntegrationTests")]
-public sealed class DevicesIntegrationTests : IClassFixture<DevicesTestFactory>
+public sealed class HealthIntegrationTests : IClassFixture<HealthTestFactory>
 {
     private readonly HttpClient _client;
 
-    public DevicesIntegrationTests(DevicesTestFactory factory)
+    public HealthIntegrationTests(HealthTestFactory factory)
     {
         _client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-        _client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", DevicesTestFactory.GenerateToken());
     }
 
     [Fact]
-    public async Task RegisterDevice_ReturnsNoContent()
+    public async Task GetHealth_WithoutAuth_Returns200()
     {
-        var body = JsonSerializer.Serialize(new
-        {
-            deviceId = Guid.NewGuid(),
-            name = "Chrome on macOS",
-            supportedCodecs = new[] { "mp3", "flac", "m4a", "wav" },
-            preferredProfile = "opus-128",
-            bitrateCap = (int?)null
-        });
-
-        var response = await _client.PostAsync("/api/devices",
-            new StringContent(body, Encoding.UTF8, "application/json"));
-
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var response = await _client.GetAsync("/api/health");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
-    public async Task Stream_UnknownTrack_Returns404()
+    public async Task GetHealth_ReturnsJsonWithStatusAndDb()
     {
-        var response = await _client.GetAsync($"/api/stream/{Guid.NewGuid()}");
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var response = await _client.GetAsync("/api/health");
+        var body = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(body);
+        var root = doc.RootElement;
+
+        root.TryGetProperty("status", out _).Should().BeTrue("response must have a 'status' field");
+        root.TryGetProperty("db", out _).Should().BeTrue("response must have a 'db' field");
+        root.TryGetProperty("cacheSize", out _).Should().BeTrue("response must have a 'cacheSize' field");
     }
 }
 
-public sealed class DevicesTestFactory : WebApplicationFactory<Program>
+public sealed class HealthTestFactory : WebApplicationFactory<Program>
 {
     private const string SigningKey = "coldharbour-test-signing-key-32bytes!!";
     private const string Issuer = "coldharbour";
     private const string Audience = "coldharbour-web";
-
-    private readonly SpyDeviceRepository _deviceRepo = new();
-
-    public static string GenerateToken()
-    {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SigningKey));
-        var token = new JwtSecurityToken(
-            issuer: Issuer,
-            audience: Audience,
-            claims: [
-                new Claim(JwtRegisteredClaimNames.Sub, Guid.NewGuid().ToString()),
-                new Claim("deviceId", Guid.NewGuid().ToString())
-            ],
-            expires: DateTime.UtcNow.AddMinutes(15),
-            signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
-        return new JwtSecurityTokenHandler().WriteToken(token);
-    }
 
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
@@ -94,31 +65,28 @@ public sealed class DevicesTestFactory : WebApplicationFactory<Program>
             services.RemoveAll(typeof(Microsoft.EntityFrameworkCore.DbContextOptions<
                 ColdHarbour.Infrastructure.Persistence.ColdHarbourDbContext>));
 
-            // Library stubs
             services.RemoveAll<ILibraryReadRepository>();
-            services.AddScoped<ILibraryReadRepository>(_ => new EmptyLibraryReadRepo());
-            services.RemoveAll<ColdHarbour.Application.Library.Ports.ITrackRepository>();
-            services.AddScoped<ColdHarbour.Application.Library.Ports.ITrackRepository>(_ => new EmptyTrackRepo());
-            services.RemoveAll<ColdHarbour.Application.Library.Ports.ITrackIngestService>();
-            services.AddScoped<ColdHarbour.Application.Library.Ports.ITrackIngestService>(_ => new NullIngest());
-            services.RemoveAll<ColdHarbour.Application.Library.Ports.ILibraryReconciler>();
-            services.AddScoped<ColdHarbour.Application.Library.Ports.ILibraryReconciler>(_ => new NullReconciler());
-            services.RemoveAll<ColdHarbour.Application.Library.Ports.IArtworkService>();
-            services.AddScoped<ColdHarbour.Application.Library.Ports.IArtworkService>(_ => new NullArtwork());
+            services.AddScoped<ILibraryReadRepository>(_ => new NullLibraryRepo());
+            services.RemoveAll<ITrackRepository>();
+            services.AddScoped<ITrackRepository>(_ => new NullTrackRepo());
+            services.RemoveAll<ITrackIngestService>();
+            services.AddScoped<ITrackIngestService>(_ => new NullIngest());
+            services.RemoveAll<ILibraryReconciler>();
+            services.AddScoped<ILibraryReconciler>(_ => new NullReconciler());
+            services.RemoveAll<IArtworkService>();
+            services.AddScoped<IArtworkService>(_ => new NullArtwork());
 
-            // Playback stubs
             services.RemoveAll<IDeviceRepository>();
-            services.AddScoped<IDeviceRepository>(_ => _deviceRepo);
+            services.AddScoped<IDeviceRepository>(_ => new NullDeviceRepo());
             services.RemoveAll<ITranscodeService>();
-            services.AddScoped<ITranscodeService>(_ => new NullTranscodeService());
-            services.RemoveAll<ColdHarbour.Application.Playback.Ports.IPlayEventRepository>();
-            services.AddScoped<ColdHarbour.Application.Playback.Ports.IPlayEventRepository>(_ => new NullPlayEventRepo());
-            services.RemoveAll<ColdHarbour.Application.Playback.Ports.IPlaybackSessionStore>();
-            services.AddSingleton<ColdHarbour.Application.Playback.Ports.IPlaybackSessionStore>(new ColdHarbour.Infrastructure.Playback.InMemoryPlaybackSessionStore());
+            services.AddScoped<ITranscodeService>(_ => new NullTranscode());
+            services.RemoveAll<IPlayEventRepository>();
+            services.AddScoped<IPlayEventRepository>(_ => new NullPlayEventRepo());
+            services.RemoveAll<IPlaybackSessionStore>();
+            services.AddSingleton<IPlaybackSessionStore>(new ColdHarbour.Infrastructure.Playback.InMemoryPlaybackSessionStore());
 
-            // Identity stubs
             services.RemoveAll<IUserRepository>();
-            services.AddSingleton<IUserRepository>(new AlwaysExistsUserRepo());
+            services.AddSingleton<IUserRepository>(new NullUserRepo());
             services.RemoveAll<IPasswordHasher>();
             services.AddSingleton<IPasswordHasher>(new PlainHasher());
             services.RemoveAll<ITokenService>();
@@ -128,27 +96,13 @@ public sealed class DevicesTestFactory : WebApplicationFactory<Program>
         });
     }
 
-    // ── spies ────────────────────────────────────────────────────────────────────
-
-    public sealed class SpyDeviceRepository : IDeviceRepository
-    {
-        public ColdHarbour.Domain.Playback.Device? Stored { get; private set; }
-        public Task<ColdHarbour.Domain.Playback.Device?> FindByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Playback.Device?>(null);
-        public Task<IReadOnlyList<ColdHarbour.Domain.Playback.Device>> ListByUserIdAsync(Guid userId, CancellationToken ct = default) =>
-            Task.FromResult<IReadOnlyList<ColdHarbour.Domain.Playback.Device>>(Stored is null ? [] : [Stored]);
-        public Task AddAsync(ColdHarbour.Domain.Playback.Device d, CancellationToken ct = default) { Stored = d; return Task.CompletedTask; }
-        public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
-    }
-
-    // ── stubs ────────────────────────────────────────────────────────────────────
-
-    private sealed class EmptyLibraryReadRepo : ILibraryReadRepository
+    private sealed class NullLibraryRepo : ILibraryReadRepository
     {
         public Task<IReadOnlyList<TrackReadModel>> GetAllTracksAsync(CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<TrackReadModel>>([]);
     }
 
-    private sealed class EmptyTrackRepo : ColdHarbour.Application.Library.Ports.ITrackRepository
+    private sealed class NullTrackRepo : ITrackRepository
     {
         public Task<ColdHarbour.Domain.Library.Track?> FindByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Track?>(null);
         public Task<ColdHarbour.Domain.Library.Track?> FindByAudioSha1Async(string s, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Track?>(null);
@@ -165,42 +119,49 @@ public sealed class DevicesTestFactory : WebApplicationFactory<Program>
         public void RemoveAlbum(ColdHarbour.Domain.Library.Album a) { }
         public void RemoveArtist(ColdHarbour.Domain.Library.Artist a) { }
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
-        public Task<List<ColdHarbour.Domain.Library.Track>> GetLocalTrackSampleAsync(int maxCount, CancellationToken ct = default)
-            => Task.FromResult(new List<ColdHarbour.Domain.Library.Track>());
+        public Task<List<ColdHarbour.Domain.Library.Track>> GetLocalTrackSampleAsync(int maxCount, CancellationToken ct = default) => Task.FromResult(new List<ColdHarbour.Domain.Library.Track>());
     }
 
-    private sealed class NullIngest : ColdHarbour.Application.Library.Ports.ITrackIngestService
+    private sealed class NullIngest : ITrackIngestService
     {
-        public Task<ColdHarbour.Application.Library.Dtos.TrackUploadResultDto> IngestAsync(Stream s, string f, CancellationToken ct = default)
+        public Task<ColdHarbour.Application.Library.Dtos.TrackUploadResultDto> IngestAsync(System.IO.Stream s, string f, CancellationToken ct = default)
             => Task.FromResult(new ColdHarbour.Application.Library.Dtos.TrackUploadResultDto(Guid.NewGuid(), Guid.NewGuid(), false));
         public Task RemoveTrackFilesAsync(string? p, string sha1, CancellationToken ct = default) => Task.CompletedTask;
     }
 
-    private sealed class NullReconciler : ColdHarbour.Application.Library.Ports.ILibraryReconciler
+    private sealed class NullReconciler : ILibraryReconciler
     {
         public Task<ColdHarbour.Application.Library.Dtos.LibrarySyncDiffDto> PreviewAsync(CancellationToken ct = default)
             => Task.FromResult(new ColdHarbour.Application.Library.Dtos.LibrarySyncDiffDto([], [], []));
         public Task ApplyAsync(CancellationToken ct = default) => Task.CompletedTask;
     }
 
-    private sealed class NullArtwork : ColdHarbour.Application.Library.Ports.IArtworkService
+    private sealed class NullArtwork : IArtworkService
     {
         public Task<string?> GetThumbnailPathAsync(Guid id, int size, CancellationToken ct = default) => Task.FromResult<string?>(null);
     }
 
-    private sealed class NullTranscodeService : ITranscodeService
+    private sealed class NullDeviceRepo : IDeviceRepository
+    {
+        public Task<ColdHarbour.Domain.Playback.Device?> FindByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Playback.Device?>(null);
+        public Task<IReadOnlyList<ColdHarbour.Domain.Playback.Device>> ListByUserIdAsync(Guid userId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<ColdHarbour.Domain.Playback.Device>>([]);
+        public Task AddAsync(ColdHarbour.Domain.Playback.Device d, CancellationToken ct = default) => Task.CompletedTask;
+        public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
+    }
+
+    private sealed class NullTranscode : ITranscodeService
     {
         public Task<string?> GetOrTranscodeAsync(string src, string sha1, string profile, CancellationToken ct = default) => Task.FromResult<string?>(null);
     }
 
-    private sealed class NullPlayEventRepo : ColdHarbour.Application.Playback.Ports.IPlayEventRepository
+    private sealed class NullPlayEventRepo : IPlayEventRepository
     {
         public Task AddAsync(ColdHarbour.Domain.Playback.PlayEvent e, CancellationToken ct = default) => Task.CompletedTask;
         public Task<ColdHarbour.Domain.Playback.PlayEvent?> FindActiveByUserAsync(Guid userId, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Playback.PlayEvent?>(null);
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
     }
 
-    private sealed class AlwaysExistsUserRepo : IUserRepository
+    private sealed class NullUserRepo : IUserRepository
     {
         public Task<User?> FindByEmailAsync(string email, CancellationToken ct = default) => Task.FromResult<User?>(null);
         public Task<User?> FindByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<User?>(null);

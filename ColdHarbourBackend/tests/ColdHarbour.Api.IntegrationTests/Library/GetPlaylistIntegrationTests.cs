@@ -239,6 +239,7 @@ public class GetPlaylistIntegrationTests : IClassFixture<WebApplicationFactory<P
         public Task AddAsync(RefreshToken token, CancellationToken ct = default) => Task.CompletedTask;
         public Task RevokeFamilyAsync(Guid familyId, CancellationToken ct = default) => Task.CompletedTask;
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task DeleteExpiredAndRevokedAsync(CancellationToken ct = default) => Task.CompletedTask;
     }
 
     private sealed class FakeTrackRepository : ColdHarbour.Application.Library.Ports.ITrackRepository
@@ -258,6 +259,8 @@ public class GetPlaylistIntegrationTests : IClassFixture<WebApplicationFactory<P
         public void RemoveAlbum(ColdHarbour.Domain.Library.Album album) { }
         public void RemoveArtist(ColdHarbour.Domain.Library.Artist artist) { }
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task<List<ColdHarbour.Domain.Library.Track>> GetLocalTrackSampleAsync(int maxCount, CancellationToken ct = default)
+            => Task.FromResult(new List<ColdHarbour.Domain.Library.Track>());
     }
 
     private sealed class FakeTrackIngestService : ColdHarbour.Application.Library.Ports.ITrackIngestService

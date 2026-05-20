@@ -35,6 +35,11 @@ public static class DependencyInjection
         services.AddScoped<ITranscodeService, TranscodeService>();
         services.AddSingleton<IPlaybackSessionStore, InMemoryPlaybackSessionStore>();
         services.AddHostedService<CachePruneJob>();
+        services.AddHostedService<ArtCachePruneJob>();
+        services.AddHostedService<BackupJob>();
+        services.AddHostedService<IntegrityCheckJob>();
+        services.AddHostedService<PlaybackStatsJob>();
+        services.AddHostedService<RefreshTokenSweepJob>();
 
         return services;
     }

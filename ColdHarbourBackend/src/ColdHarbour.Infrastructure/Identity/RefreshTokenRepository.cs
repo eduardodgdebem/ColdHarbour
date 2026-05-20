@@ -31,4 +31,9 @@ public sealed class RefreshTokenRepository : IRefreshTokenRepository
 
     public Task SaveChangesAsync(CancellationToken ct = default)
         => _db.SaveChangesAsync(ct);
+
+    public Task DeleteExpiredAndRevokedAsync(CancellationToken ct = default)
+        => _db.RefreshTokens
+            .Where(t => t.ExpiresAt <= DateTimeOffset.UtcNow || t.RevokedAt != null)
+            .ExecuteDeleteAsync(ct);
 }

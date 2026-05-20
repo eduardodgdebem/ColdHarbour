@@ -25,7 +25,9 @@
   color: var(--muted);
   padding: 0;
 
-  &:hover { color: var(--off-white); }
+  &:hover {
+    color: var(--off-white);
+  }
 }
 
 .devices-title {
@@ -59,7 +61,9 @@
   border-bottom: var(--border);
   background: var(--off-white);
 
-  &--active { background: var(--accent); }
+  &--active {
+    background: var(--accent);
+  }
 }
 
 .device-info {
@@ -102,8 +106,14 @@
   padding: 4px 8px;
   border: var(--border);
 
-  &--playing { background: var(--black); color: var(--off-white); }
-  &--this { background: var(--off-white); color: var(--muted); }
+  &--playing {
+    background: var(--black);
+    color: var(--off-white);
+  }
+  &--this {
+    background: var(--off-white);
+    color: var(--muted);
+  }
 }
 
 .play-here-btn {

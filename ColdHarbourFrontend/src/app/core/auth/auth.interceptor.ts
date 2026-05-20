@@ -1,5 +1,9 @@
 import { inject } from '@angular/core';
-import { HttpInterceptorFn, HttpRequest, HttpErrorResponse } from '@angular/common/http';
+import {
+  HttpInterceptorFn,
+  HttpRequest,
+  HttpErrorResponse,
+} from '@angular/common/http';
 import { Router } from '@angular/router';
 import { throwError } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
@@ -16,17 +20,17 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authedReq = token ? addToken(req, token) : req;
 
   return next(authedReq).pipe(
-    catchError(err => {
+    catchError((err) => {
       if (err instanceof HttpErrorResponse && err.status === 401 && token) {
         return auth.refresh().pipe(
-          switchMap(newToken => next(addToken(req, newToken))),
+          switchMap((newToken) => next(addToken(req, newToken))),
           catchError(() => {
             router.navigate(['/login']);
             return throwError(() => err);
-          })
+          }),
         );
       }
       return throwError(() => err);
-    })
+    }),
   );
 };

@@ -23,7 +23,8 @@ describe('PlayerComponent', () => {
   };
 
   beforeEach(async () => {
-    const audioSpy = jasmine.createSpyObj('AudioService',
+    const audioSpy = jasmine.createSpyObj(
+      'AudioService',
       ['loadMusic', 'playToggle', 'seekTo', 'setVolume', 'cleanup'],
       {
         isPlaying: signal(false),
@@ -31,20 +32,21 @@ describe('PlayerComponent', () => {
         currentTime: signal(0),
         duration: signal(0),
         ended: signal(false),
-      }
+      },
     );
 
-    const musicSpy = jasmine.createSpyObj('MusicService',
+    const musicSpy = jasmine.createSpyObj(
+      'MusicService',
       ['selectMusic', 'nextMusic', 'previousMusic', 'isCurrentMusic'],
-      { currentMusic: signal(null) }
+      { currentMusic: signal(null) },
     );
 
     await TestBed.configureTestingModule({
       imports: [PlayerComponent],
       providers: [
         { provide: AudioService, useValue: audioSpy },
-        { provide: MusicService, useValue: musicSpy }
-      ]
+        { provide: MusicService, useValue: musicSpy },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(PlayerComponent);

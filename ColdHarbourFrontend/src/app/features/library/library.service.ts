@@ -12,7 +12,7 @@ export class LibraryService {
 
   constructor(
     private api: ApiService,
-    private musicService: MusicService
+    private musicService: MusicService,
   ) {}
 
   uploadFile(file: File): void {

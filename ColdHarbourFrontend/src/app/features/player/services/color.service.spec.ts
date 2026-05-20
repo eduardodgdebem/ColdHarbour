@@ -9,7 +9,7 @@ describe('ColorService', () => {
     mockWorker = {
       postMessage: jasmine.createSpy('postMessage'),
       onmessage: null,
-      terminate: jasmine.createSpy('terminate')
+      terminate: jasmine.createSpy('terminate'),
     } as any;
 
     spyOn(window, 'Worker').and.returnValue(mockWorker);
@@ -29,15 +29,18 @@ describe('ColorService', () => {
   it('should use cached color if available', () => {
     const testUrl = 'test-image.jpg';
     const testColor = '#123456';
-    
+
     service['colorCache'].set(testUrl, testColor);
-    
+
     spyOn(document.documentElement.style, 'setProperty');
-    
+
     service.extractColor(testUrl);
-    
+
     expect(service.accentColor()).toBe(testColor);
-    expect(document.documentElement.style.setProperty).toHaveBeenCalledWith('--accent', testColor);
+    expect(document.documentElement.style.setProperty).toHaveBeenCalledWith(
+      '--accent',
+      testColor,
+    );
     expect(mockWorker.postMessage).not.toHaveBeenCalled();
   });
 
@@ -50,32 +53,40 @@ describe('ColorService', () => {
   it('should handle worker success response', () => {
     const testColor = '#123456';
     const testUrl = 'test-image.jpg';
-    
+
     spyOn(document.documentElement.style, 'setProperty');
-    
-    mockWorker.onmessage!({ data: { color: testColor, imageUrl: testUrl } } as MessageEvent);
-    
+
+    mockWorker.onmessage!({
+      data: { color: testColor, imageUrl: testUrl },
+    } as MessageEvent);
+
     expect(service.accentColor()).toBe(testColor);
     expect(service['colorCache'].get(testUrl)).toBe(testColor);
-    expect(document.documentElement.style.setProperty).toHaveBeenCalledWith('--accent', testColor);
+    expect(document.documentElement.style.setProperty).toHaveBeenCalledWith(
+      '--accent',
+      testColor,
+    );
   });
 
   it('should handle worker error response', () => {
     spyOn(console, 'error');
     spyOn(document.documentElement.style, 'setProperty');
-    
+
     mockWorker.onmessage!({ data: { error: 'Test error' } } as MessageEvent);
-    
+
     expect(console.error).toHaveBeenCalled();
     expect(service.accentColor()).toBe('#000000');
-    expect(document.documentElement.style.setProperty).toHaveBeenCalledWith('--accent', '#000000');
+    expect(document.documentElement.style.setProperty).toHaveBeenCalledWith(
+      '--accent',
+      '#000000',
+    );
   });
 
   it('should adjust color brightness correctly', () => {
     const color = '#FF8800';
     const darkerColor = service['adjustColorBrightness'](color, -0.2);
     const brighterColor = service['adjustColorBrightness'](color, 0.2);
-    
+
     expect(darkerColor.toLowerCase()).toBe('#cc6d00');
     expect(brighterColor.toLowerCase()).toBe('#ffa300');
   });
@@ -84,4 +95,4 @@ describe('ColorService', () => {
     service.ngOnDestroy();
     expect(mockWorker.terminate).toHaveBeenCalled();
   });
-}); 
+});

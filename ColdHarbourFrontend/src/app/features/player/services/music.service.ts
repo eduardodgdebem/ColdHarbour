@@ -16,7 +16,7 @@ export class MusicService {
 
   constructor(
     private apiService: ApiService,
-    private colorService: ColorService
+    private colorService: ColorService,
   ) {
     effect(() => {
       const music = this.currentMusic();

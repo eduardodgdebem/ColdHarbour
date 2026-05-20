@@ -4,17 +4,22 @@
   <p class="state-msg state-msg--error">{{ musicService.error() }}</p>
 } @else {
   <ul class="tracklist">
-    @for (music of musicService.currentPlayList()?.musics; track music.id; let i = $index) {
-      <li class="track"
-          [class.track--playing]="isCurrentMusic(music)"
-          (click)="selectMusic(music)">
-
+    @for (
+      music of musicService.currentPlayList()?.musics;
+      track music.id;
+      let i = $index
+    ) {
+      <li
+        class="track"
+        [class.track--playing]="isCurrentMusic(music)"
+        (click)="selectMusic(music)"
+      >
         <span class="track-idx">
-          {{ isCurrentMusic(music) ? '▶' : (i + 1) }}
+          {{ isCurrentMusic(music) ? '▶' : i + 1 }}
         </span>
 
         <div class="track-art">
-          <img [src]="music.imageRef" [alt]="music.name">
+          <img [src]="music.imageRef" [alt]="music.name" />
         </div>
 
         <div class="track-info">
@@ -26,9 +31,16 @@
           @if (isCurrentMusic(music)) {
             <span class="playing-badge">PLAYING</span>
           }
-          <span class="track-dur">{{ formatDuration(music.durationSeconds) }}</span>
-          <button class="delete-btn" title="Delete track"
-                  (click)="deleteTrack($event, music.trackId)">✕</button>
+          <span class="track-dur">{{
+            formatDuration(music.durationSeconds)
+          }}</span>
+          <button
+            class="delete-btn"
+            title="Delete track"
+            (click)="deleteTrack($event, music.trackId)"
+          >
+            ✕
+          </button>
         </div>
       </li>
     }

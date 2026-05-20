@@ -10,10 +10,7 @@ describe('PlaylistPageComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [PlaylistPageComponent],
-      providers: [
-        provideHttpClient(),
-        provideRouter([]),
-      ]
+      providers: [provideHttpClient(), provideRouter([])],
     }).compileComponents();
 
     fixture = TestBed.createComponent(PlaylistPageComponent);

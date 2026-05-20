@@ -18,12 +18,12 @@ public sealed class StreamController(
 {
     private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        [".mp3"]  = "audio/mpeg",
+        [".mp3"] = "audio/mpeg",
         [".flac"] = "audio/flac",
-        [".m4a"]  = "audio/mp4",
-        [".ogg"]  = "audio/ogg",
+        [".m4a"] = "audio/mp4",
+        [".ogg"] = "audio/ogg",
         [".opus"] = "audio/ogg",
-        [".wav"]  = "audio/wav",
+        [".wav"] = "audio/wav",
     };
 
     private string ContentRoot => config["COLDHARBOUR_CONTENT_ROOT"]

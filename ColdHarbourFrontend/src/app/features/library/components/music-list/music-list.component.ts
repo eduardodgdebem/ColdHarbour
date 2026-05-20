@@ -9,12 +9,12 @@ import { LibraryService } from '../../library.service';
   standalone: true,
   imports: [],
   templateUrl: './music-list.component.html',
-  styleUrl: './music-list.component.scss'
+  styleUrl: './music-list.component.scss',
 })
 export class MusicListComponent {
   constructor(
     public musicService: MusicService,
-    public libraryService: LibraryService
+    public libraryService: LibraryService,
   ) {}
 
   selectMusic(music: Music) {

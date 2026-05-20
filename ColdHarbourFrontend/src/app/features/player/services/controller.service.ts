@@ -1,4 +1,3 @@
-
 import { effect, Injectable } from '@angular/core';
 import { AudioService } from './audio.service';
 import { MusicService } from './music.service';
@@ -11,7 +10,7 @@ export class ControllerService {
 
   constructor(
     private audioService: AudioService,
-    private musicService: MusicService
+    private musicService: MusicService,
   ) {
     if ('mediaSession' in navigator) {
       this.mediaSession = navigator.mediaSession;
@@ -33,7 +32,7 @@ export class ControllerService {
         this.musicService.nextMusic();
         this.audioService.ended.set(false);
       }
-    })
+    });
   }
 
   private handleKey(event: KeyboardEvent) {

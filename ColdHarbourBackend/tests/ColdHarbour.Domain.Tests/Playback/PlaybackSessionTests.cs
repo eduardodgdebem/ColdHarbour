@@ -5,9 +5,9 @@ namespace ColdHarbour.Domain.Tests.Playback;
 
 public sealed class PlaybackSessionTests
 {
-    private static readonly Guid UserId   = Guid.NewGuid();
+    private static readonly Guid UserId = Guid.NewGuid();
     private static readonly Guid DeviceId = Guid.NewGuid();
-    private static readonly Guid TrackId  = Guid.NewGuid();
+    private static readonly Guid TrackId = Guid.NewGuid();
 
     [Fact]
     public void Create_HasNoActiveState()

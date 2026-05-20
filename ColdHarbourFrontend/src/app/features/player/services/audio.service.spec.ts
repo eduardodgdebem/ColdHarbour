@@ -22,7 +22,10 @@ describe('AudioService', () => {
 
   it('should load music and set duration', (done) => {
     const mockAudio = new Audio();
-    Object.defineProperty(mockAudio, 'duration', { value: 180, writable: false });
+    Object.defineProperty(mockAudio, 'duration', {
+      value: 180,
+      writable: false,
+    });
     spyOn(window, 'Audio').and.returnValue(mockAudio);
     spyOn(mockAudio, 'play');
 
@@ -52,8 +55,8 @@ describe('AudioService', () => {
     spyOn(mockAudio, 'play');
     spyOn(mockAudio, 'pause');
 
-    service.loadMusic('test.mp3');  // isPlaying = true
-    service.playToggle();           // pause → isPlaying = false
+    service.loadMusic('test.mp3'); // isPlaying = true
+    service.playToggle(); // pause → isPlaying = false
 
     expect(service.isPlaying()).toBeFalse();
     expect(mockAudio.pause).toHaveBeenCalled();
@@ -65,9 +68,9 @@ describe('AudioService', () => {
     spyOn(mockAudio, 'play');
     spyOn(mockAudio, 'pause');
 
-    service.loadMusic('test.mp3');  // isPlaying = true
-    service.playToggle();           // pause
-    service.playToggle();           // play again → isPlaying = true
+    service.loadMusic('test.mp3'); // isPlaying = true
+    service.playToggle(); // pause
+    service.playToggle(); // play again → isPlaying = true
 
     expect(service.isPlaying()).toBeTrue();
     expect(mockAudio.play).toHaveBeenCalledTimes(2);

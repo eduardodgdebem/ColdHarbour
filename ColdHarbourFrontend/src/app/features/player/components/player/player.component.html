@@ -1,36 +1,54 @@
 @if (musicService.currentMusic(); as music) {
   <section class="player">
-
     <div class="player-art">
-      <img [src]="music.imageRef" [alt]="music.name">
+      <img [src]="music.imageRef" [alt]="music.name" />
     </div>
 
     <div class="player-body">
-
       <div class="player-info">
         <h2 class="player-title">{{ music.name }}</h2>
         <p class="player-artist">{{ music.author }}</p>
       </div>
 
       <div class="player-progress">
-        <span class="time-label">{{ formatTime(audioService.currentTime()) }}</span>
+        <span class="time-label">{{
+          formatTime(audioService.currentTime())
+        }}</span>
         <div class="progress-track" (click)="onSliderClick($event)">
-          <input #progressInput id="progress" type="range"
-                 [min]="0" [max]="audioService.duration()"
-                 [value]="audioService.currentTime()"
-                 (input)="onInputChange($event)">
+          <input
+            #progressInput
+            id="progress"
+            type="range"
+            [min]="0"
+            [max]="audioService.duration()"
+            [value]="audioService.currentTime()"
+            (input)="onInputChange($event)"
+          />
         </div>
-        <span class="time-label">{{ formatTime(audioService.duration()) }}</span>
+        <span class="time-label">{{
+          formatTime(audioService.duration())
+        }}</span>
       </div>
 
       <div class="player-transport">
-        <button class="transport-btn" title="Previous" (click)="musicService.previousMusic()">
-          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/>
+        <button
+          class="transport-btn"
+          title="Previous"
+          (click)="musicService.previousMusic()"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path d="M6 6h2v12H6zm3.5 6 8.5 6V6z" />
           </svg>
         </button>
 
-        <button class="transport-btn transport-btn--play" (click)="mainButtonClick($event)">
+        <button
+          class="transport-btn transport-btn--play"
+          (click)="mainButtonClick($event)"
+        >
           @if (audioService.isPlaying()) {
             <app-pause-icon />
           } @else {
@@ -38,9 +56,17 @@
           }
         </button>
 
-        <button class="transport-btn" title="Next" (click)="musicService.nextMusic()">
-          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 18l8.5-6L6 6v12zm8.5-6v6H17V6h-2.5v6z"/>
+        <button
+          class="transport-btn"
+          title="Next"
+          (click)="musicService.nextMusic()"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path d="M6 18l8.5-6L6 6v12zm8.5-6v6H17V6h-2.5v6z" />
           </svg>
         </button>
       </div>
@@ -48,13 +74,18 @@
       <div class="player-volume">
         <span class="vol-label">VOL</span>
         <div class="volume-track">
-          <input #volumeInput id="volume" type="range"
-                 [min]="0" [max]="1" [step]="0.01"
-                 [value]="audioService.volume()"
-                 (input)="onVolumeChange($event)">
+          <input
+            #volumeInput
+            id="volume"
+            type="range"
+            [min]="0"
+            [max]="1"
+            [step]="0.01"
+            [value]="audioService.volume()"
+            (input)="onVolumeChange($event)"
+          />
         </div>
       </div>
-
     </div>
   </section>
 }

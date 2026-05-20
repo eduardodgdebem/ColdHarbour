@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ColorService {
   public accentColor = signal('');
@@ -10,15 +10,18 @@ export class ColorService {
   private defaultColor = '#D3F000';
 
   constructor() {
-    this.worker = new Worker(new URL('../workers/color-worker.ts', import.meta.url), { type: 'module' });
-    
+    this.worker = new Worker(
+      new URL('../workers/color-worker.ts', import.meta.url),
+      { type: 'module' },
+    );
+
     this.worker.onmessage = (e: MessageEvent) => {
       if (e.data.error) {
         console.error('Worker error:', e.data.error);
         this.updateColor(this.defaultColor);
         return;
       }
-      
+
       if (e.data.color && e.data.imageUrl) {
         this.colorCache.set(e.data.imageUrl, e.data.color);
         this.updateColor(e.data.color);
@@ -45,19 +48,19 @@ export class ColorService {
 
   private adjustColorBrightness(color: string, factor: number): string {
     const hex = color.replace('#', '');
-    
+
     const r = parseInt(hex.substring(0, 2), 16);
     const g = parseInt(hex.substring(2, 4), 16);
     const b = parseInt(hex.substring(4, 6), 16);
-    
+
     const adjustBrightness = (value: number) => {
       return Math.min(255, Math.max(0, Math.round(value * (1 + factor))));
     };
-    
+
     const newR = adjustBrightness(r).toString(16).padStart(2, '0');
     const newG = adjustBrightness(g).toString(16).padStart(2, '0');
     const newB = adjustBrightness(b).toString(16).padStart(2, '0');
-    
+
     return `#${newR}${newG}${newB}`;
   }
 
@@ -66,4 +69,4 @@ export class ColorService {
       this.worker.terminate();
     }
   }
-} 
+}

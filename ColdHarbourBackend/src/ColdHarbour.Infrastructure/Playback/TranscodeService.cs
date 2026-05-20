@@ -18,8 +18,8 @@ public sealed class TranscodeService(IConfiguration config, ILogger<TranscodeSer
         new(StringComparer.OrdinalIgnoreCase)
         {
             ["opus-128"] = (".opus", "-c:a libopus -b:a 128k -vn -f opus"),
-            ["aac-192"]  = (".m4a",  "-c:a aac -b:a 192k -vn -f mp4"),
-            ["mp3-192"]  = (".mp3",  "-c:a libmp3lame -b:a 192k -vn -f mp3"),
+            ["aac-192"] = (".m4a", "-c:a aac -b:a 192k -vn -f mp4"),
+            ["mp3-192"] = (".mp3", "-c:a libmp3lame -b:a 192k -vn -f mp3"),
         };
 
     private string ContentRoot => config["COLDHARBOUR_CONTENT_ROOT"]

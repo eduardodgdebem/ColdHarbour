@@ -95,51 +95,51 @@ public sealed class PlaybackSessionHub(
             switch (type)
             {
                 case "start":
-                {
-                    var deviceId = node!["deviceId"]!.GetValue<Guid>();
-                    var trackId  = node!["trackId"]!.GetValue<Guid>();
-                    await mediator.Send(new StartPlaybackCommand(userId, deviceId, trackId), ct);
-                    break;
-                }
+                    {
+                        var deviceId = node!["deviceId"]!.GetValue<Guid>();
+                        var trackId = node!["trackId"]!.GetValue<Guid>();
+                        await mediator.Send(new StartPlaybackCommand(userId, deviceId, trackId), ct);
+                        break;
+                    }
                 case "pause":
-                {
-                    var session = store.GetOrCreate(userId);
-                    if (!IsActiveDevice(node!, session)) break;
-                    var posMs = node!["positionMs"]?.GetValue<long>() ?? 0;
-                    session.UpdatePosition(posMs);
-                    session.Pause();
-                    break;
-                }
+                    {
+                        var session = store.GetOrCreate(userId);
+                        if (!IsActiveDevice(node!, session)) break;
+                        var posMs = node!["positionMs"]?.GetValue<long>() ?? 0;
+                        session.UpdatePosition(posMs);
+                        session.Pause();
+                        break;
+                    }
                 case "resume":
-                {
-                    var session = store.GetOrCreate(userId);
-                    if (!IsActiveDevice(node!, session)) break;
-                    session.Resume();
-                    break;
-                }
+                    {
+                        var session = store.GetOrCreate(userId);
+                        if (!IsActiveDevice(node!, session)) break;
+                        session.Resume();
+                        break;
+                    }
                 case "heartbeat":
-                {
-                    var session = store.GetOrCreate(userId);
-                    if (!IsActiveDevice(node!, session)) break;
-                    var posMs = node!["positionMs"]!.GetValue<long>();
-                    await mediator.Send(new UpdatePlaybackPositionCommand(userId, posMs), ct);
-                    break;
-                }
+                    {
+                        var session = store.GetOrCreate(userId);
+                        if (!IsActiveDevice(node!, session)) break;
+                        var posMs = node!["positionMs"]!.GetValue<long>();
+                        await mediator.Send(new UpdatePlaybackPositionCommand(userId, posMs), ct);
+                        break;
+                    }
                 case "transfer":
-                {
-                    var newDeviceId = node!["deviceId"]!.GetValue<Guid>();
-                    var posMs = node!["positionMs"]?.GetValue<long>() ?? 0;
-                    await mediator.Send(new TransferPlaybackCommand(userId, newDeviceId, posMs), ct);
-                    await BroadcastDevicesAsync(userId, ct);
-                    break;
-                }
+                    {
+                        var newDeviceId = node!["deviceId"]!.GetValue<Guid>();
+                        var posMs = node!["positionMs"]?.GetValue<long>() ?? 0;
+                        await mediator.Send(new TransferPlaybackCommand(userId, newDeviceId, posMs), ct);
+                        await BroadcastDevicesAsync(userId, ct);
+                        break;
+                    }
                 case "stop":
-                {
-                    var session = store.GetOrCreate(userId);
-                    if (!IsActiveDevice(node!, session)) break;
-                    session.Clear();
-                    break;
-                }
+                    {
+                        var session = store.GetOrCreate(userId);
+                        if (!IsActiveDevice(node!, session)) break;
+                        session.Clear();
+                        break;
+                    }
             }
         }
         catch (Exception ex)

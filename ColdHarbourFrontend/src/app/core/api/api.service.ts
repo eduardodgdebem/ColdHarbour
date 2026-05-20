@@ -21,13 +21,21 @@ export type Playlist = {
   musics: Music[];
 };
 
-export type LibrarySyncItem = { path: string; title: string | null; artist: string | null };
+export type LibrarySyncItem = {
+  path: string;
+  title: string | null;
+  artist: string | null;
+};
 export type LibrarySyncDiff = {
   added: LibrarySyncItem[];
   missing: LibrarySyncItem[];
   renamed: LibrarySyncItem[];
 };
-export type UploadResult = { trackId: string; albumId: string; alreadyExisted: boolean };
+export type UploadResult = {
+  trackId: string;
+  albumId: string;
+  alreadyExisted: boolean;
+};
 
 @Injectable({
   providedIn: 'root',
@@ -47,7 +55,7 @@ export class ApiService {
           audioRef: `${this.ASSETS_URL}${music.audioRef}`,
           imageRef: `${this.ASSETS_URL}${music.imageRef}`,
         })),
-      }))
+      })),
     );
   }
 
@@ -62,7 +70,9 @@ export class ApiService {
   }
 
   previewSync(): Observable<LibrarySyncDiff> {
-    return this.http.get<LibrarySyncDiff>(`${this.API_URL}/library/sync/preview`);
+    return this.http.get<LibrarySyncDiff>(
+      `${this.API_URL}/library/sync/preview`,
+    );
   }
 
   applySync(): Observable<void> {

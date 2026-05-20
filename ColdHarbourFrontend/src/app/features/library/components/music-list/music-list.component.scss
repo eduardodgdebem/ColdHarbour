@@ -7,7 +7,9 @@
   color: var(--black);
   border-bottom: var(--border);
 
-  &--error { color: var(--error-fg); }
+  &--error {
+    color: var(--error-fg);
+  }
 }
 
 /* ── Track list ──────────────────────────────── */

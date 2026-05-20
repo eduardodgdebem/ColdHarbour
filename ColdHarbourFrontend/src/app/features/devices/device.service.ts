@@ -16,18 +16,25 @@ export class DeviceService {
   register(): Observable<void> {
     const deviceId = this.getOrCreateDeviceId();
     const supportedCodecs = this.probeCodecs();
-    const preferredProfile = supportedCodecs.includes('opus') ? 'opus-128' : 'mp3-192';
+    const preferredProfile = supportedCodecs.includes('opus')
+      ? 'opus-128'
+      : 'mp3-192';
 
-    return this.http.post<void>(`${environment.apiBase}/devices`, {
-      deviceId,
-      name: navigator.userAgent.slice(0, 128),
-      supportedCodecs,
-      preferredProfile,
-      bitrateCap: null,
-    }).pipe(
-      tap(() => this.registered.set(true)),
-      catchError(() => { this.registered.set(true); return of(void 0); }),
-    );
+    return this.http
+      .post<void>(`${environment.apiBase}/devices`, {
+        deviceId,
+        name: navigator.userAgent.slice(0, 128),
+        supportedCodecs,
+        preferredProfile,
+        bitrateCap: null,
+      })
+      .pipe(
+        tap(() => this.registered.set(true)),
+        catchError(() => {
+          this.registered.set(true);
+          return of(void 0);
+        }),
+      );
   }
 
   listDevices(): Observable<DeviceDto[]> {
@@ -44,12 +51,15 @@ export class DeviceService {
   }
 
   private generateUUID(): string {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    if (
+      typeof crypto !== 'undefined' &&
+      typeof crypto.randomUUID === 'function'
+    ) {
       return crypto.randomUUID();
     }
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = Math.random() * 16 | 0;
-      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      const r = (Math.random() * 16) | 0;
+      return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
     });
   }
 
@@ -64,7 +74,7 @@ export class DeviceService {
       { codec: 'wav', mime: 'audio/wav' },
     ];
     return candidates
-      .filter(c => audio.canPlayType(c.mime) !== '')
-      .map(c => c.codec);
+      .filter((c) => audio.canPlayType(c.mime) !== '')
+      .map((c) => c.codec);
   }
 }

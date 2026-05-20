@@ -8,7 +8,8 @@ describe('ControllerService', () => {
   let service: ControllerService;
 
   beforeEach(() => {
-    const audioSpy = jasmine.createSpyObj('AudioService',
+    const audioSpy = jasmine.createSpyObj(
+      'AudioService',
       ['playToggle', 'seekTo', 'setVolume'],
       {
         isPlaying: signal(false),
@@ -16,12 +17,13 @@ describe('ControllerService', () => {
         duration: signal(0),
         volume: signal(1),
         ended: signal(false),
-      }
+      },
     );
 
-    const musicSpy = jasmine.createSpyObj('MusicService',
+    const musicSpy = jasmine.createSpyObj(
+      'MusicService',
       ['nextMusic', 'previousMusic'],
-      { currentMusic: signal(null) }
+      { currentMusic: signal(null) },
     );
 
     TestBed.configureTestingModule({
@@ -29,7 +31,7 @@ describe('ControllerService', () => {
         ControllerService,
         { provide: AudioService, useValue: audioSpy },
         { provide: MusicService, useValue: musicSpy },
-      ]
+      ],
     });
     service = TestBed.inject(ControllerService);
   });

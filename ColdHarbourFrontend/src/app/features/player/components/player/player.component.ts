@@ -1,12 +1,17 @@
-import { Component, effect, ElementRef, HostBinding, ViewChild } from '@angular/core';
+import {
+  Component,
+  effect,
+  ElementRef,
+  HostBinding,
+  ViewChild,
+} from '@angular/core';
 import { AudioService } from '../../services/audio.service';
 import { ColorService } from '../../services/color.service';
 import { MusicService } from '../../services/music.service';
 import { PlayIconComponent } from '../../../../shared/icons/play-icon.component';
 import { PauseIconComponent } from '../../../../shared/icons/pause-icon.component';
 
-
-type SlidersId = "volume" | "progress";
+type SlidersId = 'volume' | 'progress';
 
 @Component({
   selector: 'app-player',
@@ -26,26 +31,32 @@ export class PlayerComponent {
   constructor(
     public audioService: AudioService,
     public musicService: MusicService,
-    private colorService: ColorService
+    private colorService: ColorService,
   ) {
     this.setupEffects();
   }
 
   private setupEffects() {
-    effect(() => {
-      const music = this.musicService.currentMusic();
-      if (!music?.audioRef) return;
-      this.colorService.extractColor(music.imageRef);
-      // loadMusic is a no-op if this URL is already loaded; it handles
-      // cleanup internally when switching tracks.
-      this.audioService.loadMusic(music.audioRef);
-    }, { allowSignalWrites: true });
+    effect(
+      () => {
+        const music = this.musicService.currentMusic();
+        if (!music?.audioRef) return;
+        this.colorService.extractColor(music.imageRef);
+        // loadMusic is a no-op if this URL is already loaded; it handles
+        // cleanup internally when switching tracks.
+        this.audioService.loadMusic(music.audioRef);
+      },
+      { allowSignalWrites: true },
+    );
 
     effect(() => {
       const volume = this.audioService.volume();
       if (this.volumeInput) {
         const volumePercentage = volume * 100;
-        this.volumeInput.nativeElement.style.setProperty('--volume', `${volumePercentage}%`);
+        this.volumeInput.nativeElement.style.setProperty(
+          '--volume',
+          `${volumePercentage}%`,
+        );
       }
     });
 
@@ -54,7 +65,10 @@ export class PlayerComponent {
       const currentTime = this.audioService.currentTime();
       if (duration && currentTime) {
         const progressPercentage = (currentTime / duration) * 100;
-        this.progressInput.nativeElement.style.setProperty('--progress', `${progressPercentage}%`);
+        this.progressInput.nativeElement.style.setProperty(
+          '--progress',
+          `${progressPercentage}%`,
+        );
       }
     });
   }
@@ -78,7 +92,7 @@ export class PlayerComponent {
     const rect = wrapper.getBoundingClientRect();
     const ratio = (e.clientX - rect.left) / rect.width;
     const newValue = ratio * this.audioService.duration();
-    const input = wrapper.querySelector("input") as HTMLInputElement;
+    const input = wrapper.querySelector('input') as HTMLInputElement;
     switch (input.id as SlidersId) {
       case 'progress':
         this.audioService.seekTo(newValue);

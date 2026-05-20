@@ -15,17 +15,17 @@ describe('MusicService', () => {
     trackId: '33333333-0000-0000-0000-000000000001',
     albumId: '22222222-0000-0000-0000-000000000001',
     name: "Baby You're Bad",
-    author: "HONNE",
-    audioRef: "/api/stream/33333333-0000-0000-0000-000000000001",
-    imageRef: "/api/artwork/22222222-0000-0000-0000-000000000001",
+    author: 'HONNE',
+    audioRef: '/api/stream/33333333-0000-0000-0000-000000000001',
+    imageRef: '/api/artwork/22222222-0000-0000-0000-000000000001',
     durationSeconds: 210,
   };
 
   const mockPlaylist: Playlist = {
     id: 1,
-    name: "Test Playlist",
-    imageRef: "/api/artwork/22222222-0000-0000-0000-000000000001",
-    musics: [mockMusic]
+    name: 'Test Playlist',
+    imageRef: '/api/artwork/22222222-0000-0000-0000-000000000001',
+    musics: [mockMusic],
   };
 
   beforeEach(() => {
@@ -37,8 +37,8 @@ describe('MusicService', () => {
       providers: [
         MusicService,
         { provide: ApiService, useValue: apiSpy },
-        { provide: ColorService, useValue: colorSpy }
-      ]
+        { provide: ColorService, useValue: colorSpy },
+      ],
     });
 
     service = TestBed.inject(MusicService);
@@ -66,7 +66,9 @@ describe('MusicService', () => {
   });
 
   it('should handle playlist loading error', () => {
-    apiService.getPlaylist.and.returnValue(throwError(() => new Error('Network error')));
+    apiService.getPlaylist.and.returnValue(
+      throwError(() => new Error('Network error')),
+    );
 
     service.setCurrentPlaylist(1);
 

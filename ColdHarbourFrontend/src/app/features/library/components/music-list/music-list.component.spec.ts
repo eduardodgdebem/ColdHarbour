@@ -27,27 +27,29 @@ describe('MusicListComponent', () => {
     id: 1,
     name: 'Test Playlist',
     imageRef: '/api/artwork/22222222-0000-0000-0000-000000000001',
-    musics: [mockMusic]
+    musics: [mockMusic],
   };
 
   beforeEach(async () => {
-    const musicSpy = jasmine.createSpyObj('MusicService',
+    const musicSpy = jasmine.createSpyObj(
+      'MusicService',
       ['selectMusic', 'isCurrentMusic'],
       {
         currentMusic: signal<Music | null>(null),
         currentPlayList: signal<Playlist | null>(mockPlaylist),
         isLoading: signal(false),
-        error: signal<string | null>(null)
-      }
+        error: signal<string | null>(null),
+      },
     );
 
-    const librarySpy = jasmine.createSpyObj('LibraryService',
+    const librarySpy = jasmine.createSpyObj(
+      'LibraryService',
       ['uploadFile', 'deleteTrack', 'previewSync', 'applySync'],
       {
         isUploading: signal(false),
         uploadProgress: signal(0),
         syncDiff: signal(null),
-      }
+      },
     );
 
     await TestBed.configureTestingModule({
@@ -55,13 +57,15 @@ describe('MusicListComponent', () => {
       providers: [
         { provide: MusicService, useValue: musicSpy },
         { provide: LibraryService, useValue: librarySpy },
-      ]
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(MusicListComponent);
     component = fixture.componentInstance;
     musicService = TestBed.inject(MusicService) as jasmine.SpyObj<MusicService>;
-    libraryService = TestBed.inject(LibraryService) as jasmine.SpyObj<LibraryService>;
+    libraryService = TestBed.inject(
+      LibraryService,
+    ) as jasmine.SpyObj<LibraryService>;
     fixture.detectChanges();
   });
 

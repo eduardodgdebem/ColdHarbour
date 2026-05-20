@@ -1,4 +1,4 @@
-$compact: 540px;   /* below this: hide progress + volume */
+$compact: 540px; /* below this: hide progress + volume */
 
 /* ── Shared slider ───────────────────────────── */
 @mixin brute-slider {
@@ -124,7 +124,9 @@ $compact: 540px;   /* below this: hide progress + volume */
   flex-shrink: 0;
   min-width: 30px;
 
-  &:last-child { text-align: right; }
+  &:last-child {
+    text-align: right;
+  }
 }
 
 .progress-track {
@@ -158,21 +160,29 @@ $compact: 540px;   /* below this: hide progress + volume */
   color: var(--black);
   cursor: pointer;
 
-  &:last-child { border-right: none; }
+  &:last-child {
+    border-right: none;
+  }
 
   svg {
     width: 18px;
     height: 18px;
   }
 
-  &:hover { background: var(--accent); border: var(--border) }
+  &:hover {
+    background: var(--accent);
+    border: var(--border);
+  }
 
   &--play {
     width: 64px;
     background: var(--black);
     color: var(--off-white);
 
-    &:hover { background: var(--accent); color: var(--black); }
+    &:hover {
+      background: var(--accent);
+      color: var(--black);
+    }
 
     app-play-icon,
     app-pause-icon {

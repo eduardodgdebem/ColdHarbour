@@ -11,9 +11,19 @@ export class AudioService {
   readonly volume = this.source.volume;
   readonly ended = this.source.ended;
 
-  loadMusic(src: string): void { this.source.loadMusic(src); }
-  playToggle(): void { this.source.playToggle(); }
-  seekTo(time: number): void { this.source.seekTo(time); }
-  setVolume(volume: number): void { this.source.setVolume(volume); }
-  cleanup(): void { this.source.cleanup(); }
+  loadMusic(src: string): void {
+    this.source.loadMusic(src);
+  }
+  playToggle(): void {
+    this.source.playToggle();
+  }
+  seekTo(time: number): void {
+    this.source.seekTo(time);
+  }
+  setVolume(volume: number): void {
+    this.source.setVolume(volume);
+  }
+  cleanup(): void {
+    this.source.cleanup();
+  }
 }

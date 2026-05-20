@@ -1,5 +1,10 @@
 import { Component, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { DeviceService } from '../../../../features/devices/device.service';
@@ -9,12 +14,15 @@ import { DeviceService } from '../../../../features/devices/device.service';
   standalone: true,
   imports: [ReactiveFormsModule],
   templateUrl: './login-page.component.html',
-  styleUrl: './login-page.component.scss'
+  styleUrl: './login-page.component.scss',
 })
 export class LoginPageComponent {
   form = new FormGroup({
     email: new FormControl('', [Validators.required, Validators.email]),
-    password: new FormControl('', [Validators.required, Validators.minLength(8)])
+    password: new FormControl('', [
+      Validators.required,
+      Validators.minLength(8),
+    ]),
   });
 
   error = signal<string | null>(null);
@@ -23,7 +31,7 @@ export class LoginPageComponent {
   constructor(
     private auth: AuthService,
     private device: DeviceService,
-    private router: Router
+    private router: Router,
   ) {}
 
   submit(): void {
@@ -42,7 +50,7 @@ export class LoginPageComponent {
       error: () => {
         this.error.set('Invalid email or password.');
         this.loading.set(false);
-      }
+      },
     });
   }
 }

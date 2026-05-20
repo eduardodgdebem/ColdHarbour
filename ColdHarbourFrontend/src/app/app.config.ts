@@ -1,4 +1,8 @@
-import { APP_INITIALIZER, ApplicationConfig, provideZonelessChangeDetection } from '@angular/core';
+import {
+  APP_INITIALIZER,
+  ApplicationConfig,
+  provideZonelessChangeDetection,
+} from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { of } from 'rxjs';
@@ -17,11 +21,11 @@ export const appConfig: ApplicationConfig = {
     {
       provide: APP_INITIALIZER,
       useFactory: (auth: AuthService, device: DeviceService) => () =>
-        auth.tryRestoreSession().pipe(
-          switchMap(ok => ok ? device.register() : of(void 0))
-        ),
+        auth
+          .tryRestoreSession()
+          .pipe(switchMap((ok) => (ok ? device.register() : of(void 0)))),
       deps: [AuthService, DeviceService],
-      multi: true
-    }
-  ]
+      multi: true,
+    },
+  ],
 };

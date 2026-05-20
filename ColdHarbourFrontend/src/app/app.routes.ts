@@ -7,21 +7,21 @@ import { authGuard } from './core/auth/auth.guard';
 export const routes: Routes = [
   {
     path: 'login',
-    component: LoginPageComponent
+    component: LoginPageComponent,
   },
   {
     path: 'playlist/:id',
     component: PlaylistPageComponent,
-    canActivate: [authGuard]
+    canActivate: [authGuard],
   },
   {
     path: 'devices',
     component: DevicesPageComponent,
-    canActivate: [authGuard]
+    canActivate: [authGuard],
   },
   {
     path: '',
     redirectTo: '/playlist/1',
-    pathMatch: 'full'
-  }
+    pathMatch: 'full',
+  },
 ];

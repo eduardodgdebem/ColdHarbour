@@ -9,11 +9,18 @@
   } @else {
     <ul class="device-list">
       @for (device of session.devices(); track device.id) {
-        <li class="device" [class.device--active]="session.session()?.activeDeviceId === device.id"
-                           [class.device--mine]="device.id === myDeviceId">
+        <li
+          class="device"
+          [class.device--active]="
+            session.session()?.activeDeviceId === device.id
+          "
+          [class.device--mine]="device.id === myDeviceId"
+        >
           <div class="device-info">
             <span class="device-name">{{ device.name }}</span>
-            <span class="device-seen">{{ device.lastSeenAt | date:'short' }}</span>
+            <span class="device-seen">{{
+              device.lastSeenAt | date: 'short'
+            }}</span>
           </div>
           <div class="device-actions">
             @if (session.session()?.activeDeviceId === device.id) {
@@ -22,8 +29,14 @@
             @if (device.id === myDeviceId) {
               <span class="badge badge--this">THIS DEVICE</span>
             }
-            @if (session.session()?.trackId && session.session()?.activeDeviceId !== device.id) {
-              <button class="btn btn--primary play-here-btn" (click)="transfer(device.id)">
+            @if (
+              session.session()?.trackId &&
+              session.session()?.activeDeviceId !== device.id
+            ) {
+              <button
+                class="btn btn--primary play-here-btn"
+                (click)="transfer(device.id)"
+              >
                 PLAY HERE
               </button>
             }

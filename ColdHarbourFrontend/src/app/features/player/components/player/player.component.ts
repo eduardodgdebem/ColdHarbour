@@ -73,6 +73,11 @@ export class PlayerComponent {
         );
       }
     });
+
+    effect(() => {
+      this.musicService.currentMusic();
+      this.imageError = false;
+    });
   }
 
   public mainButtonClick(e: Event) {

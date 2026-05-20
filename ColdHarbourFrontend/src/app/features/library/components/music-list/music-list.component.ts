@@ -12,6 +12,8 @@ import { LibraryService } from '../../library.service';
   styleUrl: './music-list.component.scss',
 })
 export class MusicListComponent {
+  public imageErrorById = new Map<number, boolean>();
+
   constructor(
     public musicService: MusicService,
     public libraryService: LibraryService,

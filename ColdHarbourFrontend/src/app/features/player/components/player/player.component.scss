@@ -53,6 +53,12 @@ $compact: 540px; /* below this: hide progress + volume */
     height: 100%;
     object-fit: cover;
   }
+
+  &-empty {
+    width: 100%;
+    height: 100%;
+    background-color: var(--yellow);
+  }
 }
 
 /* ── Body (info + progress + transport + volume) */
@@ -146,6 +152,8 @@ $compact: 540px; /* below this: hide progress + volume */
   align-items: stretch;
   flex-shrink: 0;
   height: 100%;
+  gap: 8px;
+  padding-right: 8px;
 }
 
 .transport-btn {
@@ -156,13 +164,9 @@ $compact: 540px; /* below this: hide progress + volume */
   align-items: center;
   justify-content: center;
   background: var(--off-white);
-  border: none;
+  border: var(--border);
   color: var(--black);
   cursor: pointer;
-
-  &:last-child {
-    border-right: none;
-  }
 
   svg {
     width: 18px;
@@ -171,7 +175,7 @@ $compact: 540px; /* below this: hide progress + volume */
 
   &:hover {
     background: var(--accent);
-    border: var(--border);
+    box-shadow: 3px 3px 0 0 var(--black);
   }
 
   &--play {

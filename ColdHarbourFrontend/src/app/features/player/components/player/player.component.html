@@ -1,7 +1,15 @@
 @if (musicService.currentMusic(); as music) {
   <section class="player">
     <div class="player-art">
-      <img [src]="music.imageRef" [alt]="music.name" />
+      @if (music.imageRef && !imageError) {
+        <img
+          [src]="music.imageRef"
+          [alt]="music.name"
+          (error)="imageError = true"
+        />
+      } @else {
+        <div class="player-art-empty"></div>
+      }
     </div>
 
     <div class="player-body">

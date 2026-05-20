@@ -28,6 +28,8 @@ export class PlayerComponent {
   @ViewChild('volumeInput') volumeInput!: ElementRef<HTMLInputElement>;
   @ViewChild('progressInput') progressInput!: ElementRef<HTMLInputElement>;
 
+  public imageError: boolean = false;
+
   constructor(
     public audioService: AudioService,
     public musicService: MusicService,

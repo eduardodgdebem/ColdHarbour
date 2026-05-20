@@ -19,7 +19,15 @@
         </span>
 
         <div class="track-art">
-          <img [src]="music.imageRef" [alt]="music.name" />
+          @if (music.imageRef && !imageErrorById.get(music.id)) {
+            <img
+              [src]="music.imageRef"
+              [alt]="music.name"
+              (error)="imageErrorById.set(music.id, true)"
+            />
+          } @else {
+            <div class="track-art-empty"></div>
+          }
         </div>
 
         <div class="track-info">
@@ -39,7 +47,7 @@
             title="Delete track"
             (click)="deleteTrack($event, music.trackId)"
           >
-            ✕
+            <p class="delete-btn-x">✕</p>
           </button>
         </div>
       </li>

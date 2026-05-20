@@ -6,3 +6,6 @@ docker-compose.override.yml
 .DS_Store
 
 /content
+
+**/coveragereport
+**/TestResults

@@ -9,6 +9,7 @@
 The visual design is defined in [`DESIGN.md`](./DESIGN.md) and is named **Sonic Brutalism**. All UI work must align with it.
 
 Key rules from that document:
+
 - **Neo-Brutalism aesthetic** — raw, print-first, unapologetic. No gradients, no soft shadows, no rounded corners.
 - **Palette:** Stark Black (`#000000`), Off-White (`#F9F9F9`), Acidic Yellow / `--accent` (`#D3F000` default, overridden per-album by `ColorService`).
 - **Typography:** Archivo Narrow (headlines, uppercase), Public Sans (body), Space Mono (labels/metadata).
@@ -27,6 +28,7 @@ Key rules from that document:
 4. Refactor with the test as a safety net.
 
 Rules:
+
 - No production code without a test that drove it into existence. "I'll add tests after" is not acceptable.
 - Every PR includes the tests written first. Commit order should reflect this (test commit before impl commit when practical).
 - Bug fixes follow the same loop: reproduce with a failing test, then fix.
@@ -57,6 +59,7 @@ ColdHarbour is a self-hosted music server that runs entirely in Docker on the us
 ```
 
 Three processes, one host:
+
 - **caddy** terminates HTTP on port 80, serves the built Angular bundle as static files, and reverse-proxies `/api/*` → api and `/ws/*` → api (WebSocket upgrade).
 - **api** owns domain logic, auth, provider integration, streaming, and the raw WebSocket playback hub.
 - **db** stores catalog, users, playback history, refresh tokens. Audio files live on a bind-mounted volume, never in the DB.
@@ -76,7 +79,8 @@ Three cross-cutting design axes:
 ## Complete tech stack
 
 **Frontend**
-- Angular 20 — standalone components, **zoneless** change detection, Signals
+
+- Angular 21 — standalone components, **zoneless** change detection, Signals
 - TypeScript 5.9
 - RxJS 7.8 — used only at the HTTP boundary (Observables die at `ApiService`; everything downstream is signals)
 - SCSS (design tokens from `DESIGN.md` as CSS custom properties)
@@ -87,6 +91,7 @@ Three cross-cutting design axes:
 - **MusicKit JS** (client-only) for Apple Music playback — loaded lazily, post-MVP
 
 **Backend**
+
 - .NET 10 / ASP.NET Core 10
 - **MediatR** for CQRS-lite (commands return `Unit`, queries return DTOs)
 - **EF Core 9 + Npgsql** for persistence
@@ -100,18 +105,21 @@ Three cross-cutting design axes:
 - **Serilog** for structured logging
 - Swashbuckle OpenAPI — dev-only
 
-**Explicitly *not* in the stack:**
+**Explicitly _not_ in the stack:**
+
 - **Redis** — caches are multi-MB audio/image blobs; filesystem + HTTP Range wins. `IPlaybackSessionStore` port exists to swap in Redis later if needed.
 - **HLS** — cache-first whole-file transcoding is enough for single-digit users.
 - **Lossless-to-lossless transcoding** — pointless bit repackaging; skipped.
 - **SignalR** — raw WebSocket used at `/ws/playback`; JWT supplied as `?access_token=` query param because browser WS API cannot send custom headers.
 
 **Infrastructure**
+
 - Docker Compose (services: caddy, api, db)
 - **Caddy** (`caddy:alpine`) — edge proxy + SPA static server
 - PostgreSQL (pin a major version before going public)
 
 **Local dev**
+
 - `dotnet watch run` for the backend
 - `ng serve --proxy-config proxy.conf.json` for the frontend — proxies both `/api/*` and `/ws/*` to `http://localhost:8080` (WebSocket upgrade included). `wsBase` is derived from `window.location` at runtime so the same build works on any host (localhost, LAN IP, tunnel domain).
 
@@ -120,46 +128,52 @@ Three cross-cutting design axes:
 ## All environment variables
 
 ### api (ASP.NET)
-| Variable | Source | Purpose |
-|---|---|---|
-| `ASPNETCORE_URLS` | compose | Kestrel binding (`http://+:8080`) |
-| `ASPNETCORE_ENVIRONMENT` | compose | `Development` / `Production` |
-| `ConnectionStrings__DefaultConnection` | appsettings / env | Postgres connection string |
-| `COLDHARBOUR_CONTENT_ROOT` | compose | Library mount point (default `/content`) |
-| `COLDHARBOUR_TRANSCODE_CACHE_LIMIT_BYTES` | compose | Soft cap for `cache/transcodes/`; LRU eviction. Default 5 GB |
-| `COLDHARBOUR_ART_CACHE_LIMIT_BYTES` | compose | Soft cap for `cache/art/`. Default 512 MB |
-| `COLDHARBOUR_FFMPEG_PATH` | compose | Path to `ffmpeg` binary (default `/usr/bin/ffmpeg`) |
-| `COLDHARBOUR_JWT_SIGNING_KEY` | `.env` (secret) | HS256 signing key — ≥256 bits, random |
-| `COLDHARBOUR_JWT_ISSUER` | compose | `coldharbour` |
-| `COLDHARBOUR_JWT_AUDIENCE` | compose | `coldharbour-web` |
-| `COLDHARBOUR_ACCESS_TOKEN_TTL` | compose | Default `15m` |
-| `COLDHARBOUR_REFRESH_TOKEN_TTL` | compose | Default `14d` |
-| `COLDHARBOUR_PUBLIC_ORIGIN` | compose | e.g. `https://music.example.com` — CORS allowlist + cookie domain |
-| `COLDHARBOUR_BOOTSTRAP_EMAIL` / `_PASSWORD` | `.env` | First-run owner seed (printed once to log, then unset) |
-| `COLDHARBOUR_APPLE_TEAM_ID` `[post-MVP]` | `.env` (secret) | Apple Developer Team ID |
-| `COLDHARBOUR_APPLE_KEY_ID` `[post-MVP]` | `.env` (secret) | MusicKit key ID |
-| `COLDHARBOUR_APPLE_PRIVATE_KEY_PATH` `[post-MVP]` | `.env` (secret) | Path to `.p8` file |
-| `COLDHARBOUR_PROVIDER_CREDENTIALS_KEY` `[post-MVP]` | `.env` (secret) | AES-256 key for per-user provider token encryption |
+
+| Variable                                            | Source            | Purpose                                                           |
+| --------------------------------------------------- | ----------------- | ----------------------------------------------------------------- |
+| `ASPNETCORE_URLS`                                   | compose           | Kestrel binding (`http://+:8080`)                                 |
+| `ASPNETCORE_ENVIRONMENT`                            | compose           | `Development` / `Production`                                      |
+| `ConnectionStrings__DefaultConnection`              | appsettings / env | Postgres connection string                                        |
+| `COLDHARBOUR_CONTENT_ROOT`                          | compose           | Library mount point (default `/content`)                          |
+| `COLDHARBOUR_TRANSCODE_CACHE_LIMIT_BYTES`           | compose           | Soft cap for `cache/transcodes/`; LRU eviction. Default 5 GB      |
+| `COLDHARBOUR_ART_CACHE_LIMIT_BYTES`                 | compose           | Soft cap for `cache/art/`. Default 512 MB                         |
+| `COLDHARBOUR_FFMPEG_PATH`                           | compose           | Path to `ffmpeg` binary (default `/usr/bin/ffmpeg`)               |
+| `COLDHARBOUR_JWT_SIGNING_KEY`                       | `.env` (secret)   | HS256 signing key — ≥256 bits, random                             |
+| `COLDHARBOUR_JWT_ISSUER`                            | compose           | `coldharbour`                                                     |
+| `COLDHARBOUR_JWT_AUDIENCE`                          | compose           | `coldharbour-web`                                                 |
+| `COLDHARBOUR_ACCESS_TOKEN_TTL`                      | compose           | Default `15m`                                                     |
+| `COLDHARBOUR_REFRESH_TOKEN_TTL`                     | compose           | Default `14d`                                                     |
+| `COLDHARBOUR_PUBLIC_ORIGIN`                         | compose           | e.g. `https://music.example.com` — CORS allowlist + cookie domain |
+| `COLDHARBOUR_BOOTSTRAP_EMAIL` / `_PASSWORD`         | `.env`            | First-run owner seed (printed once to log, then unset)            |
+| `COLDHARBOUR_APPLE_TEAM_ID` `[post-MVP]`            | `.env` (secret)   | Apple Developer Team ID                                           |
+| `COLDHARBOUR_APPLE_KEY_ID` `[post-MVP]`             | `.env` (secret)   | MusicKit key ID                                                   |
+| `COLDHARBOUR_APPLE_PRIVATE_KEY_PATH` `[post-MVP]`   | `.env` (secret)   | Path to `.p8` file                                                |
+| `COLDHARBOUR_PROVIDER_CREDENTIALS_KEY` `[post-MVP]` | `.env` (secret)   | AES-256 key for per-user provider token encryption                |
 
 ### caddy
-| Variable | Purpose |
-|---|---|
+
+| Variable                      | Purpose                                                 |
+| ----------------------------- | ------------------------------------------------------- |
 | `COLDHARBOUR_PUBLIC_HOSTNAME` | Hostname the tunnel forwards to — used by the Caddyfile |
 
 ### db (Postgres)
-| Variable | Purpose |
-|---|---|
-| `POSTGRES_USER` | Replace before tunnel exposure |
+
+| Variable            | Purpose                               |
+| ------------------- | ------------------------------------- |
+| `POSTGRES_USER`     | Replace before tunnel exposure        |
 | `POSTGRES_PASSWORD` | **Rotate before exposing via tunnel** |
-| `POSTGRES_DB` | `coldharbourdb` |
+| `POSTGRES_DB`       | `coldharbourdb`                       |
 
 ### frontend build
+
 No runtime env vars — the bundle is static. All URLs use relative paths (`/api`, `/ws`) so Caddy routes them. `wsBase` is computed at module load from `window.location` (not hardcoded), making the same build work on any hostname.
 
 ### Cookie security
+
 `Secure` flag on auth cookies (`refreshToken`, `media_token`) is set to `!env.IsDevelopment()`. In dev (`ASPNETCORE_ENVIRONMENT=Development`) cookies are sent over plain HTTP, enabling LAN/mobile testing. In production they require HTTPS.
 
 ### Secrets hygiene
+
 - Secrets never in-repo. `.env` is gitignored; mount the `.p8` as a read-only Docker secret.
 - `appsettings.Production.json` may reference env vars via `${VAR}` but never contains the values themselves.
 
@@ -191,6 +205,7 @@ No runtime env vars — the bundle is static. All URLs use relative paths (`/api
 ```
 
 Rules:
+
 - The app never **writes** into `library/` — all app writes go to `cache/` or `backups/`.
 - `album.json`, when present, overrides ID3 tags.
 - Directory names are a fallback when tags are missing or mojibake'd.
@@ -215,6 +230,7 @@ ColdHarbourBackend/
 **Dependency rule:** `Domain` → nothing. `Application` → `Domain`. `Infrastructure` → `Application + Domain`. `Api` → `Application` (+ `Infrastructure` only in `DependencyInjection.cs` extension methods).
 
 **Bounded contexts inside `Domain`:**
+
 - **Library** — `Track`, `Album`, `Artist`; aggregate boundary on `Album`.
 - **Playback** — `PlaybackSession` (in-memory aggregate per user), `Device` (entity), `PlayEvent` (persisted).
 - **Identity** — `User` (aggregate root), `RefreshToken` (entity), `PasswordHash` (VO), `Role` enum.
@@ -229,17 +245,18 @@ ColdHarbourBackend/
 **Endpoint:** `GET /api/stream/{trackId}?profile=...` — authorized. Resolves `Track.Id → Track.LocalPath`. URL never accepts a filesystem path.
 
 **Two serving modes:**
+
 - **Pass-through** — device natively decodes the codec, no bitrate cap. `PhysicalFile(path, mime, enableRangeProcessing: true)`. Kernel `sendfile`, zero CPU.
 - **Transcoded** — FFmpeg converts source → content-addressed cache file → served with Range. First play warms cache (~1–3s); seeks and replays are instant.
 
 **Transcode profiles:**
 
-| Profile | Codec / bitrate | Use case |
-|---|---|---|
+| Profile    | Codec / bitrate      | Use case                     |
+| ---------- | -------------------- | ---------------------------- |
 | `original` | source, no transcode | Client supports native codec |
-| `opus-128` | Opus 128 kbps | Network-efficient default |
-| `aac-192` | AAC 192 kbps | Safari-safe fallback |
-| `mp3-192` | MP3 192 kbps | Legacy playback |
+| `opus-128` | Opus 128 kbps        | Network-efficient default    |
+| `aac-192`  | AAC 192 kbps         | Safari-safe fallback         |
+| `mp3-192`  | MP3 192 kbps         | Legacy playback              |
 
 Clients advertise codec capabilities + preferred profile at `RegisterDevice` time. Server picks cheapest profile that works.
 
@@ -266,10 +283,12 @@ Clients advertise codec capabilities + preferred profile at `RegisterDevice` tim
 JWT is supplied as a query param because the browser WebSocket API cannot set custom headers. On token expiry the server closes with code `4001`; the client calls `/api/auth/refresh` and reconnects.
 
 **Server → client messages:**
+
 - `{ type: "session", session: PlaybackSessionDto }` — broadcast after every state mutation and on initial connect.
 - `{ type: "devices", devices: DeviceDto[] }` — broadcast after connect and after transfer.
 
 **Client → server messages (all include `deviceId`):**
+
 - `{ type: "start", deviceId, trackId }` — begin playing a track on this device.
 - `{ type: "heartbeat", deviceId, positionMs }` — every 2s from the active device.
 - `{ type: "pause", deviceId, positionMs }` — user paused.
@@ -285,9 +304,10 @@ JWT is supplied as a query param because the browser WebSocket API cannot set cu
 
 ## Services, jobs, and models
 
-### api (ColdHarbour.*)
+### api (ColdHarbour.\*)
 
 **Domain aggregates / entities**
+
 - `Track { Id, Title, Artist, Album, Duration, Provider, LocalPath?, Format, Bitrate, AudioSha1 }`
 - `Album { Id, Title, Artist, Year, CoverArtSha1, Tracks[] }` (aggregate root for tracks)
 - `Artist { Id, Name }`
@@ -298,10 +318,12 @@ JWT is supplied as a query param because the browser WebSocket API cannot set cu
 - `PlayEvent { Id, UserId, DeviceId, TrackId, StartedAt, EndedAt?, CompletedRatio? }` — persisted
 
 **Application commands / queries**
+
 - Commands: `RegisterUser`, `AuthenticateUser`, `RefreshAccessToken`, `Logout`, `RegisterDevice`, `StartPlayback`, `UpdatePlaybackPosition`, `TransferPlayback`, `UploadTrack`, `DeleteTrack`, `SyncLibrary`
 - Queries: `GetPlaylist`, `GetActiveSession`, `ListDevices`, `PreviewLibrarySync`
 
 **Infrastructure services**
+
 - `TrackIngestService` — upload flow: validate, hash, extract tags (TagLibSharp), canonical path write, extract art, upsert DB rows.
 - `LibraryReconciler` — sync button: walks `library/`, diffs against DB, applies on confirmation. Advisory Postgres lock while running.
 - `TranscodeService` — on-demand FFmpeg, keyed `SemaphoreSlim`, content-addressed output.
@@ -314,6 +336,7 @@ JWT is supplied as a query param because the browser WebSocket API cannot set cu
 - `DeviceRepository`, `PlayEventRepository` — EF Core repositories for persisted playback data.
 
 **Scheduled jobs (`IHostedService`)**
+
 - `CachePruneJob` — Thursday 03:00 — LRU eviction on `cache/transcodes`.
 - `ArtCachePruneJob` — Thursday 03:15 — LRU eviction on `cache/art`.
 - `PlaybackStatsJob` — Friday 03:00 — weekly aggregate materialization.
@@ -326,6 +349,7 @@ All times `America/Sao_Paulo`. Library sync is user-triggered, not scheduled.
 ### frontend (`ColdHarbourFrontend/src/app/`)
 
 **Services (`providedIn: 'root'`)**
+
 - `ApiService` — HTTP boundary; attaches `Authorization: Bearer`; handles `401 → refresh → retry once`.
 - `AuthService` — login/logout; access token in memory; schedules silent refresh; `generateUUID()` fallback for non-HTTPS contexts (plain HTTP LAN access).
 - `MusicService` — current track + playlist signals; `selectMusic`, `nextMusic`, `previousMusic`.
@@ -337,11 +361,13 @@ All times `America/Sao_Paulo`. Library sync is user-triggered, not scheduled.
 - `ControllerService` — keyboard shortcuts + `MediaSession` integration.
 
 **Pages**
+
 - `LoginPageComponent` — `/login`
 - `PlaylistPageComponent` — `/playlist/:id` — main library view + inline upload/sync
 - `DevicesPageComponent` — `/devices` — device list, PLAYING / THIS DEVICE badges, PLAY HERE button, back button (`Location.back()`)
 
 **Key frontend patterns**
+
 - Player component uses `allowSignalWrites: true` on its music-load effect; it never writes `isPlaying` directly — `loadMusic` handles cleanup internally.
 - `wsBase` is derived at module load: `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`. The ng serve proxy forwards `/ws/*` with WebSocket upgrade, so this works on any hostname including LAN IPs.
 - `--accent` replaces all `--yellow` references. Interactive states (hover, active track) use `var(--accent)` throughout.
@@ -351,16 +377,19 @@ All times `America/Sao_Paulo`. Library sync is user-triggered, not scheduled.
 ## Authentication (internet-exposed)
 
 **Tokens**
+
 - **Access token**: JWT, HS256, ~15min TTL, claims `sub`, `role`, `jti`, `deviceId`. Held in memory; sent as `Authorization: Bearer`. Never in localStorage.
-- **Refresh token**: opaque 256-bit random, `HttpOnly` + `Secure`* + `SameSite=Strict`, scoped to `/api/auth`, ~14d TTL. Rotated on every use; reuse revokes the entire `FamilyId`.
+- **Refresh token**: opaque 256-bit random, `HttpOnly` + `Secure`\* + `SameSite=Strict`, scoped to `/api/auth`, ~14d TTL. Rotated on every use; reuse revokes the entire `FamilyId`.
 - **Media token**: short-lived JWT in an `HttpOnly` cookie scoped to `/api`, used as auth fallback for `<audio>` and `<img>` tags.
 
 \* `Secure` flag is `false` in `Development` so plain-HTTP LAN testing works.
 
 **WebSocket auth**
+
 - JWT via `?access_token=` query param. Server closes with code `4001` on expiry; client refreshes and reconnects.
 
 **Edge hardening**
+
 - `auto_https off` in Caddyfile (tunnel handles TLS).
 - `ForwardedHeaders` middleware trusts only the tunnel's internal IP.
 - Security headers in Caddyfile: `Strict-Transport-Security`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, CSP.

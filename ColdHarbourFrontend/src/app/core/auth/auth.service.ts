@@ -24,7 +24,11 @@ export class AuthService {
         accessToken: string;
         userId: string;
         email: string;
-      }>(`${environment.apiBase}/auth/login`, { email, password, deviceId }, { withCredentials: true })
+      }>(
+        `${environment.apiBase}/auth/login`,
+        { email, password, deviceId },
+        { withCredentials: true },
+      )
       .pipe(
         tap((res) => this.storeTokens(res.accessToken, res.userId, res.email)),
         map(() => void 0),
@@ -56,7 +60,11 @@ export class AuthService {
     return this.http
       .post<{
         accessToken: string;
-      }>(`${environment.apiBase}/auth/refresh`, { deviceId }, { withCredentials: true })
+      }>(
+        `${environment.apiBase}/auth/refresh`,
+        { deviceId },
+        { withCredentials: true },
+      )
       .pipe(
         tap((res) => {
           this._accessToken.set(res.accessToken);

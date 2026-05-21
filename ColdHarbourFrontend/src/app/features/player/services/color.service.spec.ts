@@ -75,10 +75,10 @@ describe('ColorService', () => {
     mockWorker.onmessage!({ data: { error: 'Test error' } } as MessageEvent);
 
     expect(console.error).toHaveBeenCalled();
-    expect(service.accentColor()).toBe('#000000');
+    expect(service.accentColor()).toBe('#D3F000');
     expect(document.documentElement.style.setProperty).toHaveBeenCalledWith(
       '--accent',
-      '#000000',
+      '#D3F000',
     );
   });
 

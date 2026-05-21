@@ -97,7 +97,7 @@ describe('MusicListComponent', () => {
     musicService.currentPlayList.set({ ...mockPlaylist, musics: musicList });
     fixture.detectChanges();
 
-    const musicElements = fixture.debugElement.queryAll(By.css('.list-item'));
+    const musicElements = fixture.debugElement.queryAll(By.css('.track'));
     expect(musicElements.length).toBe(2);
   });
 });

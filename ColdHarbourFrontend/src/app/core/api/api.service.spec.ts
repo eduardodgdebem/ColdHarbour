@@ -56,9 +56,7 @@ describe('ApiService', () => {
       expect(playlist.musics[0].imageRef).toContain('/api/artwork/album-1');
     });
 
-    const req = httpMock.expectOne(
-      'http://localhost:8080/api/music/playlist/1',
-    );
+    const req = httpMock.expectOne('/api/music/playlist/1');
     expect(req.request.method).toBe('GET');
     req.flush(serverResponse);
   });
@@ -75,9 +73,7 @@ describe('ApiService', () => {
       expect(playlist.musics.length).toBe(0);
     });
 
-    const req = httpMock.expectOne(
-      'http://localhost:8080/api/music/playlist/1',
-    );
+    const req = httpMock.expectOne('/api/music/playlist/1');
     expect(req.request.method).toBe('GET');
     req.flush(serverResponse);
   });
@@ -114,9 +110,7 @@ describe('ApiService', () => {
       expect(playlist.musics[1].imageRef).toContain('/api/artwork/album-2');
     });
 
-    const req = httpMock.expectOne(
-      'http://localhost:8080/api/music/playlist/1',
-    );
+    const req = httpMock.expectOne('/api/music/playlist/1');
     expect(req.request.method).toBe('GET');
     req.flush(serverResponse);
   });

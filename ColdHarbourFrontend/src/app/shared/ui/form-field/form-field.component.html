@@ -1,0 +1,11 @@
+@let error = errorMessage();
+@let hint_ = hint();
+<div class="form-field">
+  <label class="form-field__label" [attr.for]="forId()">{{ label() }}</label>
+  <ng-content />
+  @if (error) {
+    <span class="form-field__error" role="alert">{{ error }}</span>
+  } @else if (hint_) {
+    <span class="form-field__hint">{{ hint_ }}</span>
+  }
+</div>

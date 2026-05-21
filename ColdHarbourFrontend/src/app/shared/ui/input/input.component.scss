@@ -1,0 +1,32 @@
+:host {
+  display: block;
+}
+
+.input {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--off-white);
+  border: var(--border);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--black);
+  outline: none;
+
+  &::placeholder {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  &:focus:not(:disabled) {
+    background: #fff;
+    box-shadow: 3px 3px 0 0 var(--black);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

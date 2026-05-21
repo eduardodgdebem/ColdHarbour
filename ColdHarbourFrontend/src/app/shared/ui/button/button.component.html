@@ -1,0 +1,12 @@
+@let loadingNow = loading();
+<button
+  [type]="type()"
+  [class]="classes()"
+  [disabled]="isDisabled()"
+>
+  @if (loadingNow) {
+    <span class="btn__loading" aria-hidden="true">…</span>
+  } @else {
+    <ng-content />
+  }
+</button>

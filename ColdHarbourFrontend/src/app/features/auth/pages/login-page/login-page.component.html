@@ -10,47 +10,47 @@
       (ngSubmit)="submit()"
       novalidate
     >
-      <div class="field">
-        <label class="field-label" for="email">EMAIL</label>
-        <input
-          class="field-input"
-          id="email"
+      <app-form-field
+        label="Email"
+        forId="login-email"
+        [errorMessage]="emailError()"
+      >
+        <app-input
+          id="login-email"
           type="email"
           formControlName="email"
           autocomplete="email"
           placeholder="you@example.com"
         />
-        @if (form.controls.email.invalid && form.controls.email.touched) {
-          <span class="field-error">Enter a valid email address.</span>
-        }
-      </div>
+      </app-form-field>
 
-      <div class="field">
-        <label class="field-label" for="password">PASSWORD</label>
-        <input
-          class="field-input"
-          id="password"
+      <app-form-field
+        label="Password"
+        forId="login-password"
+        [errorMessage]="passwordError()"
+      >
+        <app-input
+          id="login-password"
           type="password"
           formControlName="password"
           autocomplete="current-password"
           placeholder="••••••••"
         />
-        @if (form.controls.password.invalid && form.controls.password.touched) {
-          <span class="field-error">Minimum 8 characters.</span>
-        }
-      </div>
+      </app-form-field>
 
       @if (error()) {
         <div class="login-error" role="alert">{{ error() }}</div>
       }
 
-      <button
-        class="btn btn--primary submit-btn"
+      <app-button
+        variant="primary"
         type="submit"
+        class="submit-btn"
         [disabled]="loading()"
+        [loading]="loading()"
       >
-        {{ loading() ? 'SIGNING IN…' : 'SIGN IN' }}
-      </button>
+        Sign In
+      </app-button>
     </form>
   </div>
 </div>

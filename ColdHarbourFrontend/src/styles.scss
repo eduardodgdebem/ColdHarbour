@@ -43,7 +43,9 @@ img {
   display: block;
 }
 
-/* Shared brutalist button */
+/* LEGACY — superseded by <app-button> in src/app/shared/ui/button.
+   Removed in Phase 2 once playlist, devices, and player are migrated.
+   Do NOT add new consumers; use <app-button> instead. */
 .btn {
   display: inline-flex;
   align-items: center;

@@ -36,7 +36,7 @@ Rules:
 - Integration tests hit a real Postgres (Testcontainers), never mocks of `DbContext`.
 - Prefer behavior-level tests over mock-heavy unit tests. A test that breaks when internals change but behavior doesn't is a liability.
 
-**Progress tracking.** `MIGRATION.md` is the single source of truth for phase progress. When a phase completes, mark it `✅ Done` in that file and update this document if the phase changed any architectural fact described here.
+**Progress tracking.** `docs/MIGRATION.md` is the single source of truth for backend phase progress. **Frontend progress.** `docs/FRONTEND_MIGRATION.md` tracks the frontend maturation phases (shared component kit + new pages). When a phase completes in either file, mark it `✅ Done` there and update this document if the phase changed any architectural fact described here.
 
 ---
 
@@ -447,6 +447,18 @@ All times `America/Sao_Paulo`. Library sync is user-triggered, not scheduled.
     Don't. The backend stores the catalog ID only. The client plays via MusicKit. Post-MVP.
 
 ---
+
+## Shared component kit
+
+Reusable UI lives in `ColdHarbourFrontend/src/app/shared/ui/` (e.g. `button/`, `input/`, `form-field/`, `card/`, `modal/`, `badge/`). Rules:
+
+- **Check before you inline.** Before writing UI markup in a page or feature component, check `shared/ui/` for an existing component. If a similar element exists, use it.
+- **Extract on second use, not "later."** If an element will plausibly be used in more than one place, build it as a shared component first, then consume it. Do not inline first and "extract later" — that extraction never happens.
+- **Standalone, signal-input based.** Components use `input()`, `input.required()`, `model()`. Inputs are typed and have sensible defaults. Components are `OnPush`.
+- **Token-driven SCSS.** Components read design tokens from `src/styles.scss` (`var(--accent)`, `var(--border-w)`, `var(--font-headline)`, etc.). Never hardcode colors, border widths, or font families.
+- **TDD-covered.** Each shared component has a `*.spec.ts` (Jasmine/Karma) written before the implementation, covering its public API: variant rendering, disabled/loading state, event emission, control-value-accessor read/write.
+- **No upward dependencies.** A `shared/ui` component never imports from `features/*` or `core/*`. Verify with `git grep -nR "from '.*features" ColdHarbourFrontend/src/app/shared/ui`.
+- **Catalogued.** Each component is listed in `src/app/shared/ui/README.md` and tracked in `docs/FRONTEND_MIGRATION.md`.
 
 ## Design patterns
 

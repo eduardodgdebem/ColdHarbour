@@ -38,53 +38,6 @@
   gap: 20px;
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.field-label {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--black);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.field-input {
-  padding: 10px 12px;
-  background: var(--off-white);
-  border: var(--border);
-  font-family: var(--font-body);
-  font-size: 16px;
-  font-weight: 400;
-  color: var(--black);
-  outline: none;
-  width: 100%;
-
-  &::placeholder {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    color: var(--muted);
-  }
-
-  &:focus {
-    background: #fff;
-    border-color: var(--black);
-    box-shadow: 3px 3px 0 0 var(--black);
-  }
-}
-
-.field-error {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--error-fg);
-  text-transform: uppercase;
-}
-
 .login-error {
   padding: 12px 16px;
   background: var(--error-bg);
@@ -98,6 +51,10 @@
 
 .submit-btn {
   width: 100%;
-  padding: 14px;
-  font-size: 15px;
+
+  ::ng-deep .btn {
+    width: 100%;
+    padding: 14px;
+    font-size: 15px;
+  }
 }

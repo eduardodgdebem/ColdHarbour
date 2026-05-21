@@ -4,33 +4,40 @@ import { Observable, of } from 'rxjs';
 import { tap, map, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
+type LoginResponse = {
+  accessToken: string;
+  userId: string;
+  email: string;
+  name?: string | null;
+};
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly _accessToken = signal<string | null>(null);
   private readonly _userId = signal<string | null>(null);
   private readonly _email = signal<string | null>(null);
+  private readonly _name = signal<string | null>(null);
   private refreshSchedule?: ReturnType<typeof setTimeout>;
 
   readonly isAuthenticated = computed(() => this._accessToken() !== null);
   readonly accessToken = this._accessToken.asReadonly();
   readonly email = this._email.asReadonly();
+  readonly name = this._name.asReadonly();
 
   constructor(private http: HttpClient) {}
 
   login(email: string, password: string): Observable<void> {
     const deviceId = this.getOrCreateDeviceId();
     return this.http
-      .post<{
-        accessToken: string;
-        userId: string;
-        email: string;
-      }>(
+      .post<LoginResponse>(
         `${environment.apiBase}/auth/login`,
         { email, password, deviceId },
         { withCredentials: true },
       )
       .pipe(
-        tap((res) => this.storeTokens(res.accessToken, res.userId, res.email)),
+        tap((res) =>
+          this.storeTokens(res.accessToken, res.userId, res.email, res.name ?? null),
+        ),
         map(() => void 0),
       );
   }
@@ -85,10 +92,12 @@ export class AuthService {
     accessToken: string,
     userId: string,
     email: string,
+    name: string | null,
   ): void {
     this._accessToken.set(accessToken);
     this._userId.set(userId);
     this._email.set(email);
+    this._name.set(name);
     this.scheduleRefresh(accessToken);
   }
 
@@ -96,6 +105,7 @@ export class AuthService {
     this._accessToken.set(null);
     this._userId.set(null);
     this._email.set(null);
+    this._name.set(null);
     if (this.refreshSchedule) clearTimeout(this.refreshSchedule);
   }
 

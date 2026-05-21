@@ -1,1 +1,8 @@
-<router-outlet />
+<div class="app">
+  <main class="app__content">
+    <router-outlet />
+  </main>
+  @if (musicService.currentMusic()) {
+    <app-player class="app__player" />
+  }
+</div>

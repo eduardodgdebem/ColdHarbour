@@ -20,7 +20,7 @@ $mobile: 768px;
 }
 
 .home {
-  min-height: 100dvh;
+  min-height: 100%;
   background: var(--off-white);
   color: var(--black);
   border: var(--border);
@@ -43,7 +43,7 @@ $mobile: 768px;
 /* ──────────── 1. HARBOUR / / OPEN ──────────── */
 .harbour {
   position: relative;
-  padding: 48px 24px 56px;
+  padding: 28px 24px 32px;
   background: var(--off-white);
   border-bottom: var(--border);
   overflow: hidden;
@@ -51,21 +51,21 @@ $mobile: 768px;
   &__tag { @extend %chip; }
 
   &__title {
-    margin-top: 20px;
+    margin-top: 14px;
     font-family: var(--font-headline);
-    font-size: clamp(56px, 11vw, 120px);
+    font-size: clamp(36px, 6vw, 64px);
     font-weight: 800;
-    line-height: 0.92;
-    letter-spacing: -0.045em;
+    line-height: 0.95;
+    letter-spacing: -0.035em;
     text-transform: uppercase;
     color: var(--black);
 
     &-strike {
       display: inline-block;
-      padding: 0 12px;
+      padding: 0 10px;
       background: var(--accent);
       color: var(--black);
-      box-shadow: 6px 6px 0 0 var(--black);
+      box-shadow: 4px 4px 0 0 var(--black);
     }
   }
 
@@ -74,15 +74,15 @@ $mobile: 768px;
   }
 
   &__stamp {
-    margin-top: 28px;
+    margin-top: 18px;
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border: var(--border);
     background: var(--off-white);
     color: var(--black);
-    font-size: 11px;
+    font-size: 10px;
     @extend %mono-label;
   }
 
@@ -301,12 +301,6 @@ $mobile: 768px;
     .arrival__glyph {
       opacity: 1;
     }
-
-    .arrival__name {
-      background: var(--accent);
-      padding: 0 4px;
-      margin: 0 -4px;
-    }
   }
 
   &:active .arrival__art {
@@ -436,7 +430,7 @@ $mobile: 768px;
   align-items: flex-start;
   gap: 24px;
   padding: 64px 32px;
-  min-height: 100dvh;
+  min-height: 100%;
   background: var(--off-white);
 
   &__chip { @extend %chip; }

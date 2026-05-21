@@ -1,85 +1,81 @@
-<main class="layout">
-  <section class="library">
-    <header class="library-header">
-      <div class="header-identity">
-        @if (currentPlayList()?.imageRef) {
-          <div class="header-art">
-            <img
-              [src]="currentPlayList()?.imageRef || ''"
-              [alt]="currentPlayList()?.name || ''"
-            />
-          </div>
-        }
-        <h1 class="header-title">
-          {{ currentPlayList()?.name || 'Loading…' }}
-        </h1>
-      </div>
-
-      <div class="header-actions">
-        <label class="header-action">
-          <input
-            type="file"
-            accept=".mp3,.flac,.m4a,.ogg,.opus,.wav"
-            multiple
-            (change)="onFilesSelected($event)"
-            hidden
+<section class="library">
+  <header class="library-header">
+    <div class="header-identity">
+      @if (currentPlayList()?.imageRef) {
+        <div class="header-art">
+          <img
+            [src]="currentPlayList()?.imageRef || ''"
+            [alt]="currentPlayList()?.name || ''"
           />
-          <app-button>
-            {{ libraryService.isUploading() ? 'UPLOADING…' : '+ ADD TRACKS' }}
-          </app-button>
-        </label>
-        <app-button
-          class="header-action"
-          [disabled]="libraryService.isSyncing()"
-          (click)="previewSync()"
-        >
-          SYNC LIBRARY
-        </app-button>
-        <a class="header-action" routerLink="/devices">
-          <app-button>DEVICES</app-button>
-        </a>
-      </div>
-    </header>
-
-    @if (libraryService.uploadError()) {
-      <p class="error-strip">{{ libraryService.uploadError() }}</p>
-    }
-
-    <app-modal
-      [isOpen]="!!libraryService.syncDiff()"
-      title="SYNC PREVIEW"
-      (close)="closeSync()"
-    >
-      @if (libraryService.syncDiff(); as diff) {
-        @if (diff.added.length) {
-          <p>{{ diff.added.length }} track(s) to add</p>
-        }
-        @if (diff.missing.length) {
-          <p>{{ diff.missing.length }} track(s) missing from disk</p>
-        }
-        @if (!diff.added.length && !diff.missing.length) {
-          <p>Library is already in sync.</p>
-        }
-        @if (libraryService.syncError()) {
-          <p class="sync-error">{{ libraryService.syncError() }}</p>
-        }
+        </div>
       }
-      <div slot="footer">
-        <app-button
-          variant="primary"
-          [disabled]="libraryService.isSyncing()"
-          (click)="applySync()"
-        >
-          Apply
-        </app-button>
-        <app-button (click)="closeSync()">Cancel</app-button>
-      </div>
-    </app-modal>
-
-    <div class="library-scroll">
-      <app-music-list />
+      <h1 class="header-title">
+        {{ currentPlayList()?.name || 'Loading…' }}
+      </h1>
     </div>
-  </section>
 
-  <app-player />
-</main>
+    <div class="header-actions">
+      <label class="header-action">
+        <input
+          type="file"
+          accept=".mp3,.flac,.m4a,.ogg,.opus,.wav"
+          multiple
+          (change)="onFilesSelected($event)"
+          hidden
+        />
+        <app-button>
+          {{ libraryService.isUploading() ? 'UPLOADING…' : '+ ADD TRACKS' }}
+        </app-button>
+      </label>
+      <app-button
+        class="header-action"
+        [disabled]="libraryService.isSyncing()"
+        (click)="previewSync()"
+      >
+        SYNC LIBRARY
+      </app-button>
+      <a class="header-action" routerLink="/devices">
+        <app-button>DEVICES</app-button>
+      </a>
+    </div>
+  </header>
+
+  @if (libraryService.uploadError()) {
+    <p class="error-strip">{{ libraryService.uploadError() }}</p>
+  }
+
+  <app-modal
+    [isOpen]="!!libraryService.syncDiff()"
+    title="SYNC PREVIEW"
+    (close)="closeSync()"
+  >
+    @if (libraryService.syncDiff(); as diff) {
+      @if (diff.added.length) {
+        <p>{{ diff.added.length }} track(s) to add</p>
+      }
+      @if (diff.missing.length) {
+        <p>{{ diff.missing.length }} track(s) missing from disk</p>
+      }
+      @if (!diff.added.length && !diff.missing.length) {
+        <p>Library is already in sync.</p>
+      }
+      @if (libraryService.syncError()) {
+        <p class="sync-error">{{ libraryService.syncError() }}</p>
+      }
+    }
+    <div slot="footer">
+      <app-button
+        variant="primary"
+        [disabled]="libraryService.isSyncing()"
+        (click)="applySync()"
+      >
+        Apply
+      </app-button>
+      <app-button (click)="closeSync()">Cancel</app-button>
+    </div>
+  </app-modal>
+
+  <div class="library-scroll">
+    <app-music-list />
+  </div>
+</section>

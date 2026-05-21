@@ -1,0 +1,18 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--off-white);
+}
+
+.app__content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--off-white);
+}
+
+.app__player {
+  flex-shrink: 0;
+  border-top: var(--border);
+}

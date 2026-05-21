@@ -1,25 +1,19 @@
 $mobile: 768px;
 
-/* ── Root layout (column: library on top, player bar on bottom) */
-.layout {
-  display: flex;
-  flex-direction: column;
-  height: 100dvh;
-  overflow: hidden;
-  background: var(--off-white);
+:host {
+  display: block;
+  height: 100%;
 }
 
-/* ── Library panel ───────────────────────────── */
 .library {
-  flex: 1;
-  min-height: 0;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  background: var(--off-white);
   overflow: hidden;
   position: relative;
 }
 
-/* ── Header ─────────────────────────────────── */
 .library-header {
   flex-shrink: 0;
   border-bottom: var(--border);
@@ -87,7 +81,6 @@ $mobile: 768px;
   }
 }
 
-/* ── Error strip ─────────────────────────────── */
 .error-strip {
   flex-shrink: 0;
   padding: 10px 24px;
@@ -100,7 +93,6 @@ $mobile: 768px;
   color: var(--error-fg);
 }
 
-/* ── Sync modal body ─────────────────────────── */
 .sync-error {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -109,14 +101,8 @@ $mobile: 768px;
   color: var(--error-fg);
 }
 
-/* ── Scrollable track list ───────────────────── */
 .library-scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-}
-
-/* ── Player bar (always at the bottom as a flex item) */
-app-player {
-  flex-shrink: 0;
-  border-top: var(--border);
 }

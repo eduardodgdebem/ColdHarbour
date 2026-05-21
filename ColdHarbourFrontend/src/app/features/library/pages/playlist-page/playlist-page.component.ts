@@ -1,7 +1,6 @@
 import { Component, OnInit, Signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MusicListComponent } from '../../components/music-list/music-list.component';
-import { PlayerComponent } from '../../../player/components/player/player.component';
 import { ActivatedRoute } from '@angular/router';
 import { MusicService } from '../../../player/services/music.service';
 import type { Playlist } from '../../../../core/api/api.service';
@@ -15,7 +14,6 @@ import {
   selector: 'app-playlist-page',
   imports: [
     MusicListComponent,
-    PlayerComponent,
     RouterLink,
     ButtonComponent,
     ModalComponent,

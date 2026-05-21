@@ -31,15 +31,18 @@ describe('HomePageComponent', () => {
   let currentPlayList: ReturnType<typeof signal<Playlist | null>>;
   let isLoading: ReturnType<typeof signal<boolean>>;
   let email: ReturnType<typeof signal<string | null>>;
+  let name: ReturnType<typeof signal<string | null>>;
 
   function setUp(opts: {
     playlist?: Playlist | null;
     loading?: boolean;
     email?: string | null;
+    name?: string | null;
   } = {}) {
     currentPlayList = signal<Playlist | null>(opts.playlist ?? null);
     isLoading = signal<boolean>(opts.loading ?? false);
     email = signal<string | null>(opts.email ?? null);
+    name = signal<string | null>(opts.name ?? null);
 
     musicService = jasmine.createSpyObj(
       'MusicService',
@@ -55,7 +58,7 @@ describe('HomePageComponent', () => {
       providers: [
         provideRouter([]),
         { provide: MusicService, useValue: musicService },
-        { provide: AuthService, useValue: { email } },
+        { provide: AuthService, useValue: { email, name } },
       ],
     });
 
@@ -209,6 +212,28 @@ describe('HomePageComponent', () => {
         musics: [track(1)],
       },
       email: 'eduardo@example.com',
+    });
+    const user = fixture.debugElement.query(By.css('.harbour__user'));
+    expect(user.nativeElement.textContent.trim()).toBe('EDUARDO.');
+  });
+
+  it('prefers the user name (first word) over email when available', () => {
+    setUp({
+      loading: false,
+      playlist: { id: 1, name: 'All', imageRef: '', musics: [track(1)] },
+      email: 'eduardogdebem@gmail.com',
+      name: 'Eduardo Goulart de Bem',
+    });
+    const user = fixture.debugElement.query(By.css('.harbour__user'));
+    expect(user.nativeElement.textContent.trim()).toBe('EDUARDO.');
+  });
+
+  it('falls back to email local-part first segment (before . _ -) when no name is provided', () => {
+    setUp({
+      loading: false,
+      playlist: { id: 1, name: 'All', imageRef: '', musics: [track(1)] },
+      email: 'eduardo.goulart@gmail.com',
+      name: null,
     });
     const user = fixture.debugElement.query(By.css('.harbour__user'));
     expect(user.nativeElement.textContent.trim()).toBe('EDUARDO.');

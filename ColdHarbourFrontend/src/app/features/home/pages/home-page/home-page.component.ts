@@ -51,10 +51,15 @@ export class HomePageComponent implements OnInit {
   );
 
   readonly userName = computed(() => {
+    const name = this.authService.name();
+    if (name && name.trim()) {
+      return name.trim().split(/\s+/)[0].toUpperCase();
+    }
     const email = this.authService.email();
-    if (!email) return 'FRIEND';
-    const local = email.split('@')[0] ?? 'FRIEND';
-    return local.toUpperCase();
+    if (email) {
+      return email.split('@')[0].split(/[._-]/)[0].toUpperCase();
+    }
+    return 'FRIEND';
   });
 
   readonly nowLabel = this.computeNowLabel();

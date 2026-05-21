@@ -1,4 +1,4 @@
-import { effect, Injectable } from '@angular/core';
+import { effect, inject, Injectable } from '@angular/core';
 import { AudioService } from './audio.service';
 import { MusicService } from './music.service';
 
@@ -6,12 +6,12 @@ import { MusicService } from './music.service';
   providedIn: 'root',
 })
 export class ControllerService {
+  private audioService: AudioService = inject(AudioService);
+  private musicService: MusicService = inject(MusicService);
+
   private mediaSession: MediaSession | null = null;
 
-  constructor(
-    private audioService: AudioService,
-    private musicService: MusicService,
-  ) {
+  constructor() {
     if ('mediaSession' in navigator) {
       this.mediaSession = navigator.mediaSession;
     }

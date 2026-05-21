@@ -69,9 +69,16 @@ $mobile: 768px;
   flex: 1;
   display: flex;
   border-right: var(--border);
+  text-decoration: none;
+  color: inherit;
 
   &:last-child {
     border-right: none;
+  }
+
+  app-button {
+    flex: 1;
+    display: flex;
   }
 
   ::ng-deep .btn {

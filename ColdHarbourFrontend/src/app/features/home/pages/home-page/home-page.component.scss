@@ -37,7 +37,9 @@ $mobile: 768px;
   font-size: 11px;
   @extend %mono-label;
 
-  &__meta { color: var(--accent); }
+  &__meta {
+    color: var(--accent);
+  }
 }
 
 /* ──────────── 1. HARBOUR / / OPEN ──────────── */
@@ -48,7 +50,9 @@ $mobile: 768px;
   border-bottom: var(--border);
   overflow: hidden;
 
-  &__tag { @extend %chip; }
+  &__tag {
+    @extend %chip;
+  }
 
   &__title {
     margin-top: 14px;
@@ -86,7 +90,9 @@ $mobile: 768px;
     @extend %mono-label;
   }
 
-  &__stamp-divider { color: var(--accent); }
+  &__stamp-divider {
+    color: var(--accent);
+  }
 }
 
 /* ──────────── 2. CARGO MANIFEST ──────────── */
@@ -154,8 +160,12 @@ $mobile: 768px;
   &--accent {
     background: var(--accent);
 
-    .stat__label { color: var(--black); }
-    .stat__value { color: var(--black); }
+    .stat__label {
+      color: var(--black);
+    }
+    .stat__value {
+      color: var(--black);
+    }
     .stat__caption {
       background: var(--black);
       color: var(--accent);
@@ -208,7 +218,6 @@ $mobile: 768px;
     height: 200px;
     border: var(--border);
     overflow: hidden;
-    box-shadow: 6px 6px 0 0 var(--black);
     background: var(--accent);
     transition: transform 60ms steps(1);
 
@@ -223,12 +232,11 @@ $mobile: 768px;
   &__art-placeholder {
     width: 100%;
     height: 100%;
-    background:
-      repeating-linear-gradient(
-        45deg,
-        var(--accent) 0 8px,
-        var(--black) 8px 12px
-      );
+    background: repeating-linear-gradient(
+      45deg,
+      var(--accent) 0 8px,
+      var(--black) 8px 12px
+    );
   }
 
   &__glyph {
@@ -294,18 +302,13 @@ $mobile: 768px;
     outline: none;
 
     .arrival__art {
-      transform: translate(3px, 3px);
-      box-shadow: 3px 3px 0 0 var(--black);
+      // transform: translate(3px, 3px);
+      box-shadow: 6px 6px 0 0 var(--black);
     }
 
     .arrival__glyph {
       opacity: 1;
     }
-  }
-
-  &:active .arrival__art {
-    transform: translate(6px, 6px);
-    box-shadow: 0 0 0 0 var(--black);
   }
 }
 
@@ -325,9 +328,9 @@ $mobile: 768px;
   position: relative;
   display: grid;
   grid-template-areas:
-    "glyph arrow"
-    "label arrow"
-    "sub   arrow";
+    'glyph arrow'
+    'label arrow'
+    'sub   arrow';
   grid-template-columns: 1fr auto;
   grid-template-rows: auto auto auto;
   gap: 8px 16px;
@@ -393,8 +396,12 @@ $mobile: 768px;
   &--accent {
     background: var(--accent);
 
-    .control__glyph { color: var(--black); }
-    .control__sub { color: var(--black); }
+    .control__glyph {
+      color: var(--black);
+    }
+    .control__sub {
+      color: var(--black);
+    }
   }
 
   &:hover,
@@ -433,7 +440,9 @@ $mobile: 768px;
   min-height: 100%;
   background: var(--off-white);
 
-  &__chip { @extend %chip; }
+  &__chip {
+    @extend %chip;
+  }
 
   &__title {
     font-family: var(--font-headline);

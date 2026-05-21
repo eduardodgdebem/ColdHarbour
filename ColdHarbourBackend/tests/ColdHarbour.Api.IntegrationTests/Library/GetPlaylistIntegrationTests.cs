@@ -119,6 +119,9 @@ public class GetPlaylistIntegrationTests : IClassFixture<WebApplicationFactory<P
                 services.AddScoped<ColdHarbour.Application.Playback.Ports.IPlayEventRepository>(_ => new NullPlayEventRepo());
                 services.RemoveAll<ColdHarbour.Application.Playback.Ports.IPlaybackSessionStore>();
                 services.AddSingleton<ColdHarbour.Application.Playback.Ports.IPlaybackSessionStore>(new ColdHarbour.Infrastructure.Playback.InMemoryPlaybackSessionStore());
+
+                services.RemoveAll<ColdHarbour.Application.Playback.Ports.IConnectedDeviceStore>();
+                services.AddSingleton<ColdHarbour.Application.Playback.Ports.IConnectedDeviceStore>(new NullConnectedDeviceStore());
             });
         }).CreateClient();
 
@@ -288,6 +291,14 @@ public class GetPlaylistIntegrationTests : IClassFixture<WebApplicationFactory<P
         public Task<IReadOnlyList<ColdHarbour.Domain.Playback.Device>> ListByUserIdAsync(Guid userId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<ColdHarbour.Domain.Playback.Device>>([]);
         public Task AddAsync(ColdHarbour.Domain.Playback.Device device, CancellationToken ct = default) => Task.CompletedTask;
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> DeleteStaleAsync(DateTimeOffset cutoff, CancellationToken ct = default) => Task.FromResult(0);
+    }
+
+    private sealed class NullConnectedDeviceStore : ColdHarbour.Application.Playback.Ports.IConnectedDeviceStore
+    {
+        public void Add(Guid deviceId) { }
+        public void Remove(Guid deviceId) { }
+        public IReadOnlySet<Guid> GetConnected() => new HashSet<Guid>();
     }
 
     private sealed class NullTranscodeService : ColdHarbour.Application.Playback.Ports.ITranscodeService

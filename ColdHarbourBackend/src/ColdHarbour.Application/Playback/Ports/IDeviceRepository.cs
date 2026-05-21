@@ -8,4 +8,5 @@ public interface IDeviceRepository
     Task<IReadOnlyList<Device>> ListByUserIdAsync(Guid userId, CancellationToken ct = default);
     Task AddAsync(Device device, CancellationToken ct = default);
     Task SaveChangesAsync(CancellationToken ct = default);
+    Task<int> DeleteStaleAsync(DateTimeOffset cutoff, CancellationToken ct = default);
 }

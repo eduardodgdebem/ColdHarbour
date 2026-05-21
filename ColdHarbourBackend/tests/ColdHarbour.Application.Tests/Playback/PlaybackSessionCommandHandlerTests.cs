@@ -80,8 +80,9 @@ public sealed class TransferPlaybackCommandHandlerTests
 public sealed class ListDevicesQueryHandlerTests
 {
     private readonly IDeviceRepository _repo = Substitute.For<IDeviceRepository>();
+    private readonly IConnectedDeviceStore _connected = Substitute.For<IConnectedDeviceStore>();
 
-    private ListDevicesQueryHandler CreateHandler() => new(_repo);
+    private ListDevicesQueryHandler CreateHandler() => new(_repo, _connected);
 
     [Fact]
     public async Task Handle_ReturnsMappedDtos()
@@ -89,6 +90,7 @@ public sealed class ListDevicesQueryHandlerTests
         var userId = Guid.NewGuid();
         var device = Device.Register(Guid.NewGuid(), userId, "Chrome", "UA", ["mp3"], "opus-128");
         _repo.ListByUserIdAsync(userId, Arg.Any<CancellationToken>()).Returns(new List<Device> { device });
+        _connected.GetConnected().Returns((IReadOnlySet<Guid>)new HashSet<Guid> { device.Id });
 
         var result = await CreateHandler().Handle(new ListDevicesQuery(userId), CancellationToken.None);
 

@@ -147,5 +147,6 @@ public sealed class DeleteTrackCommandHandlerTests
         public void RemoveArtist(Artist a) => RemovedArtists.Add(a);
 
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task<List<Track>> GetLocalTrackSampleAsync(int maxCount, CancellationToken ct = default) => Task.FromResult(new List<Track>());
     }
 }

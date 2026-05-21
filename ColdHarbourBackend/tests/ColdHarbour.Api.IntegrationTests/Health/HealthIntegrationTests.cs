@@ -85,6 +85,9 @@ public sealed class HealthTestFactory : WebApplicationFactory<Program>
             services.RemoveAll<IPlaybackSessionStore>();
             services.AddSingleton<IPlaybackSessionStore>(new ColdHarbour.Infrastructure.Playback.InMemoryPlaybackSessionStore());
 
+            services.RemoveAll<IConnectedDeviceStore>();
+            services.AddSingleton<IConnectedDeviceStore>(new NullConnectedDeviceStore());
+
             services.RemoveAll<IUserRepository>();
             services.AddSingleton<IUserRepository>(new NullUserRepo());
             services.RemoveAll<IPasswordHasher>();
@@ -147,6 +150,14 @@ public sealed class HealthTestFactory : WebApplicationFactory<Program>
         public Task<IReadOnlyList<ColdHarbour.Domain.Playback.Device>> ListByUserIdAsync(Guid userId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<ColdHarbour.Domain.Playback.Device>>([]);
         public Task AddAsync(ColdHarbour.Domain.Playback.Device d, CancellationToken ct = default) => Task.CompletedTask;
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> DeleteStaleAsync(DateTimeOffset cutoff, CancellationToken ct = default) => Task.FromResult(0);
+    }
+
+    private sealed class NullConnectedDeviceStore : IConnectedDeviceStore
+    {
+        public void Add(Guid deviceId) { }
+        public void Remove(Guid deviceId) { }
+        public IReadOnlySet<Guid> GetConnected() => new HashSet<Guid>();
     }
 
     private sealed class NullTranscode : ITranscodeService

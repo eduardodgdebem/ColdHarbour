@@ -18,4 +18,9 @@ public sealed class DeviceRepository(ColdHarbourDbContext db) : IDeviceRepositor
 
     public Task SaveChangesAsync(CancellationToken ct = default)
         => db.SaveChangesAsync(ct);
+
+    public Task<int> DeleteStaleAsync(DateTimeOffset cutoff, CancellationToken ct = default)
+        => db.Devices
+            .Where(d => d.LastSeenAt < cutoff)
+            .ExecuteDeleteAsync(ct);
 }

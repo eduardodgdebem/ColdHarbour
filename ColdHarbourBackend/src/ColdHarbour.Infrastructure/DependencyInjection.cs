@@ -34,7 +34,10 @@ public static class DependencyInjection
         services.AddScoped<IPlayEventRepository, PlayEventRepository>();
         services.AddScoped<ITranscodeService, TranscodeService>();
         services.AddSingleton<IPlaybackSessionStore, InMemoryPlaybackSessionStore>();
+        services.AddSingleton<InMemoryConnectedDeviceStore>();
+        services.AddSingleton<IConnectedDeviceStore>(sp => sp.GetRequiredService<InMemoryConnectedDeviceStore>());
         services.AddHostedService<CachePruneJob>();
+        services.AddHostedService<DevicePruneJob>();
         services.AddHostedService<ArtCachePruneJob>();
         services.AddHostedService<BackupJob>();
         services.AddHostedService<IntegrityCheckJob>();

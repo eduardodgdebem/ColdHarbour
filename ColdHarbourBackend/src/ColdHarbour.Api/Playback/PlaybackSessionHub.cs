@@ -23,6 +23,7 @@ namespace ColdHarbour.Api.Playback;
 public sealed class PlaybackSessionHub(
     IMediator mediator,
     IPlaybackSessionStore store,
+    IConnectedDeviceStore connectedDeviceStore,
     IConfiguration config,
     ILogger<PlaybackSessionHub> logger)
 {
@@ -36,31 +37,47 @@ public sealed class PlaybackSessionHub(
 
     public async Task HandleAsync(HttpContext ctx, WebSocket ws)
     {
-        var userId = Authenticate(ctx);
-        if (userId is null)
+        var auth = Authenticate(ctx);
+        if (auth is null)
         {
             await ws.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Unauthorized", CancellationToken.None);
             return;
         }
 
-        var bag = _connections.GetOrAdd(userId.Value, _ => []);
+        var (userId, deviceId) = auth.Value;
+
+        if (deviceId.HasValue)
+            connectedDeviceStore.Add(deviceId.Value);
+
+        var bag = _connections.GetOrAdd(userId, _ => []);
         bag.Add(ws);
 
         try
         {
-            await BroadcastSessionAsync(userId.Value);
-            await BroadcastDevicesAsync(userId.Value, CancellationToken.None);
-            await ReceiveLoopAsync(ws, userId.Value, ctx.RequestAborted);
+            await BroadcastSessionAsync(userId);
+            await BroadcastDevicesAsync(userId, CancellationToken.None);
+            await ReceiveLoopAsync(ws, userId, ctx.RequestAborted);
         }
         finally
         {
-            _connections.TryGetValue(userId.Value, out var b);
+            if (deviceId.HasValue)
+            {
+                connectedDeviceStore.Remove(deviceId.Value);
+
+                var session = store.GetOrCreate(userId);
+                if (session.ActiveDeviceId == deviceId)
+                    session.Clear();
+
+                await BroadcastDevicesAsync(userId, CancellationToken.None);
+            }
+
+            _connections.TryGetValue(userId, out var b);
             // Rebuild bag without this socket (ConcurrentBag has no Remove)
             if (b is not null)
             {
                 var remaining = b.Where(s => s != ws).ToList();
                 var newBag = new ConcurrentBag<WebSocket>(remaining);
-                _connections.TryUpdate(userId.Value, newBag, b);
+                _connections.TryUpdate(userId, newBag, b);
             }
         }
     }
@@ -203,7 +220,7 @@ public sealed class PlaybackSessionHub(
         }
     }
 
-    private Guid? Authenticate(HttpContext ctx)
+    private (Guid userId, Guid? deviceId)? Authenticate(HttpContext ctx)
     {
         var token = ctx.Request.Query["access_token"].FirstOrDefault()
             ?? ctx.Request.Headers.Authorization.FirstOrDefault()?.Replace("Bearer ", "");
@@ -229,7 +246,13 @@ public sealed class PlaybackSessionHub(
             var sub = principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                    ?? principal.FindFirst("sub")?.Value;
 
-            return Guid.TryParse(sub, out var id) ? id : null;
+            if (!Guid.TryParse(sub, out var userId))
+                return null;
+
+            var deviceIdRaw = principal.FindFirst("deviceId")?.Value;
+            Guid? deviceId = Guid.TryParse(deviceIdRaw, out var did) ? did : null;
+
+            return (userId, deviceId);
         }
         catch (SecurityTokenExpiredException)
         {

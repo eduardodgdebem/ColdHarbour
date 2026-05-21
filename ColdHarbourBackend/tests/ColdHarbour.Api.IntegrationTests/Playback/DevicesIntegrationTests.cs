@@ -116,6 +116,9 @@ public sealed class DevicesTestFactory : WebApplicationFactory<Program>
             services.RemoveAll<ColdHarbour.Application.Playback.Ports.IPlaybackSessionStore>();
             services.AddSingleton<ColdHarbour.Application.Playback.Ports.IPlaybackSessionStore>(new ColdHarbour.Infrastructure.Playback.InMemoryPlaybackSessionStore());
 
+            services.RemoveAll<ColdHarbour.Application.Playback.Ports.IConnectedDeviceStore>();
+            services.AddSingleton<ColdHarbour.Application.Playback.Ports.IConnectedDeviceStore>(new NullConnectedDeviceStore());
+
             // Identity stubs
             services.RemoveAll<IUserRepository>();
             services.AddSingleton<IUserRepository>(new AlwaysExistsUserRepo());
@@ -138,6 +141,7 @@ public sealed class DevicesTestFactory : WebApplicationFactory<Program>
             Task.FromResult<IReadOnlyList<ColdHarbour.Domain.Playback.Device>>(Stored is null ? [] : [Stored]);
         public Task AddAsync(ColdHarbour.Domain.Playback.Device d, CancellationToken ct = default) { Stored = d; return Task.CompletedTask; }
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> DeleteStaleAsync(DateTimeOffset cutoff, CancellationToken ct = default) => Task.FromResult(0);
     }
 
     // ── stubs ────────────────────────────────────────────────────────────────────
@@ -186,6 +190,13 @@ public sealed class DevicesTestFactory : WebApplicationFactory<Program>
     private sealed class NullArtwork : ColdHarbour.Application.Library.Ports.IArtworkService
     {
         public Task<string?> GetThumbnailPathAsync(Guid id, int size, CancellationToken ct = default) => Task.FromResult<string?>(null);
+    }
+
+    private sealed class NullConnectedDeviceStore : ColdHarbour.Application.Playback.Ports.IConnectedDeviceStore
+    {
+        public void Add(Guid deviceId) { }
+        public void Remove(Guid deviceId) { }
+        public IReadOnlySet<Guid> GetConnected() => new HashSet<Guid>();
     }
 
     private sealed class NullTranscodeService : ITranscodeService

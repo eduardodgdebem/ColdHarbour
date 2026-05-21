@@ -1,0 +1,499 @@
+$mobile: 768px;
+
+%chip {
+  display: inline-block;
+  padding: 6px 10px;
+  background: var(--black);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+%mono-label {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.home {
+  min-height: 100dvh;
+  background: var(--off-white);
+  color: var(--black);
+  border: var(--border);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: var(--black);
+  border-bottom: var(--border);
+  color: var(--off-white);
+  font-size: 11px;
+  @extend %mono-label;
+
+  &__meta { color: var(--accent); }
+}
+
+/* ──────────── 1. HARBOUR / / OPEN ──────────── */
+.harbour {
+  position: relative;
+  padding: 48px 24px 56px;
+  background: var(--off-white);
+  border-bottom: var(--border);
+  overflow: hidden;
+
+  &__tag { @extend %chip; }
+
+  &__title {
+    margin-top: 20px;
+    font-family: var(--font-headline);
+    font-size: clamp(56px, 11vw, 120px);
+    font-weight: 800;
+    line-height: 0.92;
+    letter-spacing: -0.045em;
+    text-transform: uppercase;
+    color: var(--black);
+
+    &-strike {
+      display: inline-block;
+      padding: 0 12px;
+      background: var(--accent);
+      color: var(--black);
+      box-shadow: 6px 6px 0 0 var(--black);
+    }
+  }
+
+  &__user {
+    color: var(--muted);
+  }
+
+  &__stamp {
+    margin-top: 28px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border: var(--border);
+    background: var(--off-white);
+    color: var(--black);
+    font-size: 11px;
+    @extend %mono-label;
+  }
+
+  &__stamp-divider { color: var(--accent); }
+}
+
+/* ──────────── 2. CARGO MANIFEST ──────────── */
+.manifest {
+  border-bottom: var(--border);
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+
+    @media (max-width: $mobile - 1px) {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+.stat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 28px 24px 24px;
+  background: var(--off-white);
+  border-right: var(--border);
+  min-height: 200px;
+
+  &:last-child {
+    border-right: none;
+  }
+
+  @media (max-width: $mobile - 1px) {
+    border-right: none;
+    border-bottom: var(--border);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__label {
+    color: var(--muted);
+    font-size: 11px;
+    @extend %mono-label;
+  }
+
+  &__value {
+    font-family: var(--font-headline);
+    font-size: clamp(56px, 8vw, 88px);
+    font-weight: 800;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    color: var(--black);
+  }
+
+  &__caption {
+    margin-top: auto;
+    align-self: flex-start;
+    padding: 4px 8px;
+    background: var(--black);
+    color: var(--off-white);
+    font-size: 10px;
+    @extend %mono-label;
+  }
+
+  &--accent {
+    background: var(--accent);
+
+    .stat__label { color: var(--black); }
+    .stat__value { color: var(--black); }
+    .stat__caption {
+      background: var(--black);
+      color: var(--accent);
+    }
+  }
+}
+
+/* ──────────── 3. LATEST ARRIVALS ──────────── */
+.arrivals {
+  border-bottom: var(--border);
+
+  &__rail {
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    background: var(--off-white);
+    padding: 32px 24px 36px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--black) transparent;
+  }
+
+  &__empty {
+    padding: 32px;
+    color: var(--muted);
+    font-size: 12px;
+    @extend %mono-label;
+  }
+}
+
+.arrival {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  margin-right: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+
+  &:last-child {
+    margin-right: 0;
+  }
+
+  &__art {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    border: var(--border);
+    overflow: hidden;
+    box-shadow: 6px 6px 0 0 var(--black);
+    background: var(--accent);
+    transition: transform 60ms steps(1);
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+  }
+
+  &__art-placeholder {
+    width: 100%;
+    height: 100%;
+    background:
+      repeating-linear-gradient(
+        45deg,
+        var(--accent) 0 8px,
+        var(--black) 8px 12px
+      );
+  }
+
+  &__glyph {
+    position: absolute;
+    inset: auto 0 0 0;
+    padding: 6px 10px;
+    background: var(--black);
+    color: var(--accent);
+    border-top: var(--border);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 60ms steps(1);
+  }
+
+  &__meta {
+    margin-top: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__name {
+    font-family: var(--font-headline);
+    font-size: 18px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    color: var(--black);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__author {
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__footer {
+    margin-top: 10px;
+    border-top: 2px solid var(--black);
+    padding-top: 6px;
+  }
+
+  &__time {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--black);
+  }
+
+  &:hover,
+  &:focus-visible {
+    outline: none;
+
+    .arrival__art {
+      transform: translate(3px, 3px);
+      box-shadow: 3px 3px 0 0 var(--black);
+    }
+
+    .arrival__glyph {
+      opacity: 1;
+    }
+
+    .arrival__name {
+      background: var(--accent);
+      padding: 0 4px;
+      margin: 0 -4px;
+    }
+  }
+
+  &:active .arrival__art {
+    transform: translate(6px, 6px);
+    box-shadow: 0 0 0 0 var(--black);
+  }
+}
+
+/* ──────────── 4. CONTROL ROOM ──────────── */
+.control-room {
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+
+    @media (max-width: $mobile - 1px) {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+.control {
+  position: relative;
+  display: grid;
+  grid-template-areas:
+    "glyph arrow"
+    "label arrow"
+    "sub   arrow";
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto auto;
+  gap: 8px 16px;
+  padding: 24px;
+  min-height: 168px;
+  background: var(--off-white);
+  border-right: var(--border);
+  text-decoration: none;
+  color: var(--black);
+  cursor: pointer;
+  transition: background 60ms steps(1);
+
+  &:last-child {
+    border-right: none;
+  }
+
+  @media (max-width: $mobile - 1px) {
+    border-right: none;
+    border-bottom: var(--border);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__glyph {
+    grid-area: glyph;
+    font-family: var(--font-mono);
+    font-size: 24px;
+    color: var(--accent);
+    align-self: start;
+  }
+
+  &__label {
+    grid-area: label;
+    font-family: var(--font-headline);
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    color: var(--black);
+  }
+
+  &__sub {
+    grid-area: sub;
+    color: var(--muted);
+    font-size: 10px;
+    @extend %mono-label;
+  }
+
+  &__arrow {
+    grid-area: arrow;
+    align-self: end;
+    font-family: var(--font-headline);
+    font-size: 40px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--black);
+    transition: transform 60ms steps(1);
+  }
+
+  &--accent {
+    background: var(--accent);
+
+    .control__glyph { color: var(--black); }
+    .control__sub { color: var(--black); }
+  }
+
+  &:hover,
+  &:focus-visible {
+    outline: none;
+    background: var(--black);
+    color: var(--off-white);
+
+    .control__label,
+    .control__arrow {
+      color: var(--accent);
+    }
+    .control__sub {
+      color: var(--off-white);
+    }
+    .control__glyph {
+      color: var(--accent);
+    }
+    .control__arrow {
+      transform: translateX(8px);
+    }
+  }
+
+  &:active .control__arrow {
+    transform: translateX(12px);
+  }
+}
+
+/* ──────────── DRY DOCK (empty state) ──────────── */
+.dry-dock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 64px 32px;
+  min-height: 100dvh;
+  background: var(--off-white);
+
+  &__chip { @extend %chip; }
+
+  &__title {
+    font-family: var(--font-headline);
+    font-size: clamp(64px, 14vw, 160px);
+    font-weight: 800;
+    line-height: 0.9;
+    letter-spacing: -0.05em;
+    text-transform: uppercase;
+    color: var(--black);
+
+    &-strike {
+      display: inline-block;
+      padding: 0 14px;
+      background: var(--accent);
+      box-shadow: 8px 8px 0 0 var(--black);
+    }
+  }
+
+  &__body {
+    max-width: 520px;
+    font-family: var(--font-body);
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.45;
+    color: var(--muted);
+  }
+
+  &__cta {
+    text-decoration: none;
+    color: inherit;
+    display: inline-flex;
+    margin-top: 12px;
+  }
+}
+
+/* ──────────── status (loading) ──────────── */
+.status {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 64px 32px;
+
+  &__tag {
+    @extend %chip;
+    align-self: flex-start;
+  }
+
+  &__title {
+    font-family: var(--font-headline);
+    font-size: clamp(48px, 9vw, 96px);
+    font-weight: 800;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    text-transform: uppercase;
+    color: var(--black);
+  }
+}

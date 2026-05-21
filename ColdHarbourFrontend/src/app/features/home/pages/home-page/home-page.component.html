@@ -1,0 +1,124 @@
+<main class="home">
+  @if (isLoading()) {
+    <section class="status">
+      <span class="status__tag">// CONNECTING</span>
+      <h1 class="status__title">LOADING<br />HARBOUR…</h1>
+    </section>
+  } @else if (isEmpty()) {
+    <section class="dry-dock">
+      <span class="dry-dock__chip">// 00 — DRY DOCK</span>
+      <h1 class="dry-dock__title">
+        NOTHING<br />IN THE<br /><span class="dry-dock__title-strike">HARBOUR.</span>
+      </h1>
+      <p class="dry-dock__body">
+        The library is empty. Drop your first record in and the harbour will open.
+      </p>
+      <a class="dry-dock__cta" routerLink="/playlist/1">
+        <app-button variant="primary">+ ADD TRACKS</app-button>
+      </a>
+    </section>
+  } @else {
+    <!-- ── 1. HARBOUR / / OPEN ── -->
+    <header class="harbour">
+      <span class="harbour__tag">// HARBOUR / / OPEN</span>
+      <h1 class="harbour__title">
+        WELCOME<br />
+        <span class="harbour__title-strike">BACK,</span><br />
+        <span class="harbour__user">{{ userName() }}.</span>
+      </h1>
+      <div class="harbour__stamp">
+        <span>{{ nowLabel }}</span>
+        <span class="harbour__stamp-divider">▮</span>
+        <span>STATION OPEN</span>
+      </div>
+    </header>
+
+    <!-- ── 2. CARGO MANIFEST ── -->
+    <section class="manifest">
+      <header class="section-header">
+        <span class="section-header__tag">// 01 — CARGO MANIFEST</span>
+        <span class="section-header__meta">LIVE</span>
+      </header>
+      <div class="manifest__grid">
+        <article class="stat">
+          <span class="stat__label">TRACKS</span>
+          <span class="stat__value">{{ trackCount() }}</span>
+          <span class="stat__caption">REGISTERED</span>
+        </article>
+        <article class="stat stat--accent">
+          <span class="stat__label">RUNTIME</span>
+          <span class="stat__value">{{ totalDuration() }}</span>
+          <span class="stat__caption">TOTAL</span>
+        </article>
+        <article class="stat">
+          <span class="stat__label">ALBUMS</span>
+          <span class="stat__value">{{ albumCount() }}</span>
+          <span class="stat__caption">COLLECTIONS</span>
+        </article>
+      </div>
+    </section>
+
+    <!-- ── 3. LATEST ARRIVALS ── -->
+    <section class="arrivals">
+      <header class="section-header">
+        <span class="section-header__tag">// 02 — LATEST ARRIVALS</span>
+        <span class="section-header__meta">
+          {{ recentlyAdded().length }} ITEMS
+        </span>
+      </header>
+      <div class="arrivals__rail">
+        @for (track of recentlyAdded(); track track.id) {
+          <button class="arrival" type="button" (click)="play(track)">
+            <div class="arrival__art">
+              @if (track.imageRef) {
+                <img [src]="track.imageRef" [alt]="track.name" />
+              } @else {
+                <div class="arrival__art-placeholder"></div>
+              }
+              <span class="arrival__glyph">▶</span>
+            </div>
+            <div class="arrival__meta">
+              <span class="arrival__name">{{ track.name }}</span>
+              <span class="arrival__author">{{ track.author }}</span>
+            </div>
+            <div class="arrival__footer">
+              <span class="arrival__time">
+                {{ formatDuration(track.durationSeconds) }}
+              </span>
+            </div>
+          </button>
+        } @empty {
+          <p class="arrivals__empty">NOTHING YET — UPLOAD A TRACK TO BEGIN.</p>
+        }
+      </div>
+    </section>
+
+    <!-- ── 4. CONTROL ROOM ── -->
+    <section class="control-room">
+      <header class="section-header">
+        <span class="section-header__tag">// 03 — CONTROL ROOM</span>
+        <span class="section-header__meta">QUICK NAV</span>
+      </header>
+      <div class="control-room__grid">
+        <a class="control" routerLink="/library">
+          <span class="control__glyph">▶</span>
+          <span class="control__label">ALL TRACKS</span>
+          <span class="control__sub">BROWSE LIBRARY</span>
+          <span class="control__arrow">→</span>
+        </a>
+        <a class="control control--accent" routerLink="/devices">
+          <span class="control__glyph">◼</span>
+          <span class="control__label">DEVICES</span>
+          <span class="control__sub">PLAYBACK ROUTING</span>
+          <span class="control__arrow">→</span>
+        </a>
+        <a class="control" routerLink="/account">
+          <span class="control__glyph">▣</span>
+          <span class="control__label">ACCOUNT</span>
+          <span class="control__sub">YOU + SETTINGS</span>
+          <span class="control__arrow">→</span>
+        </a>
+      </div>
+    </section>
+  }
+</main>

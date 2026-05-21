@@ -6,10 +6,20 @@ import { ActivatedRoute } from '@angular/router';
 import { MusicService } from '../../../player/services/music.service';
 import type { Playlist } from '../../../../core/api/api.service';
 import { LibraryService } from '../../library.service';
+import {
+  ButtonComponent,
+  ModalComponent,
+} from '../../../../shared/ui';
 
 @Component({
   selector: 'app-playlist-page',
-  imports: [MusicListComponent, PlayerComponent, RouterLink],
+  imports: [
+    MusicListComponent,
+    PlayerComponent,
+    RouterLink,
+    ButtonComponent,
+    ModalComponent,
+  ],
   templateUrl: './playlist-page.component.html',
   styleUrl: './playlist-page.component.scss',
 })

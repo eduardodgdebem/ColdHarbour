@@ -16,8 +16,9 @@ See `docs/FRONTEND_MIGRATION.md` for the phased plan that introduces and consume
 | `ButtonComponent` | `<app-button>` | Brutalist button with `default | primary | danger` variants, `sm | md` sizes, `loading` state. |
 | `InputComponent` | `<app-input>` | Native text input wrapper implementing `ControlValueAccessor` for reactive forms. |
 | `FormFieldComponent` | `<app-form-field>` | Label + projected control + error/hint wrapper. |
-
-(Phase 2 adds `CardComponent`, `ModalComponent`, `BadgeComponent`.)
+| `CardComponent` | `<app-card>` | Bordered container with `sm | md | lg` padding, optional drop shadow, header/body/footer slots. |
+| `ModalComponent` | `<app-modal>` | Overlay dialog with `isOpen` input + `(close)` output. Backdrop click and ESC dismiss; body + footer slots. |
+| `BadgeComponent` | `<app-badge>` | Inline pill with `default | active | accent` variants. |
 
 ## Conventions
 

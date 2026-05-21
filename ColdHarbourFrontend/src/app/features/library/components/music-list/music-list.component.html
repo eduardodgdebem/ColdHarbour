@@ -37,7 +37,7 @@
 
         <div class="track-meta">
           @if (isCurrentMusic(music)) {
-            <span class="playing-badge">PLAYING</span>
+            <app-badge variant="active">PLAYING</app-badge>
           }
           <span class="track-dur">{{
             formatDuration(music.durationSeconds)

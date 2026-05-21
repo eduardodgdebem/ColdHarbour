@@ -3,3 +3,8 @@ export type { ButtonVariant, ButtonSize } from './button/button.component';
 export { InputComponent } from './input/input.component';
 export type { InputType } from './input/input.component';
 export { FormFieldComponent } from './form-field/form-field.component';
+export { CardComponent } from './card/card.component';
+export type { CardPadding } from './card/card.component';
+export { ModalComponent } from './modal/modal.component';
+export { BadgeComponent } from './badge/badge.component';
+export type { BadgeVariant } from './badge/badge.component';

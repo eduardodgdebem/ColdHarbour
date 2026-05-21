@@ -2,11 +2,12 @@ import { Component, inject } from '@angular/core';
 import { DatePipe, Location } from '@angular/common';
 import { DeviceService } from '../../device.service';
 import { PlaybackSessionService } from '../../../player/services/playback-session.service';
+import { BadgeComponent, ButtonComponent } from '../../../../shared/ui';
 
 @Component({
   selector: 'app-devices-page',
   standalone: true,
-  imports: [DatePipe],
+  imports: [DatePipe, BadgeComponent, ButtonComponent],
   templateUrl: './devices-page.component.html',
   styleUrl: './devices-page.component.scss',
 })

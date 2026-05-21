@@ -15,8 +15,8 @@
 | Phase | Title | Status |
 |---|---|---|
 | 0 | Baseline | ✅ Done |
-| 1 | Docs + foundation (Button, Input, FormField) | 🚧 In progress (`frontend-phase-1-foundation`) |
-| 2 | Kit completion (Card, Modal, Badge) + refactor existing pages | ☐ Not started |
+| 1 | Docs + foundation (Button, Input, FormField) | ✅ Done — landed on `frontend-phase-1-foundation` (`c6096ce`) 2026-05-21 |
+| 2 | Kit completion (Card, Modal, Badge) + refactor existing pages | 🚧 In progress (`frontend-phase-2-kit-complete`) |
 | 3 | Home dashboard `/home` | ☐ Not started |
 | 4 | Library page `/library` (all tracks) | ☐ Not started |
 | 5 | Account `/account` + owner-gated `/create-account` | ☐ Not started |

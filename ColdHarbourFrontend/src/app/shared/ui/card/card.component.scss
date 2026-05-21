@@ -1,0 +1,72 @@
+:host {
+  display: block;
+}
+
+.card {
+  background: var(--off-white);
+  border: var(--border);
+  color: var(--black);
+
+  &--shadow {
+    box-shadow: 6px 6px 0 0 var(--black);
+  }
+}
+
+.card__header {
+  border-bottom: var(--border);
+  background: var(--black);
+  color: var(--off-white);
+  font-family: var(--font-headline);
+  font-size: 18px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.card__body {
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+
+.card__footer {
+  border-top: var(--border);
+
+  &:empty {
+    display: none;
+  }
+}
+
+/* Padding scales — applied via parent modifier */
+.card--padding-sm {
+  .card__header,
+  .card__footer {
+    padding: 8px 12px;
+  }
+  .card__body {
+    padding: 12px;
+  }
+}
+
+.card--padding-md {
+  .card__header,
+  .card__footer {
+    padding: 12px 20px;
+  }
+  .card__body {
+    padding: 20px;
+  }
+}
+
+.card--padding-lg {
+  .card__header,
+  .card__footer {
+    padding: 18px 28px;
+  }
+  .card__body {
+    padding: 28px;
+  }
+}

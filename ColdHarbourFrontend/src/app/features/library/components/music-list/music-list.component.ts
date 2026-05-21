@@ -3,11 +3,12 @@ import { Component } from '@angular/core';
 import { MusicService } from '../../../player/services/music.service';
 import type { Music } from '../../../../core/api/api.service';
 import { LibraryService } from '../../library.service';
+import { BadgeComponent } from '../../../../shared/ui';
 
 @Component({
   selector: 'app-music-list',
   standalone: true,
-  imports: [],
+  imports: [BadgeComponent],
   templateUrl: './music-list.component.html',
   styleUrl: './music-list.component.scss',
 })

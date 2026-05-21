@@ -24,21 +24,22 @@
           </div>
           <div class="device-actions">
             @if (session.session()?.activeDeviceId === device.id) {
-              <span class="badge badge--playing">PLAYING</span>
+              <app-badge variant="active">PLAYING</app-badge>
             }
             @if (device.id === myDeviceId) {
-              <span class="badge badge--this">THIS DEVICE</span>
+              <app-badge variant="default">THIS DEVICE</app-badge>
             }
             @if (
               session.session()?.trackId &&
               session.session()?.activeDeviceId !== device.id
             ) {
-              <button
-                class="btn btn--primary play-here-btn"
+              <app-button
+                variant="primary"
+                size="sm"
                 (click)="transfer(device.id)"
               >
                 PLAY HERE
-              </button>
+              </app-button>
             }
           </div>
         </li>

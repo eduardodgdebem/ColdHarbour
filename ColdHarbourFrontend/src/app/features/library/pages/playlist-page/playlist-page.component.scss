@@ -65,13 +65,18 @@ $mobile: 768px;
   display: flex;
 }
 
-.header-btn {
+.header-action {
   flex: 1;
-  border: none;
+  display: flex;
   border-right: var(--border);
 
   &:last-child {
     border-right: none;
+  }
+
+  ::ng-deep .btn {
+    flex: 1;
+    border: none;
   }
 }
 
@@ -88,71 +93,13 @@ $mobile: 768px;
   color: var(--error-fg);
 }
 
-/* ── Sync modal ──────────────────────────────── */
-.sync-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 200;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-
-.sync-dialog {
-  background: var(--off-white);
-  border: var(--border);
-  box-shadow: 6px 6px 0 0 var(--black);
-  width: 100%;
-  max-width: 400px;
-}
-
-.sync-dialog-title {
-  padding: 16px 24px;
-  border-bottom: var(--border);
-  font-family: var(--font-headline);
-  font-size: 20px;
-  font-weight: 800;
+/* ── Sync modal body ─────────────────────────── */
+.sync-error {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
-  color: var(--black);
-}
-
-.sync-dialog-body {
-  padding: 20px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-bottom: var(--border);
-
-  p {
-    font-family: var(--font-body);
-    font-size: 15px;
-    color: var(--black);
-  }
-
-  .sync-error {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: var(--error-fg);
-  }
-}
-
-.sync-dialog-actions {
-  display: flex;
-
-  .btn {
-    flex: 1;
-    border: none;
-    border-right: var(--border);
-    padding: 14px;
-
-    &:last-child {
-      border-right: none;
-    }
-  }
+  color: var(--error-fg);
 }
 
 /* ── Scrollable track list ───────────────────── */

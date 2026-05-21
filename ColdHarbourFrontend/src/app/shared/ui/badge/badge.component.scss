@@ -1,0 +1,31 @@
+:host {
+  display: inline-flex;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border: var(--border);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+
+  &--default {
+    background: var(--off-white);
+    color: var(--muted);
+  }
+
+  &--active {
+    background: var(--black);
+    color: var(--off-white);
+  }
+
+  &--accent {
+    background: var(--accent);
+    color: var(--black);
+  }
+}

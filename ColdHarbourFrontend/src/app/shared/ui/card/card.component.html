@@ -1,0 +1,11 @@
+<section [class]="classes()">
+  <header class="card__header">
+    <ng-content select="[slot=header]" />
+  </header>
+  <div class="card__body">
+    <ng-content />
+  </div>
+  <footer class="card__footer">
+    <ng-content select="[slot=footer]" />
+  </footer>
+</section>

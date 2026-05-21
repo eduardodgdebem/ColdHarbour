@@ -96,27 +96,3 @@
   gap: 12px;
   flex-shrink: 0;
 }
-
-.badge {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 4px 8px;
-  border: var(--border);
-
-  &--playing {
-    background: var(--black);
-    color: var(--off-white);
-  }
-  &--this {
-    background: var(--off-white);
-    color: var(--muted);
-  }
-}
-
-.play-here-btn {
-  padding: 8px 16px;
-  font-size: 12px;
-}

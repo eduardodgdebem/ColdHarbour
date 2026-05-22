@@ -53,7 +53,27 @@
     display: none;
   }
 
+  /* Wrapper passed as <div slot="footer"> stretches to fill and lays its buttons in a row */
   & > * {
     flex: 1;
+    display: flex;
+    width: 100%;
+  }
+
+  /* Buttons inside the footer share the modal's frame — strip their own
+     border and rely on the modal walls. A single 4px divider sits between
+     adjacent buttons via the next sibling. */
+  ::ng-deep app-button {
+    flex: 1;
+    display: flex;
+  }
+
+  ::ng-deep app-button + app-button {
+    border-left: var(--border);
+  }
+
+  ::ng-deep .btn {
+    flex: 1;
+    border: none;
   }
 }

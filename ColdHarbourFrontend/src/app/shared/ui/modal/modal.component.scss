@@ -53,16 +53,19 @@
     display: none;
   }
 
-  /* Wrapper passed as <div slot="footer"> stretches to fill and lays its buttons in a row */
-  & > * {
+  /* Consumers wrap their footer in <div slot="footer">. That wrapper is
+     projected content (lives in the consumer's encapsulation scope), so
+     the modal's own `& > *` selectors cannot target it. ::ng-deep is the
+     only reliable hook. Make the wrapper a full-width flex row.        */
+  ::ng-deep [slot='footer'] {
     flex: 1;
     display: flex;
     width: 100%;
   }
 
-  /* Buttons inside the footer share the modal's frame — strip their own
-     border and rely on the modal walls. A single 4px divider sits between
-     adjacent buttons via the next sibling. */
+  /* Every button inside the footer stretches and shares the modal's outer
+     frame — strip the button's own border and add a single 4px vertical
+     divider between adjacent buttons. */
   ::ng-deep app-button {
     flex: 1;
     display: flex;

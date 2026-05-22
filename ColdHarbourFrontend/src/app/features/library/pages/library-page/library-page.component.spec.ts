@@ -82,8 +82,8 @@ describe('LibraryPageComponent', () => {
 
   it('renders the search input and the three sort buttons', () => {
     setUp({ id: 1, name: 'All', imageRef: '', musics: [track(1)] });
-    expect(fixture.debugElement.query(By.css('.library-search'))).toBeTruthy();
-    const sortButtons = fixture.debugElement.queryAll(By.css('.sort-btn'));
+    expect(fixture.debugElement.query(By.css('.deck__cell--search'))).toBeTruthy();
+    const sortButtons = fixture.debugElement.queryAll(By.css('.sort-chip'));
     expect(sortButtons.length).toBe(3);
     const labels = sortButtons.map((b) =>
       b.nativeElement.textContent.trim().toUpperCase(),
@@ -114,7 +114,7 @@ describe('LibraryPageComponent', () => {
         track(3, { name: 'Bravo' }),
       ],
     });
-    const sortButtons = fixture.debugElement.queryAll(By.css('.sort-btn'));
+    const sortButtons = fixture.debugElement.queryAll(By.css('.sort-chip'));
     sortButtons[0].nativeElement.click();
     fixture.detectChanges();
     expect(rowNames()).toEqual(['Charlie', 'Bravo', 'Alpha']);
@@ -129,7 +129,7 @@ describe('LibraryPageComponent', () => {
         track(3, { name: 'C', author: 'Mira' }),
       ],
     });
-    const sortButtons = fixture.debugElement.queryAll(By.css('.sort-btn'));
+    const sortButtons = fixture.debugElement.queryAll(By.css('.sort-chip'));
     sortButtons[1].nativeElement.click();
     fixture.detectChanges();
     expect(rowNames()).toEqual(['B', 'C', 'A']);
@@ -176,8 +176,8 @@ describe('LibraryPageComponent', () => {
 
   it('marks the active sort column with a glyph', () => {
     setUp({ id: 1, name: 'All', imageRef: '', musics: [track(1)] });
-    const sortButtons = fixture.debugElement.queryAll(By.css('.sort-btn'));
-    expect(sortButtons[0].nativeElement.classList).toContain('sort-btn--active');
-    expect(sortButtons[1].nativeElement.classList).not.toContain('sort-btn--active');
+    const sortButtons = fixture.debugElement.queryAll(By.css('.sort-chip'));
+    expect(sortButtons[0].nativeElement.classList).toContain('sort-chip--active');
+    expect(sortButtons[1].nativeElement.classList).not.toContain('sort-chip--active');
   });
 });

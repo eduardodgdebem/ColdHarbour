@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { LibraryService } from '../../library.service';
 import type { LibrarySyncDiff } from '../../../../core/api/api.service';
 import {
@@ -13,9 +13,13 @@ import {
   templateUrl: './library-actions.component.html',
   styleUrl: './library-actions.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '[attr.data-compact]': 'compact() ? "true" : null',
+  },
 })
 export class LibraryActionsComponent {
   readonly libraryService = inject(LibraryService);
+  readonly compact = input<boolean>(false);
 
   onFilesSelected(event: Event): void {
     const input = event.target as HTMLInputElement;

@@ -1,41 +1,50 @@
 <section class="library-page">
+  <!-- ── Compact header strip ── -->
   <header class="library-page__header">
-    <app-back-button />
-    <span class="library-page__tag">// ALL TRACKS</span>
-    <h1 class="library-page__title">LIBRARY</h1>
+    <app-back-button variant="inverse" />
+    <div class="library-page__id">
+      <h1 class="library-page__title">LIBRARY</h1>
+      <span class="library-page__stats">
+        // {{ trackCount() }} TRACKS · {{ albumCount() }} ALBUMS
+      </span>
+    </div>
   </header>
 
-  <div class="library-page__actions">
-    <app-library-actions />
-  </div>
-
-  <div class="library-page__controls">
-    <div class="library-search">
-      <span class="library-search__label">SEARCH</span>
+  <!-- ── Single control deck: search · sort · actions ── -->
+  <div class="deck">
+    <div class="deck__cell deck__cell--search">
+      <span class="deck__label">SEARCH</span>
       <app-input
         type="search"
-        placeholder="Filter by track or artist…"
+        placeholder="Track or artist…"
         [ngModel]="searchQuery()"
         (ngModelChange)="searchQuery.set($event)"
       />
     </div>
 
-    <div class="sort-bar">
-      <span class="sort-bar__label">SORT</span>
-      @for (col of sortColumns; track col.key) {
-        <button
-          type="button"
-          class="sort-btn"
-          [class.sort-btn--active]="sortColumn() === col.key"
-          (click)="setSort(col.key)"
-        >
-          <span class="sort-btn__label">{{ col.label }}</span>
-          <span class="sort-btn__glyph">{{ glyphFor(col.key) }}</span>
-        </button>
-      }
+    <div class="deck__cell deck__cell--sort">
+      <span class="deck__label">SORT</span>
+      <div class="deck__sort-row">
+        @for (col of sortColumns; track col.key) {
+          <button
+            type="button"
+            class="sort-chip"
+            [class.sort-chip--active]="sortColumn() === col.key"
+            (click)="setSort(col.key)"
+          >
+            <span class="sort-chip__label">{{ col.label }}</span>
+            <span class="sort-chip__glyph">{{ glyphFor(col.key) }}</span>
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="deck__cell deck__cell--actions">
+      <app-library-actions [compact]="true" />
     </div>
   </div>
 
+  <!-- ── Track list ── -->
   <div class="library-page__list">
     <app-music-list
       [musics]="visibleTracks()"

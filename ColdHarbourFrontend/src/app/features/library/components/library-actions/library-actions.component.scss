@@ -50,3 +50,44 @@
   text-transform: uppercase;
   color: var(--error-fg);
 }
+
+/* ── Compact mode (used inside the library page's control deck) ── */
+:host([data-compact='true']) {
+  width: auto;
+  flex: none;
+  display: inline-flex;
+
+  .action {
+    flex: none;
+    border-right: var(--border);
+
+    &:last-of-type {
+      border-right: none;
+    }
+
+    ::ng-deep .btn {
+      flex: none;
+      padding: 0 14px;
+      height: 100%;
+      min-width: 80px;
+      gap: 6px;
+    }
+  }
+
+  .action__glyph {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    line-height: 1;
+    color: var(--accent);
+  }
+
+  .action__label {
+    font-family: var(--font-headline);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+
+  ::ng-deep .btn:hover .action__glyph {
+    color: var(--black);
+  }
+}

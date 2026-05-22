@@ -1,4 +1,4 @@
-<label class="action">
+<label class="action" [title]="compact() ? 'Add tracks' : ''">
   <input
     type="file"
     accept=".mp3,.flac,.m4a,.ogg,.opus,.wav"
@@ -6,17 +6,29 @@
     (change)="onFilesSelected($event)"
     hidden
   />
-  <app-button>
-    {{ libraryService.isUploading() ? 'UPLOADING…' : '+ ADD TRACKS' }}
+  <app-button [size]="compact() ? 'sm' : 'md'">
+    @if (compact()) {
+      <span class="action__glyph">+</span>
+      <span class="action__label">ADD</span>
+    } @else {
+      {{ libraryService.isUploading() ? 'UPLOADING…' : '+ ADD TRACKS' }}
+    }
   </app-button>
 </label>
 
 <app-button
   class="action"
   [disabled]="libraryService.isSyncing()"
+  [size]="compact() ? 'sm' : 'md'"
+  [title]="compact() ? 'Sync library' : ''"
   (click)="previewSync()"
 >
-  SYNC LIBRARY
+  @if (compact()) {
+    <span class="action__glyph">↻</span>
+    <span class="action__label">SYNC</span>
+  } @else {
+    SYNC LIBRARY
+  }
 </app-button>
 
 @if (libraryService.uploadError(); as err) {

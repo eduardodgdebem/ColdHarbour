@@ -20,111 +20,143 @@ $mobile: 768px;
   overflow: hidden;
 }
 
+/* ── Header strip ─────────────────────────────── */
 .library-page__header {
   flex-shrink: 0;
-  padding: 24px;
-  border-bottom: var(--border);
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 24px;
+  background: var(--black);
+  border-bottom: var(--border);
+
+  @media (max-width: $mobile - 1px) {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
 }
 
-.library-page__tag {
-  display: inline-block;
-  align-self: flex-start;
-  padding: 6px 10px;
-  background: var(--black);
-  color: var(--accent);
-  font-size: 11px;
-  @extend %mono-label;
+.library-page__id {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  min-width: 0;
+
+  @media (max-width: $mobile - 1px) {
+    flex-basis: 100%;
+  }
 }
 
 .library-page__title {
   font-family: var(--font-headline);
-  font-size: clamp(40px, 6vw, 64px);
+  font-size: clamp(24px, 3.5vw, 34px);
   font-weight: 800;
-  line-height: 0.95;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.03em;
   text-transform: uppercase;
-  color: var(--black);
+  color: var(--off-white);
+  line-height: 1;
 }
 
-.library-page__actions {
-  flex-shrink: 0;
-  border-bottom: var(--border);
+.library-page__stats {
+  font-size: 11px;
+  color: var(--accent);
+  @extend %mono-label;
 }
 
-.library-page__controls {
+/* ── Control deck ─────────────────────────────── */
+.deck {
   flex-shrink: 0;
-  display: grid;
-  grid-template-columns: 1fr auto;
+  display: flex;
+  align-items: stretch;
   border-bottom: var(--border);
+  background: var(--off-white);
+  min-height: 56px;
 
   @media (max-width: $mobile - 1px) {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 }
 
-.library-search {
+.deck__cell {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   border-right: var(--border);
+
+  &:last-child {
+    border-right: none;
+  }
 
   @media (max-width: $mobile - 1px) {
     border-right: none;
     border-bottom: var(--border);
-  }
 
-  &__label {
-    padding: 0 16px;
-    background: var(--black);
-    color: var(--accent);
-    align-self: stretch;
-    display: inline-flex;
-    align-items: center;
-    font-size: 11px;
-    @extend %mono-label;
-  }
-
-  ::ng-deep app-input {
-    flex: 1;
-  }
-
-  ::ng-deep .input {
-    border: none;
-    height: 100%;
-    padding: 14px 16px;
-    font-size: 14px;
+    &:last-child {
+      border-bottom: none;
+    }
   }
 }
 
-.sort-bar {
+.deck__cell--search {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.deck__cell--sort,
+.deck__cell--actions {
+  flex: 0 0 auto;
+}
+
+.deck__label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  background: var(--black);
+  color: var(--accent);
+  font-size: 10px;
+  border-right: var(--border);
+  white-space: nowrap;
+  @extend %mono-label;
+}
+
+/* Search input slotted into the deck — strip the input's own frame */
+.deck__cell--search ::ng-deep app-input {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+
+.deck__cell--search ::ng-deep .input {
+  border: none;
+  background: var(--off-white);
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 0 16px;
+  height: 100%;
+  width: 100%;
+
+  &:focus {
+    background: #fff;
+    box-shadow: inset 0 -3px 0 0 var(--accent);
+  }
+}
+
+/* Sort row — tightly packed chips */
+.deck__sort-row {
   display: flex;
   align-items: stretch;
-
-  &__label {
-    padding: 0 16px;
-    background: var(--black);
-    color: var(--off-white);
-    display: inline-flex;
-    align-items: center;
-    border-right: var(--border);
-    font-size: 11px;
-    @extend %mono-label;
-  }
 }
 
-.sort-btn {
+.sort-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 14px 16px;
+  padding: 0 14px;
   background: var(--off-white);
   border: none;
   border-right: var(--border);
   cursor: pointer;
-  font-size: 11px;
   color: var(--black);
+  font-size: 11px;
   @extend %mono-label;
 
   &:last-child {
@@ -141,13 +173,17 @@ $mobile: 768px;
 
   &__glyph {
     font-family: var(--font-headline);
-    font-size: 11px;
-    color: var(--black);
-    min-width: 12px;
+    font-size: 12px;
+    width: 10px;
     text-align: center;
   }
 }
 
+.deck__cell--actions ::ng-deep app-library-actions {
+  height: 100%;
+}
+
+/* ── Track list ─────────────────────────────── */
 .library-page__list {
   flex: 1;
   min-height: 0;

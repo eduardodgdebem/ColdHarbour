@@ -56,9 +56,16 @@ export class LibraryPageComponent implements OnInit {
     return this.sortTracks(filtered, this.sortColumn(), this.sortDirection());
   });
 
-  readonly hasAnyTracks = computed(
-    () => (this.musicService.currentPlayList()?.musics.length ?? 0) > 0,
+  readonly trackCount = computed(
+    () => this.musicService.currentPlayList()?.musics.length ?? 0,
   );
+
+  readonly albumCount = computed(() => {
+    const musics = this.musicService.currentPlayList()?.musics ?? [];
+    return new Set(musics.map((m) => m.albumId)).size;
+  });
+
+  readonly hasAnyTracks = computed(() => this.trackCount() > 0);
 
   readonly emptyMessage = computed(() => {
     if (this.searchQuery().trim()) return 'NO TRACKS MATCH YOUR SEARCH';

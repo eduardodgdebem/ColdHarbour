@@ -18,7 +18,7 @@
 | 1 | Docs + foundation (Button, Input, FormField) | ✅ Done — landed on `frontend-phase-1-foundation` (`c6096ce`) 2026-05-21 |
 | 2 | Kit completion (Card, Modal, Badge) + refactor existing pages | ✅ Done — landed on `frontend-phase-2-kit-complete` (`67b6acb`) 2026-05-21 |
 | 3 | Home dashboard `/home` + global player | ✅ Done — landed on `frontend-phase-3-home` (`8bc3ab4`) 2026-05-21 |
-| 4 | Library page `/library` (all tracks) | 🚧 In progress (`frontend-phase-4-library`) |
+| 4 | Library page `/library` (all tracks) | ✅ Done — landed on `frontend-phase-4-library` 2026-05-22 |
 | 5 | Account `/account` + owner-gated `/create-account` | ☐ Not started |
 | 6 | Full-screen player `/player` | ☐ Not started |
 | 7 | Error handling (`/not-found`, `/error`, global handler) | ☐ Not started |

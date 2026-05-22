@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, computed, input } from '@angular/core';
 
 import { MusicService } from '../../../player/services/music.service';
 import type { Music } from '../../../../core/api/api.service';
@@ -13,7 +13,19 @@ import { BadgeComponent } from '../../../../shared/ui';
   styleUrl: './music-list.component.scss',
 })
 export class MusicListComponent {
+  /** Optional override. When provided, the list renders these tracks instead of musicService.currentPlayList(). */
+  readonly musics = input<Music[] | null>(null);
+
+  /** Optional empty-state message override (replaces the default "no tracks" copy). */
+  readonly emptyMessage = input<string | null>(null);
+
   public imageErrorById = new Map<number, boolean>();
+
+  protected readonly tracks = computed<Music[]>(() => {
+    const override = this.musics();
+    if (override !== null) return override;
+    return this.musicService.currentPlayList()?.musics ?? [];
+  });
 
   constructor(
     public musicService: MusicService,

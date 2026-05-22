@@ -35,9 +35,14 @@ export class AuthService {
         { withCredentials: true },
       )
       .pipe(
-        tap((res) =>
-          this.storeTokens(res.accessToken, res.userId, res.email, res.name ?? null),
-        ),
+        tap((res) => {
+          return this.storeTokens(
+            res.accessToken,
+            res.userId,
+            res.email,
+            res.name ?? null,
+          );
+        }),
         map(() => void 0),
       );
   }

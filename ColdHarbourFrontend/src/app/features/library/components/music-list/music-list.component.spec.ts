@@ -91,13 +91,39 @@ describe('MusicListComponent', () => {
 
   it('should display music list from service', () => {
     const musicList = [
-      { ...mockMusic, name: 'Song 1' },
-      { ...mockMusic, name: 'Song 2' },
+      { ...mockMusic, id: 1, name: 'Song 1' },
+      { ...mockMusic, id: 2, name: 'Song 2' },
     ];
     musicService.currentPlayList.set({ ...mockPlaylist, musics: musicList });
     fixture.detectChanges();
 
     const musicElements = fixture.debugElement.queryAll(By.css('.track'));
     expect(musicElements.length).toBe(2);
+  });
+
+  it('uses the musics input override when provided, ignoring the service playlist', () => {
+    const override = [
+      { ...mockMusic, id: 10, name: 'Override A' },
+      { ...mockMusic, id: 11, name: 'Override B' },
+      { ...mockMusic, id: 12, name: 'Override C' },
+    ];
+    fixture.componentRef.setInput('musics', override);
+    fixture.detectChanges();
+
+    const rows = fixture.debugElement.queryAll(By.css('.track'));
+    expect(rows.length).toBe(3);
+    const names = rows.map((r) =>
+      r.query(By.css('.track-name')).nativeElement.textContent.trim(),
+    );
+    expect(names).toEqual(['Override A', 'Override B', 'Override C']);
+  });
+
+  it('renders an empty-state message when the override is an empty array', () => {
+    fixture.componentRef.setInput('musics', []);
+    fixture.componentRef.setInput('emptyMessage', 'NOTHING MATCHED');
+    fixture.detectChanges();
+
+    const stateMsg = fixture.debugElement.query(By.css('.state-msg'));
+    expect(stateMsg.nativeElement.textContent.trim()).toBe('NOTHING MATCHED');
   });
 });

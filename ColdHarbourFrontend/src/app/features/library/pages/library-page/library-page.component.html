@@ -1,0 +1,40 @@
+<section class="library-page">
+  <header class="library-page__header">
+    <span class="library-page__tag">// ALL TRACKS</span>
+    <h1 class="library-page__title">LIBRARY</h1>
+  </header>
+
+  <div class="library-page__controls">
+    <div class="library-search">
+      <span class="library-search__label">SEARCH</span>
+      <app-input
+        type="search"
+        placeholder="Filter by track or artist…"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)"
+      />
+    </div>
+
+    <div class="sort-bar">
+      <span class="sort-bar__label">SORT</span>
+      @for (col of sortColumns; track col.key) {
+        <button
+          type="button"
+          class="sort-btn"
+          [class.sort-btn--active]="sortColumn() === col.key"
+          (click)="setSort(col.key)"
+        >
+          <span class="sort-btn__label">{{ col.label }}</span>
+          <span class="sort-btn__glyph">{{ glyphFor(col.key) }}</span>
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="library-page__list">
+    <app-music-list
+      [musics]="visibleTracks()"
+      [emptyMessage]="emptyMessage()"
+    />
+  </div>
+</section>

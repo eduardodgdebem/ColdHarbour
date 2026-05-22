@@ -26,9 +26,7 @@ export class HomePageComponent implements OnInit {
   readonly isLoading = this.musicService.isLoading;
   readonly playlist = this.musicService.currentPlayList;
 
-  readonly trackCount = computed(
-    () => this.playlist()?.musics.length ?? 0,
-  );
+  readonly trackCount = computed(() => this.playlist()?.musics.length ?? 0);
 
   readonly totalDuration = computed(() => {
     const musics = this.playlist()?.musics ?? [];
@@ -89,8 +87,18 @@ export class HomePageComponent implements OnInit {
   private computeNowLabel(): string {
     const now = new Date();
     const months = [
-      'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
-      'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+      'JAN',
+      'FEB',
+      'MAR',
+      'APR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AUG',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC',
     ];
     const day = now.getDate().toString().padStart(2, '0');
     const mon = months[now.getMonth()];

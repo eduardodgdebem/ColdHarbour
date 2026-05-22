@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { HomePageComponent } from './features/home/pages/home-page/home-page.component';
+import { LibraryPageComponent } from './features/library/pages/library-page/library-page.component';
 import { PlaylistPageComponent } from './features/library/pages/playlist-page/playlist-page.component';
 import { LoginPageComponent } from './features/auth/pages/login-page/login-page.component';
 import { DevicesPageComponent } from './features/devices/pages/devices-page/devices-page.component';
@@ -13,6 +14,11 @@ export const routes: Routes = [
   {
     path: 'home',
     component: HomePageComponent,
+    canActivate: [authGuard],
+  },
+  {
+    path: 'library',
+    component: LibraryPageComponent,
     canActivate: [authGuard],
   },
   {

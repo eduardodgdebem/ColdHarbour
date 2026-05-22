@@ -1,11 +1,13 @@
-@if (musicService.isLoading()) {
+@if (musicService.isLoading() && musics() === null) {
   <p class="state-msg">LOADING…</p>
-} @else if (musicService.error()) {
+} @else if (musicService.error() && musics() === null) {
   <p class="state-msg state-msg--error">{{ musicService.error() }}</p>
+} @else if (tracks().length === 0) {
+  <p class="state-msg">{{ emptyMessage() ?? 'NO TRACKS' }}</p>
 } @else {
   <ul class="tracklist">
     @for (
-      music of musicService.currentPlayList()?.musics;
+      music of tracks();
       track music.id;
       let i = $index
     ) {

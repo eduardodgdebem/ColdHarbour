@@ -36,12 +36,19 @@ export class LibraryPageComponent implements OnInit {
   readonly searchQuery = signal('');
   readonly sortColumn = signal<SortColumn>('name');
   readonly sortDirection = signal<SortDirection>('asc');
+  readonly sortOpen = signal(false);
 
   readonly sortColumns: ReadonlyArray<{ key: SortColumn; label: string }> = [
     { key: 'name', label: 'TRACK' },
     { key: 'author', label: 'ARTIST' },
     { key: 'duration', label: 'DURATION' },
   ];
+
+  readonly activeSortLabel = computed(() => {
+    const col = this.sortColumns.find((c) => c.key === this.sortColumn());
+    const arrow = this.sortDirection() === 'asc' ? '▲' : '▼';
+    return `${col?.label ?? 'TRACK'} ${arrow}`;
+  });
 
   readonly visibleTracks = computed<Music[]>(() => {
     const all = this.musicService.currentPlayList()?.musics ?? [];
@@ -83,6 +90,15 @@ export class LibraryPageComponent implements OnInit {
       this.sortColumn.set(column);
       this.sortDirection.set('asc');
     }
+  }
+
+  toggleSort(): void {
+    this.sortOpen.set(!this.sortOpen());
+  }
+
+  selectSort(column: SortColumn): void {
+    this.setSort(column);
+    this.sortOpen.set(false);
   }
 
   glyphFor(column: SortColumn): string {

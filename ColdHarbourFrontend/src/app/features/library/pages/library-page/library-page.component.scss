@@ -70,10 +70,11 @@ $mobile: 768px;
   align-items: stretch;
   border-bottom: var(--border);
   background: var(--off-white);
-  min-height: 56px;
+  height: 56px;
 
   @media (max-width: $mobile - 1px) {
     flex-direction: column;
+    height: auto;
   }
 }
 
@@ -89,6 +90,8 @@ $mobile: 768px;
   @media (max-width: $mobile - 1px) {
     border-right: none;
     border-bottom: var(--border);
+    height: 48px;
+    flex: none;
 
     &:last-child {
       border-bottom: none;
@@ -99,9 +102,13 @@ $mobile: 768px;
 .deck__cell--search {
   flex: 1 1 320px;
   min-width: 0;
+
+  @media (max-width: $mobile - 1px) {
+    flex: none;
+  }
 }
 
-.deck__cell--sort,
+.deck__cell--sort-toggle,
 .deck__cell--actions {
   flex: 0 0 auto;
 }
@@ -140,47 +147,121 @@ $mobile: 768px;
   }
 }
 
-/* Sort row — tightly packed chips */
-.deck__sort-row {
+/* ── Sort toggle (the compact button in the deck) ── */
+.sort-toggle {
   display: flex;
   align-items: stretch;
+  background: var(--off-white);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  color: var(--black);
+  border-right: var(--border);
+
+  &__value {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 12px;
+    font-family: var(--font-headline);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+
+  &__chevron {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 12px 0 0;
+    font-family: var(--font-headline);
+    font-size: 11px;
+    color: var(--black);
+  }
+
+  &:hover,
+  &--open {
+    background: var(--accent);
+  }
+
+  &--open .sort-toggle__chevron {
+    color: var(--black);
+  }
 }
 
-.sort-chip {
+.deck__cell--actions ::ng-deep app-library-actions {
+  height: 100%;
+}
+
+/* ── Sort options panel (appears below the deck when toggled) ── */
+.sort-panel {
+  flex-shrink: 0;
+  display: flex;
+  border-bottom: var(--border);
+  background: var(--accent);
+
+  @media (max-width: $mobile - 1px) {
+    flex-wrap: wrap;
+  }
+}
+
+.sort-option {
+  flex: 1;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 14px;
-  background: var(--off-white);
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 18px;
+  background: var(--accent);
   border: none;
   border-right: var(--border);
   cursor: pointer;
   color: var(--black);
-  font-size: 11px;
+  font-size: 12px;
   @extend %mono-label;
 
   &:last-child {
     border-right: none;
   }
 
+  @media (max-width: $mobile - 1px) {
+    flex: 1 1 50%;
+    border-right: var(--border);
+    border-bottom: var(--border);
+
+    &:nth-child(2n),
+    &:last-child {
+      border-right: none;
+    }
+    &:nth-last-child(-n + 2) {
+      border-bottom: none;
+    }
+  }
+
   &:hover {
-    background: var(--accent);
+    background: var(--black);
+    color: var(--accent);
   }
 
   &--active {
-    background: var(--accent);
+    background: var(--black);
+    color: var(--accent);
+  }
+
+  &__label {
+    font-family: var(--font-headline);
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
   }
 
   &__glyph {
     font-family: var(--font-headline);
-    font-size: 12px;
-    width: 10px;
+    font-size: 14px;
+    width: 14px;
     text-align: center;
   }
-}
-
-.deck__cell--actions ::ng-deep app-library-actions {
-  height: 100%;
 }
 
 /* ── Track list ─────────────────────────────── */

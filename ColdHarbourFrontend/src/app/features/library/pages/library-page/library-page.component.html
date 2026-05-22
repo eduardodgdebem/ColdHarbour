@@ -10,7 +10,7 @@
     </div>
   </header>
 
-  <!-- ── Single control deck: search · sort · actions ── -->
+  <!-- ── Single control deck: search · sort toggle · actions ── -->
   <div class="deck">
     <div class="deck__cell deck__cell--search">
       <span class="deck__label">SEARCH</span>
@@ -22,27 +22,39 @@
       />
     </div>
 
-    <div class="deck__cell deck__cell--sort">
+    <button
+      type="button"
+      class="deck__cell deck__cell--sort-toggle sort-toggle"
+      [class.sort-toggle--open]="sortOpen()"
+      (click)="toggleSort()"
+    >
       <span class="deck__label">SORT</span>
-      <div class="deck__sort-row">
-        @for (col of sortColumns; track col.key) {
-          <button
-            type="button"
-            class="sort-chip"
-            [class.sort-chip--active]="sortColumn() === col.key"
-            (click)="setSort(col.key)"
-          >
-            <span class="sort-chip__label">{{ col.label }}</span>
-            <span class="sort-chip__glyph">{{ glyphFor(col.key) }}</span>
-          </button>
-        }
-      </div>
-    </div>
+      <span class="sort-toggle__value">{{ activeSortLabel() }}</span>
+      <span class="sort-toggle__chevron">{{ sortOpen() ? '▲' : '▼' }}</span>
+    </button>
 
     <div class="deck__cell deck__cell--actions">
       <app-library-actions [compact]="true" />
     </div>
   </div>
+
+  <!-- ── Togglable sort options panel ── -->
+  @if (sortOpen()) {
+    <div class="sort-panel" role="listbox" aria-label="Sort by">
+      @for (col of sortColumns; track col.key) {
+        <button
+          type="button"
+          class="sort-option"
+          [class.sort-option--active]="sortColumn() === col.key"
+          [attr.aria-selected]="sortColumn() === col.key"
+          (click)="selectSort(col.key)"
+        >
+          <span class="sort-option__label">{{ col.label }}</span>
+          <span class="sort-option__glyph">{{ glyphFor(col.key) }}</span>
+        </button>
+      }
+    </div>
+  }
 
   <!-- ── Track list ── -->
   <div class="library-page__list">

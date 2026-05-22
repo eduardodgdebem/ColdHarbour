@@ -75,22 +75,62 @@ describe('LibraryPageComponent', () => {
       .map((el) => el.nativeElement.textContent.trim());
   }
 
+  function openSortPanel(): void {
+    component.toggleSort();
+    fixture.detectChanges();
+  }
+
   it('requests the all-tracks playlist on init', () => {
     setUp(null, true);
     expect(musicService.setCurrentPlaylist).toHaveBeenCalledWith(1);
   });
 
-  it('renders the search input and the three sort buttons', () => {
+  it('renders the search input and the sort toggle', () => {
     setUp({ id: 1, name: 'All', imageRef: '', musics: [track(1)] });
     expect(fixture.debugElement.query(By.css('.deck__cell--search'))).toBeTruthy();
-    const sortButtons = fixture.debugElement.queryAll(By.css('.sort-chip'));
-    expect(sortButtons.length).toBe(3);
-    const labels = sortButtons.map((b) =>
-      b.nativeElement.textContent.trim().toUpperCase(),
-    );
-    expect(labels[0]).toContain('TRACK');
-    expect(labels[1]).toContain('ARTIST');
-    expect(labels[2]).toContain('DURATION');
+    expect(fixture.debugElement.query(By.css('.sort-toggle'))).toBeTruthy();
+  });
+
+  it('hides the sort options panel by default', () => {
+    setUp({ id: 1, name: 'All', imageRef: '', musics: [track(1)] });
+    expect(fixture.debugElement.query(By.css('.sort-panel'))).toBeNull();
+  });
+
+  it('opens the sort options panel when the toggle is clicked', () => {
+    setUp({ id: 1, name: 'All', imageRef: '', musics: [track(1)] });
+    const toggle = fixture.debugElement.query(By.css('.sort-toggle'))
+      .nativeElement as HTMLButtonElement;
+    toggle.click();
+    fixture.detectChanges();
+    expect(fixture.debugElement.query(By.css('.sort-panel'))).toBeTruthy();
+    const options = fixture.debugElement.queryAll(By.css('.sort-option'));
+    expect(options.length).toBe(3);
+  });
+
+  it('closes the panel and applies the sort when an option is selected', () => {
+    setUp({
+      id: 1, name: 'All', imageRef: '',
+      musics: [
+        track(1, { name: 'A', author: 'Zara' }),
+        track(2, { name: 'B', author: 'Atlas' }),
+      ],
+    });
+    openSortPanel();
+    const artistOption = fixture.debugElement.queryAll(By.css('.sort-option'))[1]
+      .nativeElement as HTMLButtonElement;
+    artistOption.click();
+    fixture.detectChanges();
+    expect(component.sortOpen()).toBeFalse();
+    expect(component.sortColumn()).toBe('author');
+    expect(fixture.debugElement.query(By.css('.sort-panel'))).toBeNull();
+  });
+
+  it('shows the active sort label + direction arrow on the toggle', () => {
+    setUp({ id: 1, name: 'All', imageRef: '', musics: [track(1)] });
+    const toggle = fixture.debugElement.query(By.css('.sort-toggle'))
+      .nativeElement as HTMLElement;
+    expect(toggle.textContent).toContain('TRACK');
+    expect(toggle.textContent).toContain('▲');
   });
 
   it('sorts by name ascending by default', () => {
@@ -105,7 +145,7 @@ describe('LibraryPageComponent', () => {
     expect(rowNames()).toEqual(['Alpha', 'Bravo', 'Charlie']);
   });
 
-  it('toggles to descending when the active sort column is clicked again', () => {
+  it('toggles to descending when the active sort column is selected again', () => {
     setUp({
       id: 1, name: 'All', imageRef: '',
       musics: [
@@ -114,13 +154,15 @@ describe('LibraryPageComponent', () => {
         track(3, { name: 'Bravo' }),
       ],
     });
-    const sortButtons = fixture.debugElement.queryAll(By.css('.sort-chip'));
-    sortButtons[0].nativeElement.click();
+    openSortPanel();
+    const trackOption = fixture.debugElement.queryAll(By.css('.sort-option'))[0]
+      .nativeElement as HTMLButtonElement;
+    trackOption.click();
     fixture.detectChanges();
     expect(rowNames()).toEqual(['Charlie', 'Bravo', 'Alpha']);
   });
 
-  it('switches sort column to artist (asc) when the artist button is clicked', () => {
+  it('switches sort column to artist (asc) when the artist option is selected', () => {
     setUp({
       id: 1, name: 'All', imageRef: '',
       musics: [
@@ -129,8 +171,7 @@ describe('LibraryPageComponent', () => {
         track(3, { name: 'C', author: 'Mira' }),
       ],
     });
-    const sortButtons = fixture.debugElement.queryAll(By.css('.sort-chip'));
-    sortButtons[1].nativeElement.click();
+    component.selectSort('author');
     fixture.detectChanges();
     expect(rowNames()).toEqual(['B', 'C', 'A']);
   });
@@ -174,10 +215,12 @@ describe('LibraryPageComponent', () => {
     expect(state.nativeElement.textContent.trim()).toContain('NO TRACKS MATCH');
   });
 
-  it('marks the active sort column with a glyph', () => {
+  it('marks the active sort column with a glyph inside the panel', () => {
     setUp({ id: 1, name: 'All', imageRef: '', musics: [track(1)] });
-    const sortButtons = fixture.debugElement.queryAll(By.css('.sort-chip'));
-    expect(sortButtons[0].nativeElement.classList).toContain('sort-chip--active');
-    expect(sortButtons[1].nativeElement.classList).not.toContain('sort-chip--active');
+    openSortPanel();
+    const options = fixture.debugElement.queryAll(By.css('.sort-option'));
+    expect(options[0].nativeElement.classList).toContain('sort-option--active');
+    expect(options[1].nativeElement.classList).not.toContain('sort-option--active');
+    expect(options[0].nativeElement.textContent).toContain('▲');
   });
 });

@@ -6,6 +6,7 @@ import { MusicService } from '../../../player/services/music.service';
 import type { Playlist } from '../../../../core/api/api.service';
 import { LibraryService } from '../../library.service';
 import {
+  BackButtonComponent,
   ButtonComponent,
   ModalComponent,
 } from '../../../../shared/ui';
@@ -15,6 +16,7 @@ import {
   imports: [
     MusicListComponent,
     RouterLink,
+    BackButtonComponent,
     ButtonComponent,
     ModalComponent,
   ],

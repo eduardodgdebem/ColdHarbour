@@ -19,6 +19,10 @@ $mobile: 768px;
   border-bottom: var(--border);
 }
 
+.header-back {
+  padding: 12px 24px 0;
+}
+
 .header-identity {
   display: flex;
   align-items: center;

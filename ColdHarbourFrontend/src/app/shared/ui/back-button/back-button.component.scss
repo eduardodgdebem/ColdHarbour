@@ -1,0 +1,31 @@
+:host {
+  display: inline-flex;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+
+  &--default {
+    color: var(--muted);
+    &:hover {
+      color: var(--black);
+    }
+  }
+
+  &--inverse {
+    color: var(--muted);
+    &:hover {
+      color: var(--off-white);
+    }
+  }
+}

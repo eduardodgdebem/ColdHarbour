@@ -19,6 +19,7 @@ See `docs/FRONTEND_MIGRATION.md` for the phased plan that introduces and consume
 | `CardComponent` | `<app-card>` | Bordered container with `sm | md | lg` padding, optional drop shadow, header/body/footer slots. |
 | `ModalComponent` | `<app-modal>` | Overlay dialog with `isOpen` input + `(close)` output. Backdrop click and ESC dismiss; body + footer slots. |
 | `BadgeComponent` | `<app-badge>` | Inline pill with `default | active | accent` variants. |
+| `BackButtonComponent` | `<app-back-button>` | `← BACK` button wired to `Location.back()`. `default | inverse` variants for light vs dark headers. |
 
 ## Conventions
 

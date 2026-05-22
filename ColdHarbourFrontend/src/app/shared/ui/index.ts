@@ -8,3 +8,5 @@ export type { CardPadding } from './card/card.component';
 export { ModalComponent } from './modal/modal.component';
 export { BadgeComponent } from './badge/badge.component';
 export type { BadgeVariant } from './badge/badge.component';
+export { BackButtonComponent } from './back-button/back-button.component';
+export type { BackButtonVariant } from './back-button/back-button.component';

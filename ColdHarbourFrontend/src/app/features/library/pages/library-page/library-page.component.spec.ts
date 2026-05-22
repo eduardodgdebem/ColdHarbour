@@ -45,11 +45,13 @@ describe('LibraryPageComponent', () => {
 
     const librarySpy = jasmine.createSpyObj(
       'LibraryService',
-      ['deleteTrack'],
+      ['deleteTrack', 'uploadFile', 'previewSync', 'applySync'],
       {
         isUploading: signal(false),
-        uploadProgress: signal(0),
+        uploadError: signal<string | null>(null),
+        isSyncing: signal(false),
         syncDiff: signal(null),
+        syncError: signal<string | null>(null),
       },
     );
 

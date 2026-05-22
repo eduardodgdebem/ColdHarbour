@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MusicListComponent } from '../../components/music-list/music-list.component';
+import { LibraryActionsComponent } from '../../components/library-actions/library-actions.component';
 import { MusicService } from '../../../player/services/music.service';
 import type { Music } from '../../../../core/api/api.service';
 import { BackButtonComponent, InputComponent } from '../../../../shared/ui';
@@ -18,7 +19,13 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-library-page',
   standalone: true,
-  imports: [FormsModule, MusicListComponent, InputComponent, BackButtonComponent],
+  imports: [
+    FormsModule,
+    MusicListComponent,
+    LibraryActionsComponent,
+    InputComponent,
+    BackButtonComponent,
+  ],
   templateUrl: './library-page.component.html',
   styleUrl: './library-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

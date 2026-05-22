@@ -63,16 +63,17 @@ $mobile: 768px;
   display: flex;
 }
 
+.header-actions__group {
+  flex: 2;
+  display: flex;
+  border-right: var(--border);
+}
+
 .header-action {
   flex: 1;
   display: flex;
-  border-right: var(--border);
   text-decoration: none;
   color: inherit;
-
-  &:last-child {
-    border-right: none;
-  }
 
   app-button {
     flex: 1;
@@ -83,26 +84,6 @@ $mobile: 768px;
     flex: 1;
     border: none;
   }
-}
-
-.error-strip {
-  flex-shrink: 0;
-  padding: 10px 24px;
-  background: var(--error-bg);
-  border-bottom: var(--border);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--error-fg);
-}
-
-.sync-error {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--error-fg);
 }
 
 .library-scroll {

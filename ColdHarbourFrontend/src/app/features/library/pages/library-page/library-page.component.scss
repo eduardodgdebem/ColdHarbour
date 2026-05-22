@@ -49,6 +49,11 @@ $mobile: 768px;
   color: var(--black);
 }
 
+.library-page__actions {
+  flex-shrink: 0;
+  border-bottom: var(--border);
+}
+
 .library-page__controls {
   flex-shrink: 0;
   display: grid;

@@ -1,0 +1,52 @@
+:host {
+  display: flex;
+  width: 100%;
+}
+
+.action {
+  flex: 1;
+  display: flex;
+  text-decoration: none;
+  color: inherit;
+  border-right: var(--border);
+
+  &:last-of-type {
+    border-right: none;
+  }
+
+  app-button {
+    flex: 1;
+    display: flex;
+  }
+
+  ::ng-deep .btn {
+    flex: 1;
+    border: none;
+  }
+}
+
+.upload-error {
+  /* Floated visually under the actions row by the consumer page;
+     here we just render the strip with brutalist error styling. */
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin-top: var(--border-w);
+  padding: 10px 24px;
+  background: var(--error-bg);
+  border-top: var(--border);
+  border-bottom: var(--border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--error-fg);
+}
+
+.sync-error {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--error-fg);
+}

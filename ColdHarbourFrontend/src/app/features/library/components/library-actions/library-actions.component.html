@@ -1,0 +1,55 @@
+<label class="action">
+  <input
+    type="file"
+    accept=".mp3,.flac,.m4a,.ogg,.opus,.wav"
+    multiple
+    (change)="onFilesSelected($event)"
+    hidden
+  />
+  <app-button>
+    {{ libraryService.isUploading() ? 'UPLOADING…' : '+ ADD TRACKS' }}
+  </app-button>
+</label>
+
+<app-button
+  class="action"
+  [disabled]="libraryService.isSyncing()"
+  (click)="previewSync()"
+>
+  SYNC LIBRARY
+</app-button>
+
+@if (libraryService.uploadError(); as err) {
+  <p class="upload-error" role="alert">{{ err }}</p>
+}
+
+<app-modal
+  [isOpen]="!!diff()"
+  title="SYNC PREVIEW"
+  (close)="closeSync()"
+>
+  @if (diff(); as d) {
+    @if (d.added.length) {
+      <p>{{ d.added.length }} track(s) to add</p>
+    }
+    @if (d.missing.length) {
+      <p>{{ d.missing.length }} track(s) missing from disk</p>
+    }
+    @if (!d.added.length && !d.missing.length) {
+      <p>Library is already in sync.</p>
+    }
+    @if (libraryService.syncError()) {
+      <p class="sync-error">{{ libraryService.syncError() }}</p>
+    }
+  }
+  <div slot="footer">
+    <app-button
+      variant="primary"
+      [disabled]="libraryService.isSyncing()"
+      (click)="applySync()"
+    >
+      Apply
+    </app-button>
+    <app-button (click)="closeSync()">Cancel</app-button>
+  </div>
+</app-modal>

@@ -351,7 +351,7 @@ All times `America/Sao_Paulo`. Library sync is user-triggered, not scheduled.
 **Services (`providedIn: 'root'`)**
 
 - `ApiService` — HTTP boundary; attaches `Authorization: Bearer`; handles `401 → refresh → retry once`.
-- `AuthService` — login/logout; access token in memory; schedules silent refresh; `generateUUID()` fallback for non-HTTPS contexts (plain HTTP LAN access).
+- `AuthService` — login/logout; access token in memory; schedules silent refresh; `generateUUID()` fallback for non-HTTPS contexts (plain HTTP LAN access). Exposes `email` and `name` signals — `name` is optional on the auth response (`{ accessToken, userId, email, name? }`), captured when present, null otherwise.
 - `MusicService` — current track + playlist signals; `selectMusic`, `nextMusic`, `previousMusic`.
 - `AudioService` — delegates to `LocalAudioSource`; exposes `isPlaying`, `currentTime`, `duration`, `volume`, `ended` signals.
 - `LocalAudioSource` — wraps `HTMLAudioElement`. `loadMusic(src)` is a no-op if `src` is already loaded (prevents restart on component re-mount). `cleanup()` on every track switch.
@@ -363,14 +363,24 @@ All times `America/Sao_Paulo`. Library sync is user-triggered, not scheduled.
 **Pages**
 
 - `LoginPageComponent` — `/login`
+- `HomePageComponent` — `/home` (and `/` redirects here) — authenticated dashboard with HARBOUR // OPEN / CARGO MANIFEST / LATEST ARRIVALS / CONTROL ROOM sections, plus a DRY DOCK empty state when the library is empty
 - `PlaylistPageComponent` — `/playlist/:id` — main library view + inline upload/sync
 - `DevicesPageComponent` — `/devices` — device list, PLAYING / THIS DEVICE badges, PLAY HERE button, back button (`Location.back()`)
+
+**App layout shell (`AppComponent`)**
+
+- Owns the viewport: a flex column at `height: 100dvh`.
+- Renders the persistent `<app-player>` at the bottom, conditional on `musicService.currentMusic()`. Pages **must not** import `<app-player>` themselves — the player is global and persists across every route. When no track is selected (e.g. `/login`), the player area collapses.
+- Pages render inside a scrollable `<main class="app__content">` flex-1 region. Pages use `min-height: 100%` (not `100dvh`) so they fill the content area without pushing the player off-screen. `/login` is the only exception — it uses `min-height: 100dvh` because the player is never visible when unauthenticated.
 
 **Key frontend patterns**
 
 - Player component uses `allowSignalWrites: true` on its music-load effect; it never writes `isPlaying` directly — `loadMusic` handles cleanup internally.
 - `wsBase` is derived at module load: `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`. The ng serve proxy forwards `/ws/*` with WebSocket upgrade, so this works on any hostname including LAN IPs.
 - `--accent` replaces all `--yellow` references. Interactive states (hover, active track) use `var(--accent)` throughout.
+- **User-facing name resolution.** When rendering a user's name, prefer `authService.name()` (first word, uppercased) → email local-part first segment split on `. _ -` → `'FRIEND'`. Avoid rendering raw email local-parts like `eduardogdebem` when a real name is available.
+- **Brutalist transitions.** Animations use `transition: <prop> Xms steps(1)` — they snap, they don't ease. Easing curves are off-brand. Hover/active states often combine a translate with a hard-shadow shrink to mimic a physical mechanical press.
+- **No borderless color blocks.** Hover states that swap background colour must keep the 4px black border (or the equivalent shadow box). A floating yellow rectangle without an edge violates the design.
 
 ---
 

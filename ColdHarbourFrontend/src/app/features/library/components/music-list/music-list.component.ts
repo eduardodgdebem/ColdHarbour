@@ -1,14 +1,18 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, input, signal } from '@angular/core';
 
 import { MusicService } from '../../../player/services/music.service';
 import type { Music } from '../../../../core/api/api.service';
 import { LibraryService } from '../../library.service';
-import { BadgeComponent } from '../../../../shared/ui';
+import {
+  BadgeComponent,
+  ButtonComponent,
+  ModalComponent,
+} from '../../../../shared/ui';
 
 @Component({
   selector: 'app-music-list',
   standalone: true,
-  imports: [BadgeComponent],
+  imports: [BadgeComponent, ButtonComponent, ModalComponent],
   templateUrl: './music-list.component.html',
   styleUrl: './music-list.component.scss',
 })
@@ -20,6 +24,8 @@ export class MusicListComponent {
   readonly emptyMessage = input<string | null>(null);
 
   public imageErrorById = new Map<number, boolean>();
+
+  readonly deleteCandidate = signal<Music | null>(null);
 
   protected readonly tracks = computed<Music[]>(() => {
     const override = this.musics();
@@ -40,11 +46,21 @@ export class MusicListComponent {
     return this.musicService.isCurrentMusic(music);
   }
 
-  deleteTrack(event: Event, trackId: string) {
+  requestDelete(event: Event, music: Music) {
     event.stopPropagation();
-    if (confirm('Delete this track from your library?')) {
-      this.libraryService.deleteTrack(trackId);
+    this.deleteCandidate.set(music);
+  }
+
+  confirmDelete() {
+    const target = this.deleteCandidate();
+    if (target) {
+      this.libraryService.deleteTrack(target.trackId);
     }
+    this.deleteCandidate.set(null);
+  }
+
+  cancelDelete() {
+    this.deleteCandidate.set(null);
   }
 
   formatDuration(seconds: number): string {

@@ -126,4 +126,52 @@ describe('MusicListComponent', () => {
     const stateMsg = fixture.debugElement.query(By.css('.state-msg'));
     expect(stateMsg.nativeElement.textContent.trim()).toBe('NOTHING MATCHED');
   });
+
+  describe('delete flow', () => {
+    it('does not show the delete-confirm modal by default', () => {
+      expect(component.deleteCandidate()).toBeNull();
+      expect(fixture.debugElement.query(By.css('.modal'))).toBeNull();
+    });
+
+    it('opens the delete-confirm modal with the track when the delete button is clicked', () => {
+      const deleteBtn = fixture.debugElement
+        .query(By.css('.track .delete-btn'))
+        .nativeElement as HTMLButtonElement;
+      deleteBtn.click();
+      fixture.detectChanges();
+
+      expect(component.deleteCandidate()).toEqual(mockMusic);
+      const modal = fixture.debugElement.query(By.css('.modal'));
+      expect(modal).toBeTruthy();
+      expect(modal.nativeElement.textContent).toContain(mockMusic.name);
+    });
+
+    it('does not trigger row selection when the delete button is clicked', () => {
+      const deleteBtn = fixture.debugElement
+        .query(By.css('.track .delete-btn'))
+        .nativeElement as HTMLButtonElement;
+      deleteBtn.click();
+      expect(musicService.selectMusic).not.toHaveBeenCalled();
+    });
+
+    it('calls libraryService.deleteTrack and clears the candidate when confirmed', () => {
+      component.deleteCandidate.set(mockMusic);
+      fixture.detectChanges();
+
+      component.confirmDelete();
+      expect(libraryService.deleteTrack).toHaveBeenCalledWith(
+        mockMusic.trackId,
+      );
+      expect(component.deleteCandidate()).toBeNull();
+    });
+
+    it('does not call deleteTrack and clears the candidate when canceled', () => {
+      component.deleteCandidate.set(mockMusic);
+      fixture.detectChanges();
+
+      component.cancelDelete();
+      expect(libraryService.deleteTrack).not.toHaveBeenCalled();
+      expect(component.deleteCandidate()).toBeNull();
+    });
+  });
 });

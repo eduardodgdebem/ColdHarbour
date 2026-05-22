@@ -47,7 +47,7 @@
           <button
             class="delete-btn"
             title="Delete track"
-            (click)="deleteTrack($event, music.trackId)"
+            (click)="requestDelete($event, music)"
           >
             <p class="delete-btn-x">✕</p>
           </button>
@@ -56,3 +56,20 @@
     }
   </ul>
 }
+
+<app-modal
+  [isOpen]="!!deleteCandidate()"
+  title="DELETE TRACK"
+  (close)="cancelDelete()"
+>
+  @if (deleteCandidate(); as track) {
+    <p>
+      Remove <strong>{{ track.name }}</strong> by {{ track.author }} from your
+      library? This cannot be undone.
+    </p>
+  }
+  <div slot="footer">
+    <app-button variant="danger" (click)="confirmDelete()">Delete</app-button>
+    <app-button (click)="cancelDelete()">Cancel</app-button>
+  </div>
+</app-modal>

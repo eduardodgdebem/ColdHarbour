@@ -1,0 +1,141 @@
+$mobile: 768px;
+
+:host {
+  display: block;
+  min-height: 100%;
+}
+
+%mono-label {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.account-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: var(--off-white);
+
+  &__header {
+    padding: 24px;
+    border-bottom: var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  &__tag {
+    align-self: flex-start;
+    padding: 6px 10px;
+    background: var(--black);
+    color: var(--accent);
+    font-size: 11px;
+    @extend %mono-label;
+  }
+
+  &__title {
+    font-family: var(--font-headline);
+    font-size: clamp(40px, 6vw, 64px);
+    font-weight: 800;
+    line-height: 0.95;
+    letter-spacing: -0.035em;
+    text-transform: uppercase;
+  }
+}
+
+.section {
+  border-bottom: var(--border);
+
+  &__header {
+    padding: 12px 24px;
+    background: var(--black);
+    color: var(--off-white);
+    font-size: 11px;
+    @extend %mono-label;
+  }
+
+  &__body {
+    padding: 24px;
+  }
+}
+
+.profile__list {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px 24px;
+  align-items: center;
+
+  @media (max-width: $mobile - 1px) {
+    grid-template-columns: 100px 1fr;
+  }
+}
+
+.profile__row {
+  display: contents;
+
+  dt {
+    font-size: 11px;
+    color: var(--muted);
+    @extend %mono-label;
+  }
+
+  dd {
+    font-family: var(--font-body);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--black);
+    word-break: break-word;
+  }
+}
+
+.password-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 460px;
+
+  app-button {
+    align-self: flex-start;
+  }
+}
+
+.form-error {
+  padding: 10px 14px;
+  background: var(--error-bg);
+  border: 2px solid var(--error-fg);
+  font-size: 12px;
+  color: var(--error-fg);
+  @extend %mono-label;
+}
+
+.form-success {
+  padding: 10px 14px;
+  background: var(--accent);
+  border: var(--border);
+  font-size: 12px;
+  @extend %mono-label;
+}
+
+.admin,
+.session {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: flex-start;
+
+  &__copy {
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--muted);
+    max-width: 520px;
+  }
+
+  &__link {
+    text-decoration: none;
+    color: inherit;
+    display: inline-flex;
+  }
+}

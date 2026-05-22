@@ -1,0 +1,81 @@
+<section class="create-account">
+  <header class="create-account__header">
+    <app-back-button />
+    <span class="create-account__tag">// 03 — ADMIN</span>
+    <h1 class="create-account__title">CREATE USER</h1>
+    <p class="create-account__copy">
+      Add a new listener to this harbour. They'll sign in with the credentials
+      you set here.
+    </p>
+  </header>
+
+  <form
+    class="create-account__form"
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    novalidate
+  >
+    <app-form-field label="Name (optional)" forId="create-name">
+      <app-input
+        id="create-name"
+        type="text"
+        formControlName="name"
+        placeholder="Display name"
+        autocomplete="name"
+      />
+    </app-form-field>
+
+    <app-form-field
+      label="Email"
+      forId="create-email"
+      [errorMessage]="emailError()"
+    >
+      <app-input
+        id="create-email"
+        type="email"
+        formControlName="email"
+        placeholder="them@example.com"
+        autocomplete="email"
+      />
+    </app-form-field>
+
+    <app-form-field
+      label="Password"
+      forId="create-password"
+      [errorMessage]="passwordError()"
+    >
+      <app-input
+        id="create-password"
+        type="password"
+        formControlName="password"
+        autocomplete="new-password"
+      />
+    </app-form-field>
+
+    <app-form-field
+      label="Confirm password"
+      forId="create-confirm"
+      [errorMessage]="confirmPasswordError()"
+    >
+      <app-input
+        id="create-confirm"
+        type="password"
+        formControlName="confirmPassword"
+        autocomplete="new-password"
+      />
+    </app-form-field>
+
+    @if (error()) {
+      <p class="create-account__error" role="alert">{{ error() }}</p>
+    }
+
+    <app-button
+      variant="primary"
+      type="submit"
+      [disabled]="submitting()"
+      [loading]="submitting()"
+    >
+      Create user
+    </app-button>
+  </form>
+</section>

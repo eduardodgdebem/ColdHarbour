@@ -1,0 +1,140 @@
+<section class="account-page">
+  <header class="account-page__header">
+    <app-back-button />
+    <span class="account-page__tag">// YOU</span>
+    <h1 class="account-page__title">ACCOUNT</h1>
+  </header>
+
+  <article class="section profile">
+    <header class="section__header">
+      <span class="section__tag">// 01 — PROFILE</span>
+    </header>
+    <div class="profile__body">
+      <dl class="profile__list">
+        <div class="profile__row">
+          <dt>EMAIL</dt>
+          <dd>{{ email() ?? '—' }}</dd>
+        </div>
+        @if (name()) {
+          <div class="profile__row">
+            <dt>NAME</dt>
+            <dd>{{ name() }}</dd>
+          </div>
+        }
+        <div class="profile__row">
+          <dt>ROLE</dt>
+          <dd class="profile__role">
+            @if (role(); as r) {
+              <app-badge [variant]="r === 'Owner' ? 'accent' : 'default'">
+                {{ r.toUpperCase() }}
+              </app-badge>
+            } @else {
+              —
+            }
+          </dd>
+        </div>
+      </dl>
+    </div>
+  </article>
+
+  <article class="section">
+    <header class="section__header">
+      <span class="section__tag">// 02 — CHANGE PASSWORD</span>
+    </header>
+    <form
+      class="section__body password-form"
+      [formGroup]="passwordForm"
+      (ngSubmit)="submitPasswordChange()"
+      novalidate
+    >
+      <app-form-field
+        label="Current password"
+        forId="account-current"
+        [errorMessage]="currentPasswordError()"
+      >
+        <app-input
+          id="account-current"
+          type="password"
+          formControlName="currentPassword"
+          autocomplete="current-password"
+        />
+      </app-form-field>
+
+      <app-form-field
+        label="New password"
+        forId="account-new"
+        [errorMessage]="newPasswordError()"
+      >
+        <app-input
+          id="account-new"
+          type="password"
+          formControlName="newPassword"
+          autocomplete="new-password"
+        />
+      </app-form-field>
+
+      <app-form-field
+        label="Confirm new password"
+        forId="account-confirm"
+        [errorMessage]="confirmPasswordError()"
+      >
+        <app-input
+          id="account-confirm"
+          type="password"
+          formControlName="confirmPassword"
+          autocomplete="new-password"
+        />
+      </app-form-field>
+
+      @if (passwordError()) {
+        <p class="form-error" role="alert">{{ passwordError() }}</p>
+      }
+      @if (passwordSuccess()) {
+        <p class="form-success">Password updated.</p>
+      }
+
+      <app-button
+        variant="primary"
+        type="submit"
+        [disabled]="passwordSubmitting()"
+        [loading]="passwordSubmitting()"
+      >
+        Update password
+      </app-button>
+    </form>
+  </article>
+
+  @if (isOwner()) {
+    <article class="section">
+      <header class="section__header">
+        <span class="section__tag">// 03 — ADMIN</span>
+      </header>
+      <div class="section__body admin">
+        <p class="admin__copy">
+          Invite another listener to this harbour. Backend gates this endpoint
+          to Owners only.
+        </p>
+        <a
+          class="admin__link"
+          routerLink="/create-account"
+          data-test="create-user-link"
+        >
+          <app-button>+ CREATE USER</app-button>
+        </a>
+      </div>
+    </article>
+  }
+
+  <article class="section">
+    <header class="section__header">
+      <span class="section__tag">// {{ isOwner() ? '04' : '03' }} — SESSION</span>
+    </header>
+    <div class="section__body session">
+      <p class="session__copy">
+        Sign out of this device. To sign out everywhere you'll need to rotate
+        your refresh tokens server-side.
+      </p>
+      <app-button variant="danger" (click)="signOut()">Sign out</app-button>
+    </div>
+  </article>
+</section>

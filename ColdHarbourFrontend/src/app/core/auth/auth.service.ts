@@ -4,11 +4,20 @@ import { Observable, of } from 'rxjs';
 import { tap, map, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
+export type UserRole = 'Owner' | 'User';
+
 type LoginResponse = {
   accessToken: string;
   userId: string;
   email: string;
   name?: string | null;
+  role?: UserRole | null;
+};
+
+export type RegisterPayload = {
+  email: string;
+  password: string;
+  name?: string;
 };
 
 @Injectable({ providedIn: 'root' })
@@ -17,12 +26,15 @@ export class AuthService {
   private readonly _userId = signal<string | null>(null);
   private readonly _email = signal<string | null>(null);
   private readonly _name = signal<string | null>(null);
+  private readonly _role = signal<UserRole | null>(null);
   private refreshSchedule?: ReturnType<typeof setTimeout>;
 
   readonly isAuthenticated = computed(() => this._accessToken() !== null);
   readonly accessToken = this._accessToken.asReadonly();
   readonly email = this._email.asReadonly();
   readonly name = this._name.asReadonly();
+  readonly role = this._role.asReadonly();
+  readonly isOwner = computed(() => this._role() === 'Owner');
 
   constructor(private http: HttpClient) {}
 
@@ -36,15 +48,42 @@ export class AuthService {
       )
       .pipe(
         tap((res) => {
-          return this.storeTokens(
+          this.storeTokens(
             res.accessToken,
             res.userId,
             res.email,
             res.name ?? null,
+            res.role ?? null,
           );
         }),
         map(() => void 0),
       );
+  }
+
+  register(payload: RegisterPayload): Observable<void> {
+    return this.http
+      .post<void>(
+        `${environment.apiBase}/auth/register`,
+        payload,
+        {
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${this._accessToken()}` },
+        },
+      )
+      .pipe(map(() => void 0));
+  }
+
+  changePassword(currentPassword: string, newPassword: string): Observable<void> {
+    return this.http
+      .post<void>(
+        `${environment.apiBase}/auth/change-password`,
+        { currentPassword, newPassword },
+        {
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${this._accessToken()}` },
+        },
+      )
+      .pipe(map(() => void 0));
   }
 
   logout(): Observable<void> {
@@ -98,11 +137,13 @@ export class AuthService {
     userId: string,
     email: string,
     name: string | null,
+    role: UserRole | null,
   ): void {
     this._accessToken.set(accessToken);
     this._userId.set(userId);
     this._email.set(email);
     this._name.set(name);
+    this._role.set(role);
     this.scheduleRefresh(accessToken);
   }
 
@@ -111,6 +152,7 @@ export class AuthService {
     this._userId.set(null);
     this._email.set(null);
     this._name.set(null);
+    this._role.set(null);
     if (this.refreshSchedule) clearTimeout(this.refreshSchedule);
   }
 

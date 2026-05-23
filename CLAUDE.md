@@ -36,7 +36,7 @@ Rules:
 - Integration tests hit a real Postgres (Testcontainers), never mocks of `DbContext`.
 - Prefer behavior-level tests over mock-heavy unit tests. A test that breaks when internals change but behavior doesn't is a liability.
 
-**Progress tracking.** `docs/MIGRATION.md` is the single source of truth for backend phase progress. **Frontend progress.** `docs/FRONTEND_MIGRATION.md` tracks the frontend maturation phases (shared component kit + new pages). When a phase completes in either file, mark it `✅ Done` there and update this document if the phase changed any architectural fact described here.
+**Progress tracking.** `docs/MIGRATION.md` is the single source of truth for backend phase progress. **Frontend progress.** `docs/FRONTEND_MIGRATION.md` tracks the frontend maturation phases (shared component kit + new pages). **Playback authority.** `docs/PLAYBACK_MIGRATION.md` tracks the migration from browser-driven playback to server-authoritative (Spotify-Connect-style) playback. When a phase completes in any of these files, mark it `✅ Done` there and update this document if the phase changed any architectural fact described here.
 
 ---
 

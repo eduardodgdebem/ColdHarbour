@@ -1,5 +1,7 @@
 # Frontend Maturation Path — Seed → Full Product
 
+> Successor migration: `docs/PLAYBACK_MIGRATION.md` (server-authoritative playback / Spotify-Connect-style queue + transport).
+>
 > Path from today's frontend (login + single playlist page, inline brutalist CSS, no shared component layer) to a full-product Angular app with a documented design-system kit and every page the MVP needs: dashboard, library, account, owner-gated user creation, full-screen player, plus 404 and error pages.
 >
 > Seven phases. Each phase ends with a **working, deployable system** — no phase breaks the app. Land each phase as its own branch/PR so regressions stay bisectable.

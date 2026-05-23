@@ -1,5 +1,7 @@
 # Migration Path — Seed → MVP
 
+> Successor migration: `docs/PLAYBACK_MIGRATION.md` (server-authoritative playback / Spotify-Connect-style queue + transport).
+>
 > Path from the current seed (Angular SPA + flat ASP.NET controller + Postgres + two nginx containers, mock playlist only) to the MVP described in `CLAUDE.md` (Caddy, Clean Architecture backend, JWT auth, upload-driven library, Range+transcode streaming, device handoff).
 >
 > Seven phases. Each phase ends with a **working, deployable system** — no phase breaks the app. Land each phase as its own branch/PR so regressions stay bisectable. Apple Music, HLS, and Redis are explicitly out of scope for MVP.

@@ -1,0 +1,36 @@
+<section class="error-page">
+  <header class="error-page__bar">
+    <span class="error-page__bar-tag">// FAULT REPORT</span>
+    <span class="error-page__bar-code">CODE — {{ code() }}</span>
+  </header>
+
+  <div class="error-page__stage">
+    <span class="error-page__strike">SOMETHING</span>
+    <h1 class="error-page__headline">
+      BROKE<br />
+      <span class="error-page__highlight">DOWN.</span>
+    </h1>
+    <p class="error-page__message" role="alert">{{ message() }}</p>
+
+    <dl class="error-page__sheet">
+      <div class="error-page__sheet-row">
+        <dt>CODE</dt>
+        <dd>{{ code() }}</dd>
+      </div>
+      <div class="error-page__sheet-row">
+        <dt>DETAIL</dt>
+        <dd>{{ message() }}</dd>
+      </div>
+      <div class="error-page__sheet-row">
+        <dt>NEXT</dt>
+        <dd>RETURN TO HARBOUR</dd>
+      </div>
+    </dl>
+  </div>
+
+  <footer class="error-page__deck">
+    <app-button variant="primary" (click)="goHome()">
+      ← Back to harbour
+    </app-button>
+  </footer>
+</section>

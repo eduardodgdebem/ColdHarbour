@@ -1,0 +1,114 @@
+:host {
+  display: block;
+  min-height: 100%;
+}
+
+%mono-label {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.not-found {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 32px 24px 40px;
+  background: var(--off-white);
+  color: var(--black);
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      0deg,
+      transparent 0 38px,
+      rgba(0, 0, 0, 0.04) 38px 39px
+    );
+    pointer-events: none;
+  }
+
+  &__stamp {
+    position: relative;
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 24px;
+  }
+
+  &__tag {
+    display: inline-block;
+    padding: 6px 10px;
+    background: var(--black);
+    color: var(--accent);
+    font-size: 11px;
+    @extend %mono-label;
+  }
+
+  &__stage {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 24px;
+    max-width: 760px;
+  }
+
+  &__code {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    font-family: var(--font-headline);
+    font-size: clamp(120px, 28vw, 280px);
+    font-weight: 800;
+    line-height: 0.85;
+    letter-spacing: -0.06em;
+    color: var(--black);
+  }
+
+  &__digit {
+    display: inline-block;
+    padding: 0 8px;
+
+    &--accent {
+      background: var(--accent);
+      box-shadow: 12px 12px 0 0 var(--black);
+      transform: rotate(-2deg);
+    }
+  }
+
+  &__headline {
+    font-family: var(--font-headline);
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+    color: var(--black);
+    margin: 0;
+  }
+
+  &__copy {
+    max-width: 520px;
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.5;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  &__deck {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-top: 24px;
+    border-top: var(--border);
+    margin-top: 24px;
+  }
+}

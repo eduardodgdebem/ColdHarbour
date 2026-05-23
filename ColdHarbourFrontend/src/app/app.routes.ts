@@ -7,6 +7,8 @@ import { DevicesPageComponent } from './features/devices/pages/devices-page/devi
 import { AccountPageComponent } from './features/account/pages/account-page/account-page.component';
 import { CreateAccountPageComponent } from './features/account/pages/create-account-page/create-account-page.component';
 import { PlayerPageComponent } from './features/player/pages/player-page/player-page.component';
+import { ErrorPageComponent } from './features/errors/pages/error-page/error-page.component';
+import { NotFoundPageComponent } from './features/errors/pages/not-found-page/not-found-page.component';
 import { authGuard } from './core/auth/auth.guard';
 import { ownerGuard } from './core/auth/owner.guard';
 
@@ -51,8 +53,16 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'error',
+    component: ErrorPageComponent,
+  },
+  {
     path: '',
     redirectTo: '/home',
     pathMatch: 'full',
+  },
+  {
+    path: '**',
+    component: NotFoundPageComponent,
   },
 ];

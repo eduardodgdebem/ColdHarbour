@@ -1,0 +1,128 @@
+:host {
+  display: block;
+  min-height: 100%;
+}
+
+%mono-label {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.error-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: var(--off-white);
+  color: var(--black);
+
+  &__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    background: var(--black);
+    color: var(--accent);
+    border-bottom: var(--border);
+    font-size: 11px;
+    @extend %mono-label;
+  }
+
+  &__bar-tag {
+    color: var(--accent);
+  }
+
+  &__bar-code {
+    color: var(--off-white);
+  }
+
+  &__stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 22px;
+    padding: 48px 24px;
+    max-width: 820px;
+  }
+
+  &__strike {
+    display: inline-block;
+    padding: 4px 12px;
+    background: var(--accent);
+    color: var(--black);
+    box-shadow: 8px 8px 0 0 var(--black);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  &__headline {
+    margin: 0;
+    font-family: var(--font-headline);
+    font-size: clamp(64px, 12vw, 160px);
+    font-weight: 800;
+    line-height: 0.85;
+    letter-spacing: -0.05em;
+    text-transform: uppercase;
+    color: var(--black);
+  }
+
+  &__highlight {
+    text-decoration: underline;
+    text-decoration-thickness: 8px;
+    text-decoration-color: var(--accent);
+    text-underline-offset: 8px;
+  }
+
+  &__message {
+    max-width: 560px;
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.5;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  &__sheet {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px 24px;
+    margin: 8px 0 0;
+    padding-top: 18px;
+    border-top: var(--border);
+    width: 100%;
+    max-width: 640px;
+  }
+
+  &__sheet-row {
+    display: contents;
+
+    dt {
+      font-size: 11px;
+      color: var(--muted);
+      @extend %mono-label;
+    }
+
+    dd {
+      margin: 0;
+      font-size: 13px;
+      color: var(--black);
+      word-break: break-word;
+      @extend %mono-label;
+    }
+  }
+
+  &__deck {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 24px;
+    background: var(--accent);
+    border-top: var(--border);
+  }
+}

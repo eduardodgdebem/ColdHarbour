@@ -21,14 +21,25 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authedReq).pipe(
     catchError((err) => {
-      if (err instanceof HttpErrorResponse && err.status === 401 && token) {
-        return auth.refresh().pipe(
-          switchMap((newToken) => next(addToken(req, newToken))),
-          catchError(() => {
-            router.navigate(['/login']);
-            return throwError(() => err);
-          }),
-        );
+      if (err instanceof HttpErrorResponse) {
+        if (err.status === 401 && token) {
+          return auth.refresh().pipe(
+            switchMap((newToken) => next(addToken(req, newToken))),
+            catchError(() => {
+              router.navigate(['/login']);
+              return throwError(() => err);
+            }),
+          );
+        }
+
+        if (err.status >= 500 && err.status < 600) {
+          router.navigate(['/error'], {
+            queryParams: {
+              code: 'SERVER',
+              message: err.message || 'The backend is unreachable.',
+            },
+          });
+        }
       }
       return throwError(() => err);
     }),

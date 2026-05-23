@@ -21,7 +21,7 @@
 | 4 | Library page `/library` (all tracks) | ✅ Done — landed on `frontend-phase-4-library` 2026-05-22 |
 | 5 | Account `/account` + owner-gated `/create-account` | ✅ Done — landed on `frontend-phase-5-account` (`f355438`) 2026-05-22 |
 | 6 | Full-screen player `/player` | ✅ Done — landed on `frontend-phase-6-fullscreen-player` 2026-05-22 |
-| 7 | Error handling (`/not-found`, `/error`, global handler) | ☐ Not started |
+| 7 | Error handling (`/not-found`, `/error`, global handler) | ✅ Done — landed on `frontend-phase-7-errors` 2026-05-23 |
 
 ---
 

@@ -1,6 +1,7 @@
 import {
   APP_INITIALIZER,
   ApplicationConfig,
+  ErrorHandler,
   provideZonelessChangeDetection,
 } from '@angular/core';
 import { provideRouter } from '@angular/router';
@@ -12,12 +13,14 @@ import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { AuthService } from './core/auth/auth.service';
 import { DeviceService } from './features/devices/device.service';
+import { GlobalErrorHandler } from './core/errors/global-error-handler';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZonelessChangeDetection(),
     provideRouter(routes),
     provideHttpClient(withInterceptors([authInterceptor])),
+    { provide: ErrorHandler, useClass: GlobalErrorHandler },
     {
       provide: APP_INITIALIZER,
       useFactory: (auth: AuthService, device: DeviceService) => () =>

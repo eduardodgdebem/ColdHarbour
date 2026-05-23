@@ -296,26 +296,28 @@ $mobile: 768px;
 }
 
 .deck__row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 24px;
 
   @media (max-width: $mobile - 1px) {
-    flex-wrap: wrap;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
 }
 
 .transport {
+  grid-column: 2;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 14px;
-  flex: 1;
 
   @media (max-width: $mobile - 1px) {
-    flex: 1 1 100%;
     order: 2;
+    width: 100%;
   }
 }
 
@@ -349,27 +351,22 @@ $mobile: 768px;
 .transport__play {
   width: 72px;
   height: 72px;
-  background: var(--black);
-  color: var(--accent);
+  color: var(--black);
+  background: var(--accent);
   font-size: 24px;
-  box-shadow: 6px 6px 0 0 var(--off-white);
 
   app-play-icon,
   app-pause-icon {
     display: inline-flex;
     width: 32px;
     height: 32px;
-    color: var(--accent);
+    color: var(--blac);
   }
 
   &:hover {
     background: var(--off-white);
     color: var(--black);
-
-    app-play-icon,
-    app-pause-icon {
-      color: var(--black);
-    }
+    box-shadow: 6px 6px 0 0 var(--black);
   }
 
   &:active {
@@ -378,13 +375,16 @@ $mobile: 768px;
 }
 
 .volume {
+  grid-column: 3;
+  justify-self: end;
   display: grid;
   grid-template-columns: auto 140px auto;
   align-items: center;
   gap: 12px;
 
   @media (max-width: $mobile - 1px) {
-    flex: 1 1 100%;
+    justify-self: stretch;
+    width: 100%;
     order: 1;
     grid-template-columns: auto 1fr auto;
   }

@@ -1,61 +1,88 @@
 <section class="player-page">
-  <header class="player-page__header">
+  <header class="bar">
     <button
       type="button"
-      class="player-page__close"
-      title="Close"
+      class="bar__close"
       aria-label="Close player"
       (click)="close()"
     >
-      ↓ CLOSE
+      ← CLOSE
     </button>
-    <span class="player-page__tag">// NOW PLAYING</span>
+    <span class="bar__tag">// NOW PLAYING</span>
+    <a class="bar__devices" routerLink="/devices">
+      <span class="bar__devices-label">DEVICES</span>
+      <span class="bar__devices-arrow">→</span>
+    </a>
   </header>
 
   @if (currentMusic(); as music) {
-    <div class="player-page__stage">
-      <div class="player-page__art">
-        @if (music.imageRef) {
-          <img [src]="music.imageRef" [alt]="music.name" />
-        } @else {
-          <div class="player-page__art-placeholder"></div>
-        }
+    <div class="stage">
+      <div class="stage__plate">
+        <span class="stage__side">// SIDE A</span>
+        <div class="stage__art">
+          @if (music.imageRef) {
+            <img [src]="music.imageRef" [alt]="music.name" />
+          } @else {
+            <div class="stage__art-placeholder"></div>
+          }
+        </div>
+        <span class="stage__catno">CH-{{ music.id ?? '—' }}</span>
       </div>
 
-      <div class="player-page__details">
-        <h1 class="player-page__title">{{ music.name }}</h1>
-        <p class="player-page__author">{{ music.author }}</p>
+      <div class="stage__sleeve">
+        <span class="stage__sleeve-tag">// TRACK</span>
+        <h1 class="stage__title">{{ music.name }}</h1>
+        <p class="stage__author">{{ music.author }}</p>
 
-        <div class="progress">
-          <span class="progress__time">{{ formatTime(audioService.currentTime()) }}</span>
-          <div class="progress__track">
-            <input
-              type="range"
-              [min]="0"
-              [max]="audioService.duration() || 0"
-              [step]="0.01"
-              [value]="audioService.currentTime()"
-              [style.--progress]="progressPercent() + '%'"
-              (input)="onSeek($event)"
-              aria-label="Seek"
-            />
+        <dl class="stage__meta">
+          <div class="stage__meta-row">
+            <dt>RUNTIME</dt>
+            <dd>{{ formatTime(audioService.duration()) }}</dd>
           </div>
-          <span class="progress__time">{{ formatTime(audioService.duration()) }}</span>
-        </div>
+          <div class="stage__meta-row">
+            <dt>POSITION</dt>
+            <dd>{{ formatTime(audioService.currentTime()) }}</dd>
+          </div>
+          <div class="stage__meta-row">
+            <dt>SOURCE</dt>
+            <dd>LOCAL</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
 
+    <footer class="deck">
+      <div class="deck__progress">
+        <span class="deck__time">{{ formatTime(audioService.currentTime()) }}</span>
+        <div class="deck__progress-track">
+          <input
+            type="range"
+            [min]="0"
+            [max]="audioService.duration() || 0"
+            [step]="0.01"
+            [value]="audioService.currentTime()"
+            [style.--progress]="progressPercent() + '%'"
+            (input)="onSeek($event)"
+            aria-label="Seek"
+          />
+        </div>
+        <span class="deck__time">{{ formatTime(audioService.duration()) }}</span>
+      </div>
+
+      <div class="deck__row">
         <div class="transport">
           <button
             type="button"
-            class="transport__prev"
-            title="Previous"
+            class="transport__btn transport__prev"
             aria-label="Previous track"
+            title="Previous"
             (click)="prev()"
           >
             ⏮
           </button>
           <button
             type="button"
-            class="transport__play"
+            class="transport__btn transport__play"
             [attr.aria-label]="isPlaying() ? 'Pause' : 'Play'"
             title="Play / Pause"
             (click)="togglePlay()"
@@ -68,9 +95,9 @@
           </button>
           <button
             type="button"
-            class="transport__next"
-            title="Next"
+            class="transport__btn transport__next"
             aria-label="Next track"
+            title="Next"
             (click)="next()"
           >
             ⏭
@@ -94,16 +121,14 @@
           <span class="volume__value">{{ volumePercent() }}</span>
         </div>
       </div>
-    </div>
+    </footer>
   } @else {
-    <div class="player-page__idle">
-      <span class="player-page__idle-tag">// SILENCE</span>
-      <h1 class="player-page__idle-title">
-        NOTHING<br />
-        IS<br />
-        <span class="player-page__idle-strike">PLAYING.</span>
+    <div class="idle">
+      <span class="idle__tag">// SILENCE</span>
+      <h1 class="idle__title">
+        NOTHING<br />IS<br /><span class="idle__strike">PLAYING.</span>
       </h1>
-      <p class="player-page__idle-copy">
+      <p class="idle__copy">
         Pick a track from the library and the harbour will speak.
       </p>
     </div>

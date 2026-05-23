@@ -86,15 +86,22 @@ describe('PlayerPageComponent', () => {
   it('renders the album art when imageRef is present', () => {
     setUp({ music: makeTrack({ imageRef: '/api/artwork/abc' }) });
     const img: HTMLImageElement = fixture.debugElement.query(
-      By.css('.player-page__art img'),
+      By.css('.stage__art img'),
     ).nativeElement;
     expect(img.getAttribute('src')).toBe('/api/artwork/abc');
   });
 
   it('renders the idle empty state when no current track', () => {
     setUp({ music: null });
-    expect(fixture.debugElement.query(By.css('.player-page__idle'))).toBeTruthy();
-    expect(fixture.debugElement.query(By.css('.player-page__art'))).toBeNull();
+    expect(fixture.debugElement.query(By.css('.idle'))).toBeTruthy();
+    expect(fixture.debugElement.query(By.css('.stage'))).toBeNull();
+  });
+
+  it('renders a DEVICES link in the top status bar', () => {
+    setUp();
+    const link = fixture.debugElement.query(By.css('.bar__devices'));
+    expect(link).toBeTruthy();
+    expect(link.nativeElement.getAttribute('href')).toBe('/devices');
   });
 
   it('shows PLAY when paused and PAUSE when playing', () => {
@@ -135,7 +142,7 @@ describe('PlayerPageComponent', () => {
   it('calls location.back when the close button is clicked', () => {
     setUp();
     fixture.debugElement
-      .query(By.css('.player-page__close'))
+      .query(By.css('.bar__close'))
       .nativeElement.click();
     expect(locationSpy.back).toHaveBeenCalled();
   });

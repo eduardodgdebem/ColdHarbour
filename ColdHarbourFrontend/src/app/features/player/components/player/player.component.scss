@@ -100,6 +100,7 @@ $compact: 540px; /* below this: hide progress + volume */
   min-width: 0;
   flex-shrink: 0;
   width: 200px;
+  height: 100%;
 
   @media (max-width: $compact - 1px) {
     flex: 1;

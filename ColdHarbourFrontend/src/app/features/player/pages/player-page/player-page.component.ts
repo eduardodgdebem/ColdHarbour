@@ -1,15 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Location } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { MusicService } from '../../services/music.service';
 import { AudioService } from '../../services/audio.service';
-import { BackButtonComponent } from '../../../../shared/ui';
 import { PlayIconComponent } from '../../../../shared/icons/play-icon.component';
 import { PauseIconComponent } from '../../../../shared/icons/pause-icon.component';
 
 @Component({
   selector: 'app-player-page',
   standalone: true,
-  imports: [BackButtonComponent, PlayIconComponent, PauseIconComponent],
+  imports: [RouterLink, PlayIconComponent, PauseIconComponent],
   templateUrl: './player-page.component.html',
   styleUrl: './player-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

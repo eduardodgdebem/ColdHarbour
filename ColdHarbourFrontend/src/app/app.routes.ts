@@ -6,6 +6,7 @@ import { LoginPageComponent } from './features/auth/pages/login-page/login-page.
 import { DevicesPageComponent } from './features/devices/pages/devices-page/devices-page.component';
 import { AccountPageComponent } from './features/account/pages/account-page/account-page.component';
 import { CreateAccountPageComponent } from './features/account/pages/create-account-page/create-account-page.component';
+import { PlayerPageComponent } from './features/player/pages/player-page/player-page.component';
 import { authGuard } from './core/auth/auth.guard';
 import { ownerGuard } from './core/auth/owner.guard';
 
@@ -43,6 +44,11 @@ export const routes: Routes = [
     path: 'create-account',
     component: CreateAccountPageComponent,
     canActivate: [authGuard, ownerGuard],
+  },
+  {
+    path: 'player',
+    component: PlayerPageComponent,
+    canActivate: [authGuard],
   },
   {
     path: '',

@@ -4,7 +4,9 @@ import {
   ElementRef,
   HostBinding,
   ViewChild,
+  inject,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { AudioService } from '../../services/audio.service';
 import { ColorService } from '../../services/color.service';
 import { MusicService } from '../../services/music.service';
@@ -30,12 +32,18 @@ export class PlayerComponent {
 
   public imageError: boolean = false;
 
+  private readonly router = inject(Router);
+
   constructor(
     public audioService: AudioService,
     public musicService: MusicService,
     private colorService: ColorService,
   ) {
     this.setupEffects();
+  }
+
+  expand(): void {
+    this.router.navigate(['/player']);
   }
 
   private setupEffects() {

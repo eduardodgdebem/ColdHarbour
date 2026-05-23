@@ -41,6 +41,29 @@ $compact: 540px; /* below this: hide progress + volume */
   overflow: hidden;
 }
 
+/* ── Expand affordance — strip <button> defaults so .player-art and
+   .player-info still look like the original layout, but the cursor + hover
+   states announce that they navigate to the full-screen player. */
+.player-expand {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  display: block;
+
+  &:hover {
+    background: var(--accent);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: -3px;
+  }
+}
+
 /* ── Album art thumbnail ─────────────────────── */
 .player-art {
   width: 80px;

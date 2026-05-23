@@ -1,6 +1,12 @@
 @if (musicService.currentMusic(); as music) {
   <section class="player">
-    <div class="player-art">
+    <button
+      type="button"
+      class="player-art player-expand"
+      title="Open full-screen player"
+      aria-label="Open full-screen player"
+      (click)="expand()"
+    >
       @if (music.imageRef && !imageError) {
         <img
           [src]="music.imageRef"
@@ -10,13 +16,19 @@
       } @else {
         <div class="player-art-empty"></div>
       }
-    </div>
+    </button>
 
     <div class="player-body">
-      <div class="player-info">
+      <button
+        type="button"
+        class="player-info player-expand"
+        title="Open full-screen player"
+        aria-label="Open full-screen player"
+        (click)="expand()"
+      >
         <h2 class="player-title">{{ music.name }}</h2>
         <p class="player-artist">{{ music.author }}</p>
-      </div>
+      </button>
 
       <div class="player-progress">
         <span class="time-label">{{

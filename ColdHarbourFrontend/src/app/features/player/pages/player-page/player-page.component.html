@@ -1,0 +1,111 @@
+<section class="player-page">
+  <header class="player-page__header">
+    <button
+      type="button"
+      class="player-page__close"
+      title="Close"
+      aria-label="Close player"
+      (click)="close()"
+    >
+      ↓ CLOSE
+    </button>
+    <span class="player-page__tag">// NOW PLAYING</span>
+  </header>
+
+  @if (currentMusic(); as music) {
+    <div class="player-page__stage">
+      <div class="player-page__art">
+        @if (music.imageRef) {
+          <img [src]="music.imageRef" [alt]="music.name" />
+        } @else {
+          <div class="player-page__art-placeholder"></div>
+        }
+      </div>
+
+      <div class="player-page__details">
+        <h1 class="player-page__title">{{ music.name }}</h1>
+        <p class="player-page__author">{{ music.author }}</p>
+
+        <div class="progress">
+          <span class="progress__time">{{ formatTime(audioService.currentTime()) }}</span>
+          <div class="progress__track">
+            <input
+              type="range"
+              [min]="0"
+              [max]="audioService.duration() || 0"
+              [step]="0.01"
+              [value]="audioService.currentTime()"
+              [style.--progress]="progressPercent() + '%'"
+              (input)="onSeek($event)"
+              aria-label="Seek"
+            />
+          </div>
+          <span class="progress__time">{{ formatTime(audioService.duration()) }}</span>
+        </div>
+
+        <div class="transport">
+          <button
+            type="button"
+            class="transport__prev"
+            title="Previous"
+            aria-label="Previous track"
+            (click)="prev()"
+          >
+            ⏮
+          </button>
+          <button
+            type="button"
+            class="transport__play"
+            [attr.aria-label]="isPlaying() ? 'Pause' : 'Play'"
+            title="Play / Pause"
+            (click)="togglePlay()"
+          >
+            @if (isPlaying()) {
+              <app-pause-icon />
+            } @else {
+              <app-play-icon />
+            }
+          </button>
+          <button
+            type="button"
+            class="transport__next"
+            title="Next"
+            aria-label="Next track"
+            (click)="next()"
+          >
+            ⏭
+          </button>
+        </div>
+
+        <div class="volume">
+          <span class="volume__label">VOL</span>
+          <div class="volume__track">
+            <input
+              type="range"
+              [min]="0"
+              [max]="1"
+              [step]="0.01"
+              [value]="audioService.volume()"
+              [style.--volume]="volumePercent() + '%'"
+              (input)="onVolume($event)"
+              aria-label="Volume"
+            />
+          </div>
+          <span class="volume__value">{{ volumePercent() }}</span>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="player-page__idle">
+      <span class="player-page__idle-tag">// SILENCE</span>
+      <h1 class="player-page__idle-title">
+        NOTHING<br />
+        IS<br />
+        <span class="player-page__idle-strike">PLAYING.</span>
+      </h1>
+      <p class="player-page__idle-copy">
+        Pick a track from the library and the harbour will speak.
+      </p>
+    </div>
+  }
+</section>

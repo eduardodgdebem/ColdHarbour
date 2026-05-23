@@ -8,11 +8,6 @@
   display: flex;
   text-decoration: none;
   color: inherit;
-  border-right: var(--border);
-
-  &:last-of-type {
-    border-right: none;
-  }
 
   app-button {
     flex: 1;
@@ -23,6 +18,12 @@
     flex: 1;
     border: none;
   }
+}
+
+/* Divider between adjacent .action elements — robust against conditional
+   siblings (upload-error, modal) that would break a :last-of-type rule. */
+.action + .action {
+  border-left: var(--border);
 }
 
 .upload-error {
@@ -59,11 +60,6 @@
 
   .action {
     flex: none;
-    border-right: var(--border);
-
-    &:last-of-type {
-      border-right: none;
-    }
 
     ::ng-deep .btn {
       flex: none;

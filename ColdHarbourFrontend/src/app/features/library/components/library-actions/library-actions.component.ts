@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  inject,
+  input,
+  viewChild,
+} from '@angular/core';
 import { LibraryService } from '../../library.service';
 import type { LibrarySyncDiff } from '../../../../core/api/api.service';
 import {
@@ -20,6 +27,12 @@ import {
 export class LibraryActionsComponent {
   readonly libraryService = inject(LibraryService);
   readonly compact = input<boolean>(false);
+  readonly fileInput =
+    viewChild.required<ElementRef<HTMLInputElement>>('fileInput');
+
+  triggerUpload(): void {
+    this.fileInput().nativeElement.click();
+  }
 
   onFilesSelected(event: Event): void {
     const input = event.target as HTMLInputElement;

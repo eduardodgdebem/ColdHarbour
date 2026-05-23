@@ -77,6 +77,54 @@ public sealed class TransferPlaybackCommandHandlerTests
     }
 }
 
+public sealed class SetQueueCommandHandlerTests
+{
+    private readonly IPlaybackSessionStore _store = Substitute.For<IPlaybackSessionStore>();
+
+    private SetQueueCommandHandler CreateHandler() => new(_store);
+
+    [Fact]
+    public async Task Handle_SetsQueueAndStartIndex()
+    {
+        var userId = Guid.NewGuid();
+        var session = PlaybackSession.Create(userId);
+        _store.GetOrCreate(userId).Returns(session);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+
+        await CreateHandler().Handle(new SetQueueCommand(userId, tracks, 2), CancellationToken.None);
+
+        session.Queue.Should().Equal(tracks);
+        session.QueueIndex.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Handle_DefaultsStartIndexToZero()
+    {
+        var userId = Guid.NewGuid();
+        var session = PlaybackSession.Create(userId);
+        _store.GetOrCreate(userId).Returns(session);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
+
+        await CreateHandler().Handle(new SetQueueCommand(userId, tracks, 0), CancellationToken.None);
+
+        session.QueueIndex.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Handle_EmptyTracks_ClearsQueue()
+    {
+        var userId = Guid.NewGuid();
+        var session = PlaybackSession.Create(userId);
+        session.SetQueue(new[] { Guid.NewGuid() }, 0);
+        _store.GetOrCreate(userId).Returns(session);
+
+        await CreateHandler().Handle(new SetQueueCommand(userId, Array.Empty<Guid>(), 0), CancellationToken.None);
+
+        session.Queue.Should().BeEmpty();
+        session.QueueIndex.Should().Be(0);
+    }
+}
+
 public sealed class ListDevicesQueryHandlerTests
 {
     private readonly IDeviceRepository _repo = Substitute.For<IDeviceRepository>();

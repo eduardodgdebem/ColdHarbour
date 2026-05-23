@@ -284,12 +284,13 @@ JWT is supplied as a query param because the browser WebSocket API cannot set cu
 
 **Server → client messages:**
 
-- `{ type: "session", session: PlaybackSessionDto }` — broadcast after every state mutation and on initial connect.
+- `{ type: "session", session: PlaybackSessionDto }` — broadcast after every state mutation and on initial connect. `PlaybackSessionDto` carries `queue: Guid[]` + `queueIndex: int` so subscribers see what is queued without an extra round trip.
 - `{ type: "devices", devices: DeviceDto[] }` — broadcast after connect and after transfer.
 
 **Client → server messages (all include `deviceId`):**
 
-- `{ type: "start", deviceId, trackId }` — begin playing a track on this device.
+- `{ type: "setQueue", deviceId, trackIds: Guid[], startIndex: int }` — declare the ordered queue + the current index. Sent by the client whenever a track is picked from a playlist. The server stores the queue in `PlaybackSession`; phase 2 will read from it for `next`/`previous`.
+- `{ type: "start", deviceId, trackId }` — begin playing a track on this device. Phase 1 leaves this in place; the hub seeds the queue from `start` when the session does not already contain `trackId`, so older clients stay compatible. Retired in phase 2 in favor of `setQueue` + transport commands.
 - `{ type: "heartbeat", deviceId, positionMs }` — every 2s from the active device.
 - `{ type: "pause", deviceId, positionMs }` — user paused.
 - `{ type: "resume", deviceId }` — user resumed.
@@ -314,7 +315,7 @@ JWT is supplied as a query param because the browser WebSocket API cannot set cu
 - `User { Id, Name, Email, PasswordHash, Role, TotpSecret?, CreatedAt }`
 - `RefreshToken { Id, UserId, DeviceId, TokenHash, ExpiresAt, RevokedAt?, FamilyId }`
 - `Device { Id, UserId, Name, UserAgent, SupportedCodecs, PreferredProfile, BitrateCap?, LastSeenAt }`
-- `PlaybackSession { UserId, ActiveDeviceId, TrackId, PositionMs, IsPlaying, UpdatedAt }` — in-memory, one per user
+- `PlaybackSession { UserId, ActiveDeviceId, TrackId, PositionMs, IsPlaying, Queue, QueueIndex, UpdatedAt }` — in-memory, one per user. `Queue` is an ordered list of `Guid` track IDs; `QueueIndex` points at the current item. Invariant: when `Queue` is non-empty, `0 ≤ QueueIndex < Queue.Count`.
 - `PlayEvent { Id, UserId, DeviceId, TrackId, StartedAt, EndedAt?, CompletedRatio? }` — persisted
 
 **Application commands / queries**

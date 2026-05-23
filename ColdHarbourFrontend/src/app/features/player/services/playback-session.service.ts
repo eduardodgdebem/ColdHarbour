@@ -18,6 +18,8 @@ export type PlaybackSessionDto = {
   trackId: string | null;
   positionMs: number;
   isPlaying: boolean;
+  queue: string[];
+  queueIndex: number;
   updatedAt: string;
 };
 
@@ -68,7 +70,10 @@ export class PlaybackSessionService {
       else if (!token) this.disconnect();
     });
 
-    // Send 'start' when the user selects a new track locally
+    // Send 'setQueue' (Phase 1) + 'start' when the user selects a new track locally.
+    // setQueue tells the server about the full ordered queue and which item the user
+    // is on, so other devices can render it. start retains its existing semantics
+    // and is retired in Phase 2 once next/previous become hub commands.
     effect(() => {
       const music = musicService.currentMusic();
       if (!music || music.trackId === this.lastTrackId) return;
@@ -77,9 +82,24 @@ export class PlaybackSessionService {
         this.suppressStart = false;
         return;
       }
+      const deviceId = deviceService.getOrCreateDeviceId();
+      const playlist = untracked(() => musicService.currentPlayList());
+      if (playlist) {
+        const idx = playlist.musics.findIndex(
+          (t) => t.trackId === music.trackId,
+        );
+        if (idx >= 0) {
+          this.send({
+            type: 'setQueue',
+            deviceId,
+            trackIds: playlist.musics.map((t) => t.trackId),
+            startIndex: idx,
+          });
+        }
+      }
       this.send({
         type: 'start',
-        deviceId: deviceService.getOrCreateDeviceId(),
+        deviceId,
         trackId: music.trackId,
       });
     });

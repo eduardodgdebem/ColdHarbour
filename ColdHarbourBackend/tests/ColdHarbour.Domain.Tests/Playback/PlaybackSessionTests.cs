@@ -118,4 +118,121 @@ public sealed class PlaybackSessionTests
         session.PositionMs.Should().Be(0);
         session.IsPlaying.Should().BeFalse();
     }
+
+    [Fact]
+    public void Create_HasEmptyQueueAtIndexZero()
+    {
+        var session = PlaybackSession.Create(UserId);
+
+        session.Queue.Should().BeEmpty();
+        session.QueueIndex.Should().Be(0);
+    }
+
+    [Fact]
+    public void SetQueue_StoresTracksAndStartIndex()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+
+        session.SetQueue(tracks, startIndex: 1);
+
+        session.Queue.Should().Equal(tracks);
+        session.QueueIndex.Should().Be(1);
+        session.UpdatedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public void SetQueue_DefaultsStartIndexToZero()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
+
+        session.SetQueue(tracks);
+
+        session.QueueIndex.Should().Be(0);
+    }
+
+    [Fact]
+    public void SetQueue_EmptyTracks_ClearsQueueAndResetsIndex()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { Guid.NewGuid() }, 0);
+
+        session.SetQueue(Array.Empty<Guid>(), 0);
+
+        session.Queue.Should().BeEmpty();
+        session.QueueIndex.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(3)]
+    public void SetQueue_StartIndexOutOfRange_Throws(int badIndex)
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+
+        var act = () => session.SetQueue(tracks, badIndex);
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void SetQueue_EmptyTracksWithNonZeroIndex_Throws()
+    {
+        var session = PlaybackSession.Create(UserId);
+
+        var act = () => session.SetQueue(Array.Empty<Guid>(), 1);
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void MoveTo_ChangesQueueIndex()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 0);
+
+        session.MoveTo(2);
+
+        session.QueueIndex.Should().Be(2);
+        session.UpdatedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(3)]
+    public void MoveTo_OutOfRange_Throws(int badIndex)
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 0);
+
+        var act = () => session.MoveTo(badIndex);
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void MoveTo_EmptyQueue_Throws()
+    {
+        var session = PlaybackSession.Create(UserId);
+
+        var act = () => session.MoveTo(0);
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void Clear_ResetsQueueAndIndex()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { Guid.NewGuid(), Guid.NewGuid() }, 1);
+
+        session.Clear();
+
+        session.Queue.Should().BeEmpty();
+        session.QueueIndex.Should().Be(0);
+    }
 }

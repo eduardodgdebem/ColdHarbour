@@ -122,6 +122,15 @@ $mobile: 768px;
   text-transform: uppercase;
   color: var(--off-white);
   word-break: break-word;
+
+  /* Lock the title to a 2-line block so longer track names don't push
+     the transport + volume down. Shorter titles still reserve full
+     2-line height; longer ones truncate with ellipsis. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: calc(2em * 0.95);
 }
 
 .player-page__author {
@@ -129,6 +138,11 @@ $mobile: 768px;
   font-size: 18px;
   font-weight: 500;
   color: var(--muted);
+
+  /* Same reasoning — keep the artist row a fixed 1 line */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Progress ─────────────────────────────── */
@@ -224,16 +238,32 @@ $mobile: 768px;
 .transport__play {
   width: 84px;
   height: 84px;
-  background: var(--accent);
+  background: var(--black);
+  color: var(--accent);
+  border-color: var(--off-white);
   font-size: 24px;
-  box-shadow: 6px 6px 0 0 var(--off-white);
+  box-shadow: 6px 6px 0 0 var(--accent);
+
+  app-play-icon,
+  app-pause-icon {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    color: var(--accent);
+  }
 
   &:hover {
-    background: var(--off-white);
+    background: var(--accent);
+    color: var(--black);
+
+    app-play-icon,
+    app-pause-icon {
+      color: var(--black);
+    }
   }
 
   &:active {
-    box-shadow: 0 0 0 0 var(--off-white);
+    box-shadow: 0 0 0 0 var(--accent);
   }
 }
 

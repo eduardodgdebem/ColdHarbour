@@ -109,7 +109,7 @@ $mobile: 768px;
   align-items: center;
   justify-content: center;
   padding: 48px;
-  background: var(--accent);
+  // background: var(--accent);
   border-right: var(--border);
 
   @media (max-width: $mobile - 1px) {
@@ -333,8 +333,8 @@ $mobile: 768px;
   font-size: 18px;
 
   &:hover {
-    background: var(--black);
-    color: var(--accent);
+    background: var(--accent);
+    box-shadow: 6px 6px 0 0 var(--black);
   }
 
   &:active {
@@ -351,8 +351,8 @@ $mobile: 768px;
 .transport__play {
   width: 72px;
   height: 72px;
-  color: var(--black);
-  background: var(--accent);
+  background: var(--black);
+  color: var(--accent);
   font-size: 24px;
 
   app-play-icon,
@@ -364,8 +364,8 @@ $mobile: 768px;
   }
 
   &:hover {
-    background: var(--off-white);
     color: var(--black);
+    background: var(--accent);
     box-shadow: 6px 6px 0 0 var(--black);
   }
 

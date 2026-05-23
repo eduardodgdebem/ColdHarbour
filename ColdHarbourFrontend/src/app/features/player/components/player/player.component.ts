@@ -2,7 +2,6 @@ import {
   Component,
   effect,
   ElementRef,
-  HostBinding,
   ViewChild,
   inject,
 } from '@angular/core';
@@ -23,9 +22,9 @@ type SlidersId = 'volume' | 'progress';
   styleUrl: './player.component.scss',
 })
 export class PlayerComponent {
-  @HostBinding('style.display') get hostDisplay() {
-    return this.musicService.currentMusic() ? 'block' : 'none';
-  }
+  // Visibility is owned by AppComponent's @if (showMiniPlayer()) — no host
+  // binding needed (and a getter-based binding raced with the parent's @if
+  // on route close, throwing NG0100).
 
   @ViewChild('volumeInput') volumeInput!: ElementRef<HTMLInputElement>;
   @ViewChild('progressInput') progressInput!: ElementRef<HTMLInputElement>;
@@ -73,7 +72,10 @@ export class PlayerComponent {
     effect(() => {
       const duration = this.audioService.duration();
       const currentTime = this.audioService.currentTime();
-      if (duration && currentTime) {
+      // Guard: the effect can fire during re-instantiation (e.g. closing
+      // the /player route triggers AppComponent to remount this component
+      // while audio keeps ticking) before the @ViewChild ref resolves.
+      if (duration && currentTime && this.progressInput) {
         const progressPercentage = (currentTime / duration) * 100;
         this.progressInput.nativeElement.style.setProperty(
           '--progress',

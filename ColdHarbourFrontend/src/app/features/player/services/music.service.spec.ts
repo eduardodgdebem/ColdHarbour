@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { MusicService } from './music.service';
 import { ApiService } from '../../../core/api/api.service';
+import { AudioService } from './audio.service';
 import { ColorService } from './color.service';
 import { of, throwError } from 'rxjs';
 import type { Music, Playlist } from '../../../core/api/api.service';
@@ -8,6 +9,7 @@ import type { Music, Playlist } from '../../../core/api/api.service';
 describe('MusicService', () => {
   let service: MusicService;
   let apiService: jasmine.SpyObj<ApiService>;
+  let audioService: jasmine.SpyObj<AudioService>;
   let colorService: jasmine.SpyObj<ColorService>;
 
   const mockMusic: Music = {
@@ -31,18 +33,27 @@ describe('MusicService', () => {
   beforeEach(() => {
     const apiSpy = jasmine.createSpyObj('ApiService', ['getPlaylist']);
     apiSpy.getPlaylist.and.returnValue(of(mockPlaylist));
+    const audioSpy = jasmine.createSpyObj('AudioService', [
+      'loadMusic',
+      'playToggle',
+      'seekTo',
+      'setVolume',
+      'cleanup',
+    ]);
     const colorSpy = jasmine.createSpyObj('ColorService', ['extractColor']);
 
     TestBed.configureTestingModule({
       providers: [
         MusicService,
         { provide: ApiService, useValue: apiSpy },
+        { provide: AudioService, useValue: audioSpy },
         { provide: ColorService, useValue: colorSpy },
       ],
     });
 
     service = TestBed.inject(MusicService);
     apiService = TestBed.inject(ApiService) as jasmine.SpyObj<ApiService>;
+    audioService = TestBed.inject(AudioService) as jasmine.SpyObj<AudioService>;
     colorService = TestBed.inject(ColorService) as jasmine.SpyObj<ColorService>;
   });
 
@@ -91,5 +102,17 @@ describe('MusicService', () => {
 
   it('should handle isCurrentMusic check when no music is selected', () => {
     expect(service.isCurrentMusic(mockMusic)).toBeFalse();
+  });
+
+  it('asks AudioService to load the audioRef whenever currentMusic changes', () => {
+    service.selectMusic(mockMusic);
+    TestBed.flushEffects();
+    expect(audioService.loadMusic).toHaveBeenCalledWith(mockMusic.audioRef);
+  });
+
+  it('asks ColorService to extract the album art color when currentMusic changes', () => {
+    service.selectMusic(mockMusic);
+    TestBed.flushEffects();
+    expect(colorService.extractColor).toHaveBeenCalledWith(mockMusic.imageRef);
   });
 });

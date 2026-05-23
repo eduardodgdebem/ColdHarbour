@@ -7,7 +7,6 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { AudioService } from '../../services/audio.service';
-import { ColorService } from '../../services/color.service';
 import { MusicService } from '../../services/music.service';
 import { PlayIconComponent } from '../../../../shared/icons/play-icon.component';
 import { PauseIconComponent } from '../../../../shared/icons/pause-icon.component';
@@ -36,7 +35,6 @@ export class PlayerComponent {
   constructor(
     public audioService: AudioService,
     public musicService: MusicService,
-    private colorService: ColorService,
   ) {
     this.setupEffects();
   }
@@ -46,17 +44,9 @@ export class PlayerComponent {
   }
 
   private setupEffects() {
-    effect(
-      () => {
-        const music = this.musicService.currentMusic();
-        if (!music?.audioRef) return;
-        this.colorService.extractColor(music.imageRef);
-        // loadMusic is a no-op if this URL is already loaded; it handles
-        // cleanup internally when switching tracks.
-        this.audioService.loadMusic(music.audioRef);
-      },
-      { allowSignalWrites: true },
-    );
+    // Audio loading + color extraction live in MusicService (singleton),
+    // so they keep working while this component is unmounted (e.g. when
+    // the /player route is active). Only UI-local effects remain here.
 
     effect(() => {
       const volume = this.audioService.volume();

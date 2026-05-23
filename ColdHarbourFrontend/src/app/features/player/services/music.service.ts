@@ -1,5 +1,6 @@
 import { effect, Injectable, signal } from '@angular/core';
 import { ApiService, Music, Playlist } from '../../../core/api/api.service';
+import { AudioService } from './audio.service';
 import { ColorService } from './color.service';
 
 export type { Music, Playlist };
@@ -16,12 +17,24 @@ export class MusicService {
 
   constructor(
     private apiService: ApiService,
+    private audioService: AudioService,
     private colorService: ColorService,
   ) {
+    // Color extraction reacts to image changes.
     effect(() => {
       const music = this.currentMusic();
       if (music?.imageRef) {
         this.colorService.extractColor(music.imageRef);
+      }
+    });
+
+    // Audio loading lives at the service level (not on PlayerComponent),
+    // so it survives PlayerComponent unmount-on-/player and doesn't fire
+    // spuriously on remount. Loads the source whenever audioRef changes.
+    effect(() => {
+      const music = this.currentMusic();
+      if (music?.audioRef) {
+        this.audioService.loadMusic(music.audioRef);
       }
     });
   }

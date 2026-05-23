@@ -92,12 +92,11 @@ $mobile: 768px;
   }
 
   &-placeholder {
-    background:
-      repeating-linear-gradient(
-        45deg,
-        var(--accent) 0 10px,
-        var(--off-white) 10px 14px
-      );
+    background: repeating-linear-gradient(
+      45deg,
+      var(--accent) 0 10px,
+      var(--off-white) 10px 14px
+    );
   }
 }
 

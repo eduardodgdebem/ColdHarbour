@@ -60,12 +60,8 @@ describe('PlayerComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should call loadMusic when currentMusic signal emits a track', () => {
-    musicService.currentMusic.set(mockMusic);
-    TestBed.flushEffects();
-
-    expect(audioService.loadMusic).toHaveBeenCalledWith(mockMusic.audioRef);
-  });
+  // Audio-loading is owned by MusicService now (see music.service.spec.ts);
+  // PlayerComponent only mirrors UI state from AudioService.
 
   it('should update volume input style when volume changes', () => {
     const volumeInput = document.createElement('input');

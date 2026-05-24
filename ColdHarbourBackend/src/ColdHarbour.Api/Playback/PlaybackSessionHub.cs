@@ -111,10 +111,25 @@ public sealed class PlaybackSessionHub(
             var type = node?["type"]?.GetValue<string>();
             switch (type)
             {
+                case "setQueue":
+                    {
+                        var trackIdsNode = node!["trackIds"] as JsonArray;
+                        var trackIds = trackIdsNode is null
+                            ? Array.Empty<Guid>()
+                            : trackIdsNode.Select(n => n!.GetValue<Guid>()).ToArray();
+                        var startIndex = node!["startIndex"]?.GetValue<int>() ?? 0;
+                        await mediator.Send(new SetQueueCommand(userId, trackIds, startIndex), ct);
+                        break;
+                    }
                 case "start":
                     {
                         var deviceId = node!["deviceId"]!.GetValue<Guid>();
                         var trackId = node!["trackId"]!.GetValue<Guid>();
+                        // Phase 1: seed the queue from a 'start' so the session always has a queue.
+                        // Deprecated — will be retired in Phase 2 in favor of setQueue + transport commands.
+                        var session = store.GetOrCreate(userId);
+                        if (session.Queue.Count == 0 || !session.Queue.Contains(trackId))
+                            await mediator.Send(new SetQueueCommand(userId, new[] { trackId }, 0), ct);
                         await mediator.Send(new StartPlaybackCommand(userId, deviceId, trackId), ct);
                         break;
                     }
@@ -183,6 +198,8 @@ public sealed class PlaybackSessionHub(
             session.TrackId,
             session.PositionMs,
             session.IsPlaying,
+            session.Queue,
+            session.QueueIndex,
             session.UpdatedAt);
 
         var payload = JsonSerializer.Serialize(new { type = "session", session = dto }, _jsonOpts);

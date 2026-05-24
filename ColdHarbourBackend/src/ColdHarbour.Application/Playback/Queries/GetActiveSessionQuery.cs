@@ -20,6 +20,8 @@ public sealed class GetActiveSessionQueryHandler(IPlaybackSessionStore store) : 
             session.TrackId,
             session.PositionMs,
             session.IsPlaying,
+            session.Queue,
+            session.QueueIndex,
             session.UpdatedAt));
     }
 }

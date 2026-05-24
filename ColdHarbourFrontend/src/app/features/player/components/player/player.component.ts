@@ -1,5 +1,6 @@
 import {
   Component,
+  computed,
   effect,
   ElementRef,
   ViewChild,
@@ -8,6 +9,7 @@ import {
 import { Router } from '@angular/router';
 import { AudioService } from '../../services/audio.service';
 import { MusicService } from '../../services/music.service';
+import { PlaybackSessionService } from '../../services/playback-session.service';
 import { PlayIconComponent } from '../../../../shared/icons/play-icon.component';
 import { PauseIconComponent } from '../../../../shared/icons/pause-icon.component';
 
@@ -32,9 +34,32 @@ export class PlayerComponent {
 
   private readonly router = inject(Router);
 
+  // Reflects the *server's* play state — falls back to local audio when no
+  // session has arrived yet. Lets inactive devices show the right icon and
+  // remote-control the active device.
+  readonly effectivePlaying = computed<boolean>(() => {
+    const sess = this.playbackSession.session();
+    if (sess) return sess.isPlaying;
+    return this.audioService.isPlaying();
+  });
+
+  // Server-aware position + duration. Active device reads its <audio> live;
+  // inactive devices interpolate the server's last positionMs and read the
+  // track's metadata-provided duration (audioService.duration() is 0 on a
+  // device that hasn't loaded the audio).
+  readonly displayedTimeSec = computed<number>(
+    () => this.playbackSession.displayedPositionMs() / 1000,
+  );
+  readonly displayedDurationSec = computed<number>(() => {
+    const live = this.audioService.duration();
+    if (live > 0) return live;
+    return this.musicService.currentMusic()?.durationSeconds ?? 0;
+  });
+
   constructor(
     public audioService: AudioService,
     public musicService: MusicService,
+    public playbackSession: PlaybackSessionService,
   ) {
     this.setupEffects();
   }
@@ -60,12 +85,12 @@ export class PlayerComponent {
     });
 
     effect(() => {
-      const duration = this.audioService.duration();
-      const currentTime = this.audioService.currentTime();
+      const duration = this.displayedDurationSec();
+      const currentTime = this.displayedTimeSec();
       // Guard: the effect can fire during re-instantiation (e.g. closing
       // the /player route triggers AppComponent to remount this component
       // while audio keeps ticking) before the @ViewChild ref resolves.
-      if (duration && currentTime && this.progressInput) {
+      if (duration && this.progressInput) {
         const progressPercentage = (currentTime / duration) * 100;
         this.progressInput.nativeElement.style.setProperty(
           '--progress',
@@ -81,31 +106,43 @@ export class PlayerComponent {
   }
 
   public mainButtonClick(e: Event) {
-    const button = e.target as HTMLButtonElement;
-    button.blur();
-    if (this.musicService.currentMusic()) {
-      this.audioService.playToggle();
+    const target = (e.currentTarget ?? e.target) as HTMLElement | null;
+    target?.blur?.();
+    if (!this.musicService.currentMusic()) return;
+    if (this.effectivePlaying()) {
+      this.playbackSession.pause();
+    } else {
+      this.playbackSession.resume();
     }
+  }
+
+  public nextClick() {
+    this.playbackSession.next();
+  }
+
+  public previousClick() {
+    this.playbackSession.previous();
   }
 
   public onInputChange(e: Event) {
     const input = e.target as HTMLInputElement;
     const newTime = parseFloat(input.value);
-    this.audioService.seekTo(newTime);
+    this.playbackSession.seek(newTime * 1000);
   }
 
   public onSliderClick(e: MouseEvent) {
     const wrapper = e.currentTarget as HTMLDivElement;
     const rect = wrapper.getBoundingClientRect();
     const ratio = (e.clientX - rect.left) / rect.width;
-    const newValue = ratio * this.audioService.duration();
     const input = wrapper.querySelector('input') as HTMLInputElement;
     switch (input.id as SlidersId) {
-      case 'progress':
-        this.audioService.seekTo(newValue);
+      case 'progress': {
+        const newSec = ratio * this.displayedDurationSec();
+        this.playbackSession.seek(newSec * 1000);
         break;
+      }
       case 'volume':
-        this.audioService.volume.set(newValue / this.audioService.duration());
+        this.audioService.volume.set(ratio);
         break;
     }
   }

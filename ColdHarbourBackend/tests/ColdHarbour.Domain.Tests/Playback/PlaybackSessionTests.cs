@@ -235,4 +235,168 @@ public sealed class PlaybackSessionTests
         session.Queue.Should().BeEmpty();
         session.QueueIndex.Should().Be(0);
     }
+
+    // --- Phase 2: SetQueue now also primes the playing track ------------------
+
+    [Fact]
+    public void SetQueue_PrimesTrackIdToStartIndexAndMarksPlaying()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+
+        session.SetQueue(tracks, startIndex: 2);
+
+        session.TrackId.Should().Be(tracks[2]);
+        session.IsPlaying.Should().BeTrue();
+        session.PositionMs.Should().Be(0);
+    }
+
+    [Fact]
+    public void SetQueue_EmptyTracks_ClearsTrackIdAndStopsPlaying()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { Guid.NewGuid() }, 0);
+
+        session.SetQueue(Array.Empty<Guid>(), 0);
+
+        session.TrackId.Should().BeNull();
+        session.IsPlaying.Should().BeFalse();
+    }
+
+    // --- Phase 2: AdvanceNext / AdvancePrevious --------------------------------
+
+    [Fact]
+    public void AdvanceNext_MovesIndexAndUpdatesTrackId()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 0);
+
+        session.AdvanceNext();
+
+        session.QueueIndex.Should().Be(1);
+        session.TrackId.Should().Be(tracks[1]);
+        session.PositionMs.Should().Be(0);
+    }
+
+    [Fact]
+    public void AdvanceNext_AtEnd_WrapsToZero()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 1);
+
+        session.AdvanceNext();
+
+        session.QueueIndex.Should().Be(0);
+        session.TrackId.Should().Be(tracks[0]);
+    }
+
+    [Fact]
+    public void AdvanceNext_EmptyQueue_Throws()
+    {
+        var session = PlaybackSession.Create(UserId);
+
+        var act = () => session.AdvanceNext();
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void AdvancePrevious_MovesIndexBackAndUpdatesTrackId()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 2);
+
+        session.AdvancePrevious();
+
+        session.QueueIndex.Should().Be(1);
+        session.TrackId.Should().Be(tracks[1]);
+        session.PositionMs.Should().Be(0);
+    }
+
+    [Fact]
+    public void AdvancePrevious_AtZero_WrapsToEnd()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 0);
+
+        session.AdvancePrevious();
+
+        session.QueueIndex.Should().Be(2);
+        session.TrackId.Should().Be(tracks[2]);
+    }
+
+    [Fact]
+    public void AdvancePrevious_EmptyQueue_Throws()
+    {
+        var session = PlaybackSession.Create(UserId);
+
+        var act = () => session.AdvancePrevious();
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    // --- Phase 2: Seek ---------------------------------------------------------
+
+    [Fact]
+    public void Seek_UpdatesPositionMs()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { TrackId }, 0);
+
+        session.Seek(45_000);
+
+        session.PositionMs.Should().Be(45_000);
+    }
+
+    [Fact]
+    public void Seek_WithoutTrack_Throws()
+    {
+        var session = PlaybackSession.Create(UserId);
+
+        var act = () => session.Seek(1_000);
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void Seek_NegativePosition_Throws()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { TrackId }, 0);
+
+        var act = () => session.Seek(-1);
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    // --- Phase 2: ClaimActiveIfNone -------------------------------------------
+
+    [Fact]
+    public void ClaimActiveIfNone_SetsActiveDeviceWhenNullAndATrackIsLoaded()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { TrackId }, 0);
+        // SetQueue does not assign ActiveDeviceId; it's claimed independently.
+
+        session.ClaimActiveIfNone(DeviceId);
+
+        session.ActiveDeviceId.Should().Be(DeviceId);
+    }
+
+    [Fact]
+    public void ClaimActiveIfNone_KeepsExistingActiveDevice()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { TrackId }, 0);
+        session.ClaimActiveIfNone(DeviceId);
+
+        var other = Guid.NewGuid();
+        session.ClaimActiveIfNone(other);
+
+        session.ActiveDeviceId.Should().Be(DeviceId);
+    }
 }

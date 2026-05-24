@@ -2,6 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PlayerComponent } from './player.component';
 import { AudioService } from '../../services/audio.service';
 import { MusicService } from '../../services/music.service';
+import { PlaybackSessionService } from '../../services/playback-session.service';
+import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
 import type { Music } from '../../../../core/api/api.service';
 
@@ -10,6 +12,7 @@ describe('PlayerComponent', () => {
   let fixture: ComponentFixture<PlayerComponent>;
   let audioService: jasmine.SpyObj<AudioService>;
   let musicService: jasmine.SpyObj<MusicService>;
+  let playbackSession: jasmine.SpyObj<PlaybackSessionService>;
 
   const mockMusic: Music = {
     id: 1,
@@ -37,15 +40,27 @@ describe('PlayerComponent', () => {
 
     const musicSpy = jasmine.createSpyObj(
       'MusicService',
-      ['selectMusic', 'nextMusic', 'previousMusic', 'isCurrentMusic'],
+      ['selectMusic', 'isCurrentMusic'],
       { currentMusic: signal(null) },
+    );
+
+    const playbackSpy = jasmine.createSpyObj(
+      'PlaybackSessionService',
+      ['next', 'previous', 'seek', 'pause', 'resume'],
+      {
+        session: signal(null),
+        devices: signal([]),
+        displayedPositionMs: signal(0),
+      },
     );
 
     await TestBed.configureTestingModule({
       imports: [PlayerComponent],
       providers: [
+        provideRouter([]),
         { provide: AudioService, useValue: audioSpy },
         { provide: MusicService, useValue: musicSpy },
+        { provide: PlaybackSessionService, useValue: playbackSpy },
       ],
     }).compileComponents();
 
@@ -53,15 +68,15 @@ describe('PlayerComponent', () => {
     component = fixture.componentInstance;
     audioService = TestBed.inject(AudioService) as jasmine.SpyObj<AudioService>;
     musicService = TestBed.inject(MusicService) as jasmine.SpyObj<MusicService>;
+    playbackSession = TestBed.inject(
+      PlaybackSessionService,
+    ) as jasmine.SpyObj<PlaybackSessionService>;
     fixture.detectChanges();
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
   });
-
-  // Audio-loading is owned by MusicService now (see music.service.spec.ts);
-  // PlayerComponent only mirrors UI state from AudioService.
 
   it('should update volume input style when volume changes', () => {
     const volumeInput = document.createElement('input');
@@ -73,8 +88,9 @@ describe('PlayerComponent', () => {
     expect(volumeInput.style.getPropertyValue('--volume')).toBe('75%');
   });
 
-  it('should call playToggle on main button click when music is available', () => {
+  it('sends pause to the hub when audio is playing and main button is clicked', () => {
     musicService.currentMusic.set(mockMusic);
+    audioService.isPlaying.set(true);
     TestBed.flushEffects();
 
     const button = document.createElement('button');
@@ -82,19 +98,35 @@ describe('PlayerComponent', () => {
     Object.defineProperty(event, 'target', { value: button });
     component.mainButtonClick(event);
 
-    expect(audioService.playToggle).toHaveBeenCalled();
+    expect(playbackSession.pause).toHaveBeenCalled();
+    expect(playbackSession.resume).not.toHaveBeenCalled();
+    expect(audioService.playToggle).not.toHaveBeenCalled();
   });
 
-  it('should not call playToggle when no music is selected', () => {
+  it('sends resume to the hub when audio is paused and main button is clicked', () => {
+    musicService.currentMusic.set(mockMusic);
+    audioService.isPlaying.set(false);
+    TestBed.flushEffects();
+
     const button = document.createElement('button');
     const event = new Event('click');
     Object.defineProperty(event, 'target', { value: button });
     component.mainButtonClick(event);
 
-    expect(audioService.playToggle).not.toHaveBeenCalled();
+    expect(playbackSession.resume).toHaveBeenCalled();
   });
 
-  it('should update current time on input change', () => {
+  it('does not touch the hub when no music is selected', () => {
+    const button = document.createElement('button');
+    const event = new Event('click');
+    Object.defineProperty(event, 'target', { value: button });
+    component.mainButtonClick(event);
+
+    expect(playbackSession.pause).not.toHaveBeenCalled();
+    expect(playbackSession.resume).not.toHaveBeenCalled();
+  });
+
+  it('routes progress slider changes through playbackSession.seek (ms)', () => {
     const mockEvent = new Event('change');
     const mockInput = document.createElement('input');
     mockInput.value = '60';
@@ -102,10 +134,18 @@ describe('PlayerComponent', () => {
 
     component.onInputChange(mockEvent);
 
-    expect(audioService.seekTo).toHaveBeenCalledWith(60);
+    expect(playbackSession.seek).toHaveBeenCalledWith(60_000);
+    expect(audioService.seekTo).not.toHaveBeenCalled();
   });
 
-  it('should update volume on volume change', () => {
+  it('routes next/previous buttons through the hub', () => {
+    component.nextClick();
+    component.previousClick();
+    expect(playbackSession.next).toHaveBeenCalled();
+    expect(playbackSession.previous).toHaveBeenCalled();
+  });
+
+  it('keeps local volume control unchanged (not server-managed in Phase 2)', () => {
     const mockEvent = new Event('change');
     const mockInput = document.createElement('input');
     mockInput.value = '0.5';

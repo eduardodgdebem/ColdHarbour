@@ -16,7 +16,7 @@
 |---|---|---|
 | 0 | Baseline | ✅ Done — landed on `playback-phase-0-baseline` 2026-05-23 |
 | 1 | Server-side queue (silent rollout) | ✅ Done — landed on `playback-phase-1-server-queue` 2026-05-23 |
-| 2 | Server-driven transport (any device can command) | Pending |
+| 2 | Server-driven transport (any device can command) | ✅ Done — landed on `playback-phase-2-server-transport` 2026-05-23 |
 | 3 | Auto-advance + Shuffle + RepeatMode | Pending |
 | 4 | Queue mutations from any device | Pending |
 | 5 | Restart-durable session (Postgres) | Pending |

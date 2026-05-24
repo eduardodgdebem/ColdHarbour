@@ -289,15 +289,19 @@ JWT is supplied as a query param because the browser WebSocket API cannot set cu
 
 **Client → server messages (all include `deviceId`):**
 
-- `{ type: "setQueue", deviceId, trackIds: Guid[], startIndex: int }` — declare the ordered queue + the current index. Sent by the client whenever a track is picked from a playlist. The server stores the queue in `PlaybackSession`; phase 2 will read from it for `next`/`previous`.
-- `{ type: "start", deviceId, trackId }` — begin playing a track on this device. Phase 1 leaves this in place; the hub seeds the queue from `start` when the session does not already contain `trackId`, so older clients stay compatible. Retired in phase 2 in favor of `setQueue` + transport commands.
+- `{ type: "setQueue", deviceId, trackIds: Guid[], startIndex: int }` — declare the ordered queue + the current index. Sent by the client when a track is picked from a playlist. The handler also sets `TrackId = Queue[startIndex]`, `IsPlaying = true`, `PositionMs = 0`, and claims the sender as `ActiveDeviceId` if none is set. Subsumes the retired `start` message.
+- `{ type: "next", deviceId }` / `{ type: "previous", deviceId }` — advance / rewind the queue (wraps around). Accepted from **any** device — transport commands affect the active device, not the sender. If no active device is set, the sender claims it.
+- `{ type: "seek", deviceId, positionMs }` — seek to `positionMs` in the current track. Accepted from any device.
+- `{ type: "pause", deviceId }` / `{ type: "resume", deviceId }` — pause / resume on the active device. Accepted from any device. If no active device is set, the sender claims it. (No `positionMs` payload — the server already has the last heartbeat.)
 - `{ type: "heartbeat", deviceId, positionMs }` — every 2s from the active device.
-- `{ type: "pause", deviceId, positionMs }` — user paused.
-- `{ type: "resume", deviceId }` — user resumed.
 - `{ type: "transfer", deviceId, positionMs }` — hand off to `deviceId` at `positionMs`.
 - `{ type: "stop", deviceId }` — clear session.
 
-**Active-device guard:** `heartbeat`, `pause`, `resume`, and `stop` messages are silently dropped if the `deviceId` in the message does not match `session.ActiveDeviceId`. This prevents stale events from a previously active device from corrupting the session after a transfer.
+**Active-device guard (phase 2 narrowing):** the guard now applies **only** to `heartbeat` and `stop` — these carry position truth / destructive intent and must come from the device actually playing audio. Transport commands (`pause`, `resume`, `next`, `previous`, `seek`, `setQueue`) explicitly accept any device's deviceId so any client can drive playback on the active device (Spotify-Connect semantics).
+
+**Sender-claim-active rule:** when a transport command arrives and `session.ActiveDeviceId` is null, the sender's deviceId is assigned as active. Existing active devices are not displaced — only `transfer` moves activity.
+
+**Drift tolerance on the active device:** when the server broadcasts a `session` with a new `positionMs`, the active device only seeks the local `<audio>` if `|server.positionMs − audio.currentTime*1000| > 1000ms`. This avoids audible micro-skips on every heartbeat echo.
 
 **Transfer position rule:** when an inactive device sends `transfer` (pulling playback to itself), `positionMs` must come from the server session's last known position — not from the requesting device's local audio clock (which would be 0 if it wasn't playing). The frontend `PlaybackSessionService` enforces this.
 
@@ -315,12 +319,12 @@ JWT is supplied as a query param because the browser WebSocket API cannot set cu
 - `User { Id, Name, Email, PasswordHash, Role, TotpSecret?, CreatedAt }`
 - `RefreshToken { Id, UserId, DeviceId, TokenHash, ExpiresAt, RevokedAt?, FamilyId }`
 - `Device { Id, UserId, Name, UserAgent, SupportedCodecs, PreferredProfile, BitrateCap?, LastSeenAt }`
-- `PlaybackSession { UserId, ActiveDeviceId, TrackId, PositionMs, IsPlaying, Queue, QueueIndex, UpdatedAt }` — in-memory, one per user. `Queue` is an ordered list of `Guid` track IDs; `QueueIndex` points at the current item. Invariant: when `Queue` is non-empty, `0 ≤ QueueIndex < Queue.Count`.
+- `PlaybackSession { UserId, ActiveDeviceId, TrackId, PositionMs, IsPlaying, Queue, QueueIndex, UpdatedAt }` — in-memory, one per user. `Queue` is an ordered list of `Guid` track IDs; `QueueIndex` points at the current item. Invariant: when `Queue` is non-empty, `0 ≤ QueueIndex < Queue.Count`. `SetQueue` also primes `TrackId = Queue[startIndex]`, `IsPlaying = true`, `PositionMs = 0` (subsumes the retired `Start`). `AdvanceNext` / `AdvancePrevious` wrap. `ClaimActiveIfNone(deviceId)` lets the hub install the sender as active when no device owns playback.
 - `PlayEvent { Id, UserId, DeviceId, TrackId, StartedAt, EndedAt?, CompletedRatio? }` — persisted
 
 **Application commands / queries**
 
-- Commands: `RegisterUser`, `AuthenticateUser`, `RefreshAccessToken`, `Logout`, `RegisterDevice`, `StartPlayback`, `UpdatePlaybackPosition`, `TransferPlayback`, `UploadTrack`, `DeleteTrack`, `SyncLibrary`
+- Commands: `RegisterUser`, `AuthenticateUser`, `RefreshAccessToken`, `Logout`, `RegisterDevice`, `SetQueue`, `NextTrack`, `PreviousTrack`, `Seek`, `UpdatePlaybackPosition`, `TransferPlayback`, `UploadTrack`, `DeleteTrack`, `SyncLibrary`
 - Queries: `GetPlaylist`, `GetActiveSession`, `ListDevices`, `PreviewLibrarySync`
 
 **Infrastructure services**
@@ -439,8 +443,8 @@ All times `America/Sao_Paulo`. Library sync is user-triggered, not scheduled.
 10. **Player component restarts audio on every navigation back to the playlist page.**
     `LocalAudioSource.loadMusic` is a no-op if the same URL is already loaded (`src === currentSrc && this.audio`). The player component's effect must not write `isPlaying` directly — `loadMusic` handles cleanup internally. Effect requires `{ allowSignalWrites: true }`.
 
-11. **Hub accepts pause/resume/heartbeat from non-active devices after a transfer.**
-    Hub guards `pause`, `resume`, `heartbeat`, and `stop` messages against `session.ActiveDeviceId`. Messages from a device that is no longer active are silently dropped.
+11. **Stale heartbeat from a previously-active device corrupts the session.**
+    Hub guards `heartbeat` (and `stop`) against `session.ActiveDeviceId`. `pause`/`resume`/`next`/`previous`/`seek`/`setQueue` deliberately drop the guard — they are explicit transport commands and must be accepted from any device for Spotify-Connect-style remote control. Heartbeat alone carries position truth and must come from the device actually playing audio.
 
 12. **Duplicate tracks (same song in multiple formats).**
     `Track.AudioSha1` is a hash of audio content only (ignoring tag frames). Scanner deduplicates on it.
@@ -486,7 +490,7 @@ Reusable UI lives in `ColdHarbourFrontend/src/app/shared/ui/` (e.g. `button/`, `
 11. **Refresh token rotation + family revocation** — every refresh mints a new token; reuse triggers family-wide revocation.
 12. **Content-addressed cache** — transcode and thumbnail outputs named by hash of inputs; invalidation is implicit.
 13. **Idempotent ingest** — `AudioSha1` is the dedup key; running ingest N times produces the same state.
-14. **Active-device guard on WS hub** — only the active device's state mutations are accepted; stale events from previously active devices are dropped.
+14. **Hub-arbitrated transport** — every transport command (`pause`/`resume`/`next`/`previous`/`seek`/`setQueue`) goes through the WS hub; no client mutates audio directly from user input. The server arbitrates and broadcasts; the active device applies. Only `heartbeat` and `stop` stay guarded against `session.ActiveDeviceId` (they carry position truth / destructive intent).
 15. **`--accent` as a live CSS variable** — UI accent color updates per-track from album art without a re-render; components read `var(--accent)` and get the change for free.
 16. **`loadMusic` idempotency** — loading the same URL twice is a no-op if the audio element is already set up; prevents restarts on component re-mount.
 
@@ -504,7 +508,7 @@ Before any feature is considered done:
 - [ ] **Auth coverage:** new endpoints declare `[Authorize]` (or `[AllowAnonymous]` with a comment).
 - [ ] **Rate-limited where appropriate:** login, refresh, registration covered.
 - [ ] **WebSocket safe:** playback state mutations go through the session hub, not a REST side-channel.
-- [ ] **Active-device guard:** WS messages that should only come from the active device are guarded.
+- [ ] **Active-device guard:** `heartbeat` and `stop` are still guarded against `session.ActiveDeviceId`; transport commands intentionally accept any device.
 - [ ] **Type alignment:** frontend types match DTOs (camelCase, nullability).
 - [ ] **Loading + error states:** components reflect `isLoading()` and `error()` signals.
 - [ ] **Design system:** new UI follows `DESIGN.md` — 4px borders, no rounded corners, `var(--accent)` for accent colour, correct font assignments.

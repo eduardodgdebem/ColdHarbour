@@ -37,11 +37,11 @@
         <dl class="stage__meta">
           <div class="stage__meta-row">
             <dt>RUNTIME</dt>
-            <dd>{{ formatTime(audioService.duration()) }}</dd>
+            <dd>{{ formatTime(displayedDurationSec()) }}</dd>
           </div>
           <div class="stage__meta-row">
             <dt>POSITION</dt>
-            <dd>{{ formatTime(audioService.currentTime()) }}</dd>
+            <dd>{{ formatTime(displayedTimeSec()) }}</dd>
           </div>
           <div class="stage__meta-row">
             <dt>SOURCE</dt>
@@ -53,20 +53,20 @@
 
     <footer class="deck">
       <div class="deck__progress">
-        <span class="deck__time">{{ formatTime(audioService.currentTime()) }}</span>
+        <span class="deck__time">{{ formatTime(displayedTimeSec()) }}</span>
         <div class="deck__progress-track">
           <input
             type="range"
             [min]="0"
-            [max]="audioService.duration() || 0"
+            [max]="displayedDurationSec() || 0"
             [step]="0.01"
-            [value]="audioService.currentTime()"
+            [value]="displayedTimeSec()"
             [style.--progress]="progressPercent() + '%'"
             (input)="onSeek($event)"
             aria-label="Seek"
           />
         </div>
-        <span class="deck__time">{{ formatTime(audioService.duration()) }}</span>
+        <span class="deck__time">{{ formatTime(displayedDurationSec()) }}</span>
       </div>
 
       <div class="deck__row">

@@ -38,42 +38,79 @@ describe('AudioService', () => {
     });
   });
 
-  it('should start playing on loadMusic', () => {
+  it('loadMusic does NOT auto-play (caller controls when to start)', () => {
     const mockAudio = new Audio();
     spyOn(window, 'Audio').and.returnValue(mockAudio);
     spyOn(mockAudio, 'play');
 
     service.loadMusic('test.mp3');
 
+    expect(service.isPlaying()).toBeFalse();
+    expect(mockAudio.play).not.toHaveBeenCalled();
+  });
+
+  it('play() starts the audio element', () => {
+    const mockAudio = new Audio();
+    spyOn(window, 'Audio').and.returnValue(mockAudio);
+    spyOn(mockAudio, 'play');
+
+    service.loadMusic('test.mp3');
+    service.play();
+
     expect(service.isPlaying()).toBeTrue();
     expect(mockAudio.play).toHaveBeenCalled();
   });
 
-  it('should pause on first playToggle after loadMusic', () => {
+  it('play() is idempotent when already playing', () => {
+    const mockAudio = new Audio();
+    spyOn(window, 'Audio').and.returnValue(mockAudio);
+    spyOn(mockAudio, 'play');
+
+    service.loadMusic('test.mp3');
+    service.play();
+    service.play();
+
+    expect(mockAudio.play).toHaveBeenCalledTimes(1);
+  });
+
+  it('pause() stops the audio element', () => {
     const mockAudio = new Audio();
     spyOn(window, 'Audio').and.returnValue(mockAudio);
     spyOn(mockAudio, 'play');
     spyOn(mockAudio, 'pause');
 
-    service.loadMusic('test.mp3'); // isPlaying = true
-    service.playToggle(); // pause → isPlaying = false
+    service.loadMusic('test.mp3');
+    service.play();
+    service.pause();
 
     expect(service.isPlaying()).toBeFalse();
     expect(mockAudio.pause).toHaveBeenCalled();
   });
 
-  it('should play on second playToggle', () => {
+  it('pause() is idempotent when already paused', () => {
+    const mockAudio = new Audio();
+    spyOn(window, 'Audio').and.returnValue(mockAudio);
+    spyOn(mockAudio, 'pause');
+
+    service.loadMusic('test.mp3');
+    service.pause();
+
+    expect(mockAudio.pause).not.toHaveBeenCalled();
+  });
+
+  it('playToggle alternates between play and pause', () => {
     const mockAudio = new Audio();
     spyOn(window, 'Audio').and.returnValue(mockAudio);
     spyOn(mockAudio, 'play');
     spyOn(mockAudio, 'pause');
 
-    service.loadMusic('test.mp3'); // isPlaying = true
-    service.playToggle(); // pause
-    service.playToggle(); // play again → isPlaying = true
-
+    service.loadMusic('test.mp3');
+    service.playToggle(); // play
     expect(service.isPlaying()).toBeTrue();
-    expect(mockAudio.play).toHaveBeenCalledTimes(2);
+    service.playToggle(); // pause
+    expect(service.isPlaying()).toBeFalse();
+    expect(mockAudio.play).toHaveBeenCalledTimes(1);
+    expect(mockAudio.pause).toHaveBeenCalledTimes(1);
   });
 
   it('should seek to specified time', () => {
@@ -112,6 +149,7 @@ describe('AudioService', () => {
     spyOn(mockAudio, 'pause');
 
     service.loadMusic('test.mp3');
+    service.play();
     service.cleanup();
 
     expect(mockAudio.pause).toHaveBeenCalled();

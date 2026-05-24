@@ -24,7 +24,7 @@ describe('AppComponent', () => {
 
     const musicSpy = jasmine.createSpyObj(
       'MusicService',
-      ['setCurrentPlaylist', 'selectMusic', 'nextMusic', 'previousMusic', 'isCurrentMusic'],
+      ['setCurrentPlaylist', 'selectMusic', 'isCurrentMusic'],
       {
         currentMusic,
         currentPlayList: signal<Playlist | null>(null),

@@ -44,7 +44,10 @@ const track = (id: string, name = 'Track'): Music => ({
   durationSeconds: 200,
 });
 
-describe('PlaybackSessionService — Phase 1 server-side queue', () => {
+const MY_DEVICE = 'aaaaaaaa-0000-0000-0000-000000000001';
+const OTHER_DEVICE = 'bbbbbbbb-0000-0000-0000-000000000001';
+
+describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)', () => {
   let originalWS: typeof WebSocket;
   let accessToken = signal<string | null>(null);
   let registered = signal(false);
@@ -52,6 +55,8 @@ describe('PlaybackSessionService — Phase 1 server-side queue', () => {
   let currentPlayList = signal<Playlist | null>(null);
   let isPlaying = signal(false);
   let currentTime = signal(0);
+  let audioSpy!: jasmine.SpyObj<AudioService>;
+  let musicSpy!: jasmine.SpyObj<MusicService>;
 
   const flushMicrotasks = () =>
     new Promise<void>((res) => setTimeout(res, 0));
@@ -75,13 +80,13 @@ describe('PlaybackSessionService — Phase 1 server-side queue', () => {
     );
     authSpy.refresh.and.returnValue(of('new-token'));
 
-    const audioSpy = jasmine.createSpyObj(
+    audioSpy = jasmine.createSpyObj(
       'AudioService',
-      ['playToggle', 'seekTo', 'loadMusic', 'cleanup'],
+      ['playToggle', 'play', 'pause', 'seekTo', 'loadMusic', 'cleanup'],
       { isPlaying, currentTime, duration: signal(200) },
     );
 
-    const musicSpy = jasmine.createSpyObj(
+    musicSpy = jasmine.createSpyObj(
       'MusicService',
       ['selectMusic', 'setCurrentPlaylist'],
       {
@@ -90,13 +95,15 @@ describe('PlaybackSessionService — Phase 1 server-side queue', () => {
         isLoading: signal(false),
       },
     );
+    // selectMusic mutates currentMusic the way the real service does.
+    musicSpy.selectMusic.and.callFake((m: Music) => currentMusic.set(m));
 
     const deviceSpy = jasmine.createSpyObj(
       'DeviceService',
       ['getOrCreateDeviceId'],
       { registered },
     );
-    deviceSpy.getOrCreateDeviceId.and.returnValue('device-A');
+    deviceSpy.getOrCreateDeviceId.and.returnValue(MY_DEVICE);
 
     TestBed.configureTestingModule({
       providers: [
@@ -124,10 +131,29 @@ describe('PlaybackSessionService — Phase 1 server-side queue', () => {
     return service;
   };
 
+  const ws = () => MockWebSocket.instances[0];
   const sent = (type: string) =>
-    MockWebSocket.instances[0]?.sentMessages.filter(
-      (m: any) => m?.type === type,
-    ) ?? [];
+    ws()?.sentMessages.filter((m: any) => m?.type === type) ?? [];
+
+  const pushSession = async (overrides: Record<string, unknown> = {}) => {
+    const base = {
+      userId: 'u',
+      activeDeviceId: MY_DEVICE,
+      trackId: '11111111-0000-0000-0000-000000000001',
+      positionMs: 0,
+      isPlaying: true,
+      queue: ['11111111-0000-0000-0000-000000000001'],
+      queueIndex: 0,
+      updatedAt: '2026-05-23T00:00:00Z',
+    };
+    ws().onmessage?.({
+      data: JSON.stringify({ type: 'session', session: { ...base, ...overrides } }),
+    });
+    TestBed.flushEffects();
+    await flushMicrotasks();
+  };
+
+  // ── setQueue fires on user pick (only) ────────────────────────────────────
 
   it('sends setQueue with all playlist tracks when the user picks a track', async () => {
     await setupAndConnect();
@@ -137,12 +163,7 @@ describe('PlaybackSessionService — Phase 1 server-side queue', () => {
       track('11111111-0000-0000-0000-000000000002', 'Bravo'),
       track('11111111-0000-0000-0000-000000000003', 'Charlie'),
     ];
-    currentPlayList.set({
-      id: 1,
-      name: 'All',
-      imageRef: '',
-      musics: tracks,
-    });
+    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: tracks });
     currentMusic.set(tracks[1]);
     TestBed.flushEffects();
 
@@ -157,50 +178,141 @@ describe('PlaybackSessionService — Phase 1 server-side queue', () => {
     );
   });
 
-  it('updates setQueue when the user advances to a different track in the same playlist', async () => {
+  it('does NOT echo setQueue when the active-device effect mutates currentMusic from a remote session', async () => {
+    // Simulate: the user picked nothing yet; the server tells us we're active
+    // playing track Y (e.g. transferred from another device). The
+    // active-device effect calls selectMusic(Y) under applyingRemote=true,
+    // which must NOT trigger a new setQueue echo.
+    const t = track('11111111-0000-0000-0000-000000000001');
+    const playlist: Playlist = { id: 1, name: 'All', imageRef: '', musics: [t] };
+    currentPlayList.set(playlist);
     await setupAndConnect();
 
-    const tracks = [
-      track('22222222-0000-0000-0000-000000000001'),
-      track('22222222-0000-0000-0000-000000000002'),
-    ];
-    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: tracks });
-    currentMusic.set(tracks[0]);
-    TestBed.flushEffects();
-    currentMusic.set(tracks[1]);
-    TestBed.flushEffects();
-
-    const setQueueMsgs = sent('setQueue') as Array<{ startIndex: number }>;
-    expect(setQueueMsgs.length).toBeGreaterThanOrEqual(2);
-    expect(setQueueMsgs[setQueueMsgs.length - 1].startIndex).toBe(1);
-  });
-
-  it('does not send setQueue before a playlist has loaded', async () => {
-    await setupAndConnect();
-
-    currentMusic.set(track('33333333-0000-0000-0000-000000000001'));
-    TestBed.flushEffects();
+    await pushSession({ trackId: t.trackId });
 
     expect(sent('setQueue').length).toBe(0);
+    expect(musicSpy.selectMusic).toHaveBeenCalledWith(t);
   });
 
-  it('still emits start alongside setQueue (Phase 1 keeps backward compat)', async () => {
+  it('does not emit the retired start message', async () => {
     await setupAndConnect();
-
-    const t = track('44444444-0000-0000-0000-000000000001');
+    const t = track('22222222-0000-0000-0000-000000000001');
     currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
     currentMusic.set(t);
     TestBed.flushEffects();
-
-    expect(sent('start').length).toBeGreaterThanOrEqual(1);
-    expect(sent('setQueue').length).toBeGreaterThanOrEqual(1);
+    expect(sent('start').length).toBe(0);
   });
 
-  it('absorbs session messages with the new queue + queueIndex fields', async () => {
-    const service = await setupAndConnect();
-    const ws = MockWebSocket.instances[0];
+  // ── Active device: single owner of audio load + play ─────────────────────
 
-    ws.onmessage?.({
+  it('loads + plays audio on the active device when the server broadcasts a track', async () => {
+    const t = track('11111111-0000-0000-0000-000000000001');
+    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
+    await setupAndConnect();
+
+    await pushSession({ trackId: t.trackId, isPlaying: true });
+
+    expect(audioSpy.loadMusic).toHaveBeenCalledWith(t.audioRef);
+    expect(audioSpy.play).toHaveBeenCalled();
+  });
+
+  it('does NOT load audio on an inactive device even after the user picks a track', async () => {
+    // The user clicked a track on this device, but the server keeps another
+    // device as active. This used to play in parallel — the regression we
+    // just fixed.
+    const t = track('33333333-0000-0000-0000-000000000001');
+    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
+    await setupAndConnect();
+
+    // Pretend another device is active.
+    await pushSession({ activeDeviceId: OTHER_DEVICE, trackId: t.trackId });
+    audioSpy.loadMusic.calls.reset();
+    audioSpy.play.calls.reset();
+
+    // User picks the same track locally.
+    currentMusic.set(t);
+    TestBed.flushEffects();
+    await flushMicrotasks();
+
+    expect(audioSpy.loadMusic).not.toHaveBeenCalled();
+    expect(audioSpy.play).not.toHaveBeenCalled();
+  });
+
+  it('pauses local audio when this device loses active status', async () => {
+    const t = track('11111111-0000-0000-0000-000000000001');
+    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
+    await setupAndConnect();
+    await pushSession({ trackId: t.trackId, isPlaying: true });
+    isPlaying.set(true);
+    audioSpy.pause.calls.reset();
+
+    await pushSession({ activeDeviceId: OTHER_DEVICE, trackId: t.trackId });
+
+    expect(audioSpy.pause).toHaveBeenCalled();
+  });
+
+  // ── Drift tolerance ──────────────────────────────────────────────────────
+
+  it('does not re-seek when server position is within drift tolerance', async () => {
+    const t = track('11111111-0000-0000-0000-000000000001');
+    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
+    await setupAndConnect();
+    await pushSession({ trackId: t.trackId, positionMs: 0 });
+    audioSpy.seekTo.calls.reset();
+
+    // Local audio is at 30s; server reports 30.5s. Drift < 1s.
+    currentTime.set(30);
+    await pushSession({ trackId: t.trackId, positionMs: 30_500 });
+
+    expect(audioSpy.seekTo).not.toHaveBeenCalled();
+  });
+
+  it('re-seeks when drift exceeds the 1s tolerance', async () => {
+    const t = track('11111111-0000-0000-0000-000000000001');
+    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
+    await setupAndConnect();
+    await pushSession({ trackId: t.trackId, positionMs: 0 });
+    audioSpy.seekTo.calls.reset();
+
+    currentTime.set(30);
+    await pushSession({ trackId: t.trackId, positionMs: 60_000 });
+
+    expect(audioSpy.seekTo).toHaveBeenCalledWith(60);
+  });
+
+  // ── Remote pause / resume drives local audio on the active device ────────
+
+  it('pauses local audio when the server reports isPlaying=false on the same track', async () => {
+    const t = track('11111111-0000-0000-0000-000000000001');
+    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
+    await setupAndConnect();
+    await pushSession({ trackId: t.trackId, isPlaying: true });
+    isPlaying.set(true);
+    audioSpy.pause.calls.reset();
+
+    await pushSession({ trackId: t.trackId, isPlaying: false });
+
+    expect(audioSpy.pause).toHaveBeenCalled();
+  });
+
+  it('resumes local audio when the server reports isPlaying=true on the same track', async () => {
+    const t = track('11111111-0000-0000-0000-000000000001');
+    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
+    await setupAndConnect();
+    await pushSession({ trackId: t.trackId, isPlaying: false });
+    isPlaying.set(false);
+    audioSpy.play.calls.reset();
+
+    await pushSession({ trackId: t.trackId, isPlaying: true });
+
+    expect(audioSpy.play).toHaveBeenCalled();
+  });
+
+  // ── Session DTO carries queue + queueIndex (regression for Phase 1) ──────
+
+  it('absorbs session messages with queue + queueIndex', async () => {
+    const service = await setupAndConnect();
+    ws().onmessage?.({
       data: JSON.stringify({
         type: 'session',
         session: {

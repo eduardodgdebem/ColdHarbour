@@ -1,7 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { MusicService } from './music.service';
 import { ApiService } from '../../../core/api/api.service';
-import { AudioService } from './audio.service';
 import { ColorService } from './color.service';
 import { of, throwError } from 'rxjs';
 import type { Music, Playlist } from '../../../core/api/api.service';
@@ -9,7 +8,6 @@ import type { Music, Playlist } from '../../../core/api/api.service';
 describe('MusicService', () => {
   let service: MusicService;
   let apiService: jasmine.SpyObj<ApiService>;
-  let audioService: jasmine.SpyObj<AudioService>;
   let colorService: jasmine.SpyObj<ColorService>;
 
   const mockMusic: Music = {
@@ -33,27 +31,18 @@ describe('MusicService', () => {
   beforeEach(() => {
     const apiSpy = jasmine.createSpyObj('ApiService', ['getPlaylist']);
     apiSpy.getPlaylist.and.returnValue(of(mockPlaylist));
-    const audioSpy = jasmine.createSpyObj('AudioService', [
-      'loadMusic',
-      'playToggle',
-      'seekTo',
-      'setVolume',
-      'cleanup',
-    ]);
     const colorSpy = jasmine.createSpyObj('ColorService', ['extractColor']);
 
     TestBed.configureTestingModule({
       providers: [
         MusicService,
         { provide: ApiService, useValue: apiSpy },
-        { provide: AudioService, useValue: audioSpy },
         { provide: ColorService, useValue: colorSpy },
       ],
     });
 
     service = TestBed.inject(MusicService);
     apiService = TestBed.inject(ApiService) as jasmine.SpyObj<ApiService>;
-    audioService = TestBed.inject(AudioService) as jasmine.SpyObj<AudioService>;
     colorService = TestBed.inject(ColorService) as jasmine.SpyObj<ColorService>;
   });
 
@@ -104,10 +93,16 @@ describe('MusicService', () => {
     expect(service.isCurrentMusic(mockMusic)).toBeFalse();
   });
 
-  it('asks AudioService to load the audioRef whenever currentMusic changes', () => {
+  it('does NOT auto-load audio on currentMusic change (PlaybackSessionService owns that now)', () => {
+    // Audio loading was moved into PlaybackSessionService's active-device
+    // effect so non-active devices stop playing in parallel when their user
+    // picks a track. MusicService is purely UI/data now.
     service.selectMusic(mockMusic);
     TestBed.flushEffects();
-    expect(audioService.loadMusic).toHaveBeenCalledWith(mockMusic.audioRef);
+    // No AudioService dependency anymore — nothing to assert here besides
+    // the fact that this spec configures the TestBed without AudioService
+    // and the service still constructs.
+    expect(service.currentMusic()).toEqual(mockMusic);
   });
 
   it('asks ColorService to extract the album art color when currentMusic changes', () => {

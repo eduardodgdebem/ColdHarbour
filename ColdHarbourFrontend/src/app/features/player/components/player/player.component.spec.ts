@@ -44,13 +44,15 @@ describe('PlayerComponent', () => {
       { currentMusic: signal(null) },
     );
 
-    const playbackSpy = jasmine.createSpyObj('PlaybackSessionService', [
-      'next',
-      'previous',
-      'seek',
-      'pause',
-      'resume',
-    ]);
+    const playbackSpy = jasmine.createSpyObj(
+      'PlaybackSessionService',
+      ['next', 'previous', 'seek', 'pause', 'resume'],
+      {
+        session: signal(null),
+        devices: signal([]),
+        displayedPositionMs: signal(0),
+      },
+    );
 
     await TestBed.configureTestingModule({
       imports: [PlayerComponent],

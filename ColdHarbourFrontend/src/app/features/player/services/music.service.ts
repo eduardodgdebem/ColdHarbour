@@ -1,6 +1,5 @@
 import { effect, Injectable, signal } from '@angular/core';
 import { ApiService, Music, Playlist } from '../../../core/api/api.service';
-import { AudioService } from './audio.service';
 import { ColorService } from './color.service';
 
 export type { Music, Playlist };
@@ -17,7 +16,6 @@ export class MusicService {
 
   constructor(
     private apiService: ApiService,
-    private audioService: AudioService,
     private colorService: ColorService,
   ) {
     // Color extraction reacts to image changes.
@@ -28,15 +26,12 @@ export class MusicService {
       }
     });
 
-    // Audio loading lives at the service level (not on PlayerComponent),
-    // so it survives PlayerComponent unmount-on-/player and doesn't fire
-    // spuriously on remount. Loads the source whenever audioRef changes.
-    effect(() => {
-      const music = this.currentMusic();
-      if (music?.audioRef) {
-        this.audioService.loadMusic(music.audioRef);
-      }
-    });
+    // Audio loading deliberately does NOT live here anymore. In the
+    // server-authoritative model (phase 2+), PlaybackSessionService is the
+    // single owner of "what audio is loaded and whether it's playing" —
+    // gated on whether this device is the server-designated active device.
+    // Loading audio on currentMusic change here would make every device
+    // play in parallel the moment its user picked a track.
   }
 
   public setCurrentPlaylist(id: number) {

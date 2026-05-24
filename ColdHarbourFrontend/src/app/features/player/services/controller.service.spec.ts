@@ -32,13 +32,11 @@ describe('ControllerService', () => {
       { currentMusic: signal(null) },
     );
 
-    playbackSpy = jasmine.createSpyObj('PlaybackSessionService', [
-      'next',
-      'previous',
-      'seek',
-      'pause',
-      'resume',
-    ]);
+    playbackSpy = jasmine.createSpyObj(
+      'PlaybackSessionService',
+      ['next', 'previous', 'seek', 'pause', 'resume'],
+      { session: signal(null), devices: signal([]) },
+    );
 
     TestBed.configureTestingModule({
       providers: [

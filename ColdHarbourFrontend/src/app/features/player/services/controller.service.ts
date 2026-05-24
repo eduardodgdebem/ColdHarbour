@@ -43,7 +43,11 @@ export class ControllerService {
   }
 
   private togglePlayPause() {
-    if (this.audioService.isPlaying()) {
+    // Read server state — local audio is silent on inactive devices, so
+    // basing the decision on audioService.isPlaying() would always resume.
+    const sess = this.playbackSession.session();
+    const playing = sess?.isPlaying ?? this.audioService.isPlaying();
+    if (playing) {
       this.playbackSession.pause();
     } else {
       this.playbackSession.resume();
@@ -72,14 +76,10 @@ export class ControllerService {
   private setupMediaSession() {
     if (this.mediaSession) {
       this.mediaSession.setActionHandler('play', () => {
-        if (!this.audioService.isPlaying()) {
-          this.playbackSession.resume();
-        }
+        this.playbackSession.resume();
       });
       this.mediaSession.setActionHandler('pause', () => {
-        if (this.audioService.isPlaying()) {
-          this.playbackSession.pause();
-        }
+        this.playbackSession.pause();
       });
       this.mediaSession.setActionHandler('nexttrack', () => {
         this.playbackSession.next();

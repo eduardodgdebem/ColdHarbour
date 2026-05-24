@@ -31,8 +31,9 @@ export class LocalAudioSource implements AudioSource {
   }
 
   loadMusic(src: string): void {
-    // Skip if this URL is already loaded (playing or paused). This prevents the
-    // player component from restarting audio when it re-mounts on the same track.
+    // Skip if this URL is already loaded (playing or paused). This prevents
+    // the player component from re-instantiating audio on the same track when
+    // it re-mounts.
     if (src === this.currentSrc && this.audio) return;
     const previousVolume = this.audio?.volume ?? 1;
     this.cleanup();
@@ -50,12 +51,28 @@ export class LocalAudioSource implements AudioSource {
       this.isPlaying.set(false);
       this.ended.set(true);
     });
-    this.play();
+    // No auto-play. The PlaybackSessionService decides when this device
+    // (if active) should start playing.
+  }
+
+  play(): void {
+    if (!this.audio) return;
+    if (this.isPlaying()) return;
+    this.isPlaying.set(true);
+    this.audio.play();
+  }
+
+  pause(): void {
+    if (!this.audio) return;
+    if (!this.isPlaying()) return;
+    this.isPlaying.set(false);
+    this.audio.pause();
   }
 
   playToggle(): void {
     if (!this.audio) return;
-    this.isPlaying() ? this.pause() : this.play();
+    if (this.isPlaying()) this.pause();
+    else this.play();
   }
 
   seekTo(time: number): void {
@@ -78,18 +95,6 @@ export class LocalAudioSource implements AudioSource {
       this.audio.remove();
       this.audio = undefined;
     }
-  }
-
-  private play(): void {
-    if (!this.audio) return;
-    this.isPlaying.set(true);
-    this.audio.play();
-  }
-
-  private pause(): void {
-    if (!this.audio) return;
-    this.isPlaying.set(false);
-    this.audio.pause();
   }
 
   private startTimeUpdate(): void {

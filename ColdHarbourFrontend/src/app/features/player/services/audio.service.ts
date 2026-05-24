@@ -14,6 +14,12 @@ export class AudioService {
   loadMusic(src: string): void {
     this.source.loadMusic(src);
   }
+  play(): void {
+    this.source.play();
+  }
+  pause(): void {
+    this.source.pause();
+  }
   playToggle(): void {
     this.source.playToggle();
   }

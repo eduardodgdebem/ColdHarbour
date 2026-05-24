@@ -22,11 +22,31 @@ export class PlayerPageComponent {
   private readonly location = inject(Location);
 
   readonly currentMusic = this.musicService.currentMusic;
-  readonly isPlaying = this.audioService.isPlaying;
+  // Reflects the *server's* play state — falls back to local audio when no
+  // session has arrived yet. Lets inactive devices show the right icon and
+  // remote-control the active device.
+  readonly isPlaying = computed<boolean>(() => {
+    const sess = this.playbackSession.session();
+    if (sess) return sess.isPlaying;
+    return this.audioService.isPlaying();
+  });
+
+  // Server-aware position + duration. Active device tracks live <audio>;
+  // inactive device tracks server position interpolated between heartbeats,
+  // and uses the track metadata duration (audioService.duration() is 0 when
+  // audio isn't loaded locally).
+  readonly displayedTimeSec = computed<number>(
+    () => this.playbackSession.displayedPositionMs() / 1000,
+  );
+  readonly displayedDurationSec = computed<number>(() => {
+    const live = this.audioService.duration();
+    if (live > 0) return live;
+    return this.musicService.currentMusic()?.durationSeconds ?? 0;
+  });
 
   readonly progressPercent = computed(() => {
-    const d = this.audioService.duration();
-    const t = this.audioService.currentTime();
+    const d = this.displayedDurationSec();
+    const t = this.displayedTimeSec();
     if (!d) return 0;
     return Math.min(100, Math.max(0, (t / d) * 100));
   });
@@ -40,7 +60,7 @@ export class PlayerPageComponent {
   }
 
   togglePlay(): void {
-    if (this.audioService.isPlaying()) {
+    if (this.isPlaying()) {
       this.playbackSession.pause();
     } else {
       this.playbackSession.resume();

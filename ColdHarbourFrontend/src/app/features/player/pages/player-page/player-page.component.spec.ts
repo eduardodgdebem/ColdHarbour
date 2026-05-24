@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
+import { signal, WritableSignal } from '@angular/core';
 import { Location } from '@angular/common';
 import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
@@ -61,13 +61,17 @@ describe('PlayerPageComponent', () => {
       { isPlaying, currentTime, duration, volume, ended: signal(false) },
     );
 
-    playbackSpy = jasmine.createSpyObj('PlaybackSessionService', [
-      'next',
-      'previous',
-      'seek',
-      'pause',
-      'resume',
-    ]);
+    playbackSpy = jasmine.createSpyObj(
+      'PlaybackSessionService',
+      ['next', 'previous', 'seek', 'pause', 'resume'],
+      {
+        session: signal(null),
+        devices: signal([]),
+        // Mirror the real service's behavior: when no session, displayed
+        // position falls through to audioService.currentTime().
+        displayedPositionMs: signal(0),
+      },
+    );
 
     locationSpy = jasmine.createSpyObj('Location', ['back']);
 
@@ -180,6 +184,8 @@ describe('PlayerPageComponent', () => {
 
   it('formats progress time as M:SS', () => {
     setUp();
+    // displayedPositionMs is the source of truth for the rendered position.
+    (playbackSpy.displayedPositionMs as unknown as WritableSignal<number>).set(83_000);
     currentTime.set(83);
     duration.set(240);
     fixture.detectChanges();

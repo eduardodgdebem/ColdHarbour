@@ -1,3 +1,5 @@
+using ColdHarbour.Domain.Playback;
+
 namespace ColdHarbour.Application.Playback.Dtos;
 
 public sealed record PlaybackSessionDto(
@@ -8,4 +10,6 @@ public sealed record PlaybackSessionDto(
     bool IsPlaying,
     IReadOnlyList<Guid> Queue,
     int QueueIndex,
+    RepeatMode RepeatMode,
+    bool Shuffle,
     DateTimeOffset UpdatedAt);

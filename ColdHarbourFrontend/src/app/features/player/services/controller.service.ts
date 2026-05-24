@@ -1,4 +1,4 @@
-import { effect, inject, Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { AudioService } from './audio.service';
 import { MusicService } from './music.service';
 import { PlaybackSessionService } from './playback-session.service';
@@ -31,15 +31,9 @@ export class ControllerService {
   }
 
   private setupEffects() {
-    // Track ended on the active device → ask the server to advance.
-    // (Phase 3 will replace this with a dedicated 'trackEnded' message
-    // that lets the server choose the next item per shuffle/repeat.)
-    effect(() => {
-      if (this.audioService.ended()) {
-        this.playbackSession.next();
-        this.audioService.ended.set(false);
-      }
-    });
+    // Track-ended handling moved to PlaybackSessionService in phase 3 — it
+    // sends a dedicated `trackEnded` message so the server can honor shuffle
+    // and repeat instead of always advancing to the next index.
   }
 
   private togglePlayPause() {

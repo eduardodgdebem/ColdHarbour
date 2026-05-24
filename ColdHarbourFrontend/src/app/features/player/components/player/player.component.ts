@@ -56,6 +56,23 @@ export class PlayerComponent {
     return this.musicService.currentMusic()?.durationSeconds ?? 0;
   });
 
+  readonly shuffleOn = computed<boolean>(
+    () => this.playbackSession.session()?.shuffle ?? false,
+  );
+  readonly repeatMode = computed<'off' | 'all' | 'one'>(
+    () => this.playbackSession.session()?.repeatMode ?? 'off',
+  );
+  readonly repeatLabel = computed(() => {
+    switch (this.repeatMode()) {
+      case 'all':
+        return 'REP•A';
+      case 'one':
+        return 'REP•1';
+      default:
+        return 'REP';
+    }
+  });
+
   constructor(
     public audioService: AudioService,
     public musicService: MusicService,
@@ -122,6 +139,16 @@ export class PlayerComponent {
 
   public previousClick() {
     this.playbackSession.previous();
+  }
+
+  public toggleShuffle() {
+    this.playbackSession.setShuffle(!this.shuffleOn());
+  }
+
+  public cycleRepeat() {
+    const order: Array<'off' | 'all' | 'one'> = ['off', 'all', 'one'];
+    const idx = order.indexOf(this.repeatMode());
+    this.playbackSession.setRepeatMode(order[(idx + 1) % order.length]);
   }
 
   public onInputChange(e: Event) {

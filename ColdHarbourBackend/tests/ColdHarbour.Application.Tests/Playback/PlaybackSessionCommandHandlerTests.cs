@@ -230,6 +230,148 @@ public sealed class SeekCommandHandlerTests
     }
 }
 
+public sealed class SetRepeatModeCommandHandlerTests
+{
+    private readonly IPlaybackSessionStore _store = Substitute.For<IPlaybackSessionStore>();
+
+    [Fact]
+    public async Task Handle_StoresRepeatMode()
+    {
+        var userId = Guid.NewGuid();
+        var session = PlaybackSession.Create(userId);
+        _store.GetOrCreate(userId).Returns(session);
+
+        await new SetRepeatModeCommandHandler(_store)
+            .Handle(new SetRepeatModeCommand(userId, RepeatMode.All), CancellationToken.None);
+
+        session.RepeatMode.Should().Be(RepeatMode.All);
+    }
+}
+
+public sealed class SetShuffleCommandHandlerTests
+{
+    private readonly IPlaybackSessionStore _store = Substitute.For<IPlaybackSessionStore>();
+
+    [Fact]
+    public async Task Handle_StoresShuffleFlag()
+    {
+        var userId = Guid.NewGuid();
+        var session = PlaybackSession.Create(userId);
+        session.SetQueue(new[] { Guid.NewGuid(), Guid.NewGuid() }, 0);
+        _store.GetOrCreate(userId).Returns(session);
+
+        await new SetShuffleCommandHandler(_store)
+            .Handle(new SetShuffleCommand(userId, true), CancellationToken.None);
+
+        session.Shuffle.Should().BeTrue();
+    }
+}
+
+public sealed class TrackEndedCommandHandlerTests
+{
+    private readonly IPlaybackSessionStore _store = Substitute.For<IPlaybackSessionStore>();
+    private readonly IPlayEventRepository _events = Substitute.For<IPlayEventRepository>();
+
+    private TrackEndedCommandHandler CreateHandler() => new(_store, _events);
+
+    [Fact]
+    public async Task Handle_ClosesActivePlayEventAndAdvancesQueue()
+    {
+        var userId = Guid.NewGuid();
+        var device = Guid.NewGuid();
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        var session = PlaybackSession.Create(userId);
+        session.SetQueue(tracks, 0);
+        session.ClaimActiveIfNone(device);
+        _store.GetOrCreate(userId).Returns(session);
+
+        var openEvent = PlayEvent.Begin(userId, device, tracks[0]);
+        _events.FindActiveByUserAsync(userId, Arg.Any<CancellationToken>()).Returns(openEvent);
+
+        await CreateHandler().Handle(
+            new TrackEndedCommand(userId, device, tracks[0], 180_000),
+            CancellationToken.None);
+
+        openEvent.EndedAt.Should().NotBeNull();
+        openEvent.CompletedRatio.Should().Be(1.0);
+        session.TrackId.Should().Be(tracks[1]);
+        await _events.Received(1).AddAsync(
+            Arg.Is<PlayEvent>(e => e.TrackId == tracks[1] && e.DeviceId == device),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_RepeatOne_RestartsSameTrack_NoNewPlayEvent()
+    {
+        var userId = Guid.NewGuid();
+        var device = Guid.NewGuid();
+        var track = Guid.NewGuid();
+        var session = PlaybackSession.Create(userId);
+        session.SetQueue(new[] { track }, 0);
+        session.ClaimActiveIfNone(device);
+        session.SetRepeatMode(RepeatMode.One);
+        _store.GetOrCreate(userId).Returns(session);
+
+        var openEvent = PlayEvent.Begin(userId, device, track);
+        _events.FindActiveByUserAsync(userId, Arg.Any<CancellationToken>()).Returns(openEvent);
+
+        await CreateHandler().Handle(
+            new TrackEndedCommand(userId, device, track, 180_000),
+            CancellationToken.None);
+
+        openEvent.EndedAt.Should().NotBeNull();
+        session.TrackId.Should().Be(track);
+        session.PositionMs.Should().Be(0);
+        await _events.Received(1).AddAsync(
+            Arg.Is<PlayEvent>(e => e.TrackId == track),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_RepeatOff_LastTrack_StopsAndNoNewPlayEvent()
+    {
+        var userId = Guid.NewGuid();
+        var device = Guid.NewGuid();
+        var track = Guid.NewGuid();
+        var session = PlaybackSession.Create(userId);
+        session.SetQueue(new[] { track }, 0);
+        session.ClaimActiveIfNone(device);
+        _store.GetOrCreate(userId).Returns(session);
+
+        var openEvent = PlayEvent.Begin(userId, device, track);
+        _events.FindActiveByUserAsync(userId, Arg.Any<CancellationToken>()).Returns(openEvent);
+
+        await CreateHandler().Handle(
+            new TrackEndedCommand(userId, device, track, 180_000),
+            CancellationToken.None);
+
+        session.TrackId.Should().BeNull();
+        session.IsPlaying.Should().BeFalse();
+        await _events.DidNotReceive().AddAsync(Arg.Any<PlayEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_FromNonActiveDevice_NoOp()
+    {
+        var userId = Guid.NewGuid();
+        var activeDevice = Guid.NewGuid();
+        var staleDevice = Guid.NewGuid();
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        var session = PlaybackSession.Create(userId);
+        session.SetQueue(tracks, 0);
+        session.ClaimActiveIfNone(activeDevice);
+        _store.GetOrCreate(userId).Returns(session);
+
+        await CreateHandler().Handle(
+            new TrackEndedCommand(userId, staleDevice, tracks[0], 180_000),
+            CancellationToken.None);
+
+        session.QueueIndex.Should().Be(0);
+        session.TrackId.Should().Be(tracks[0]);
+        await _events.DidNotReceive().AddAsync(Arg.Any<PlayEvent>(), Arg.Any<CancellationToken>());
+    }
+}
+
 public sealed class ListDevicesQueryHandlerTests
 {
     private readonly IDeviceRepository _repo = Substitute.For<IDeviceRepository>();

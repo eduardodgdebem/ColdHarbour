@@ -63,7 +63,16 @@ describe('PlayerPageComponent', () => {
 
     playbackSpy = jasmine.createSpyObj(
       'PlaybackSessionService',
-      ['next', 'previous', 'seek', 'pause', 'resume'],
+      [
+        'next',
+        'previous',
+        'seek',
+        'pause',
+        'resume',
+        'setRepeatMode',
+        'setShuffle',
+        'trackEnded',
+      ],
       {
         session: signal(null),
         devices: signal([]),
@@ -180,6 +189,55 @@ describe('PlayerPageComponent', () => {
       .query(By.css('.bar__close'))
       .nativeElement.click();
     expect(locationSpy.back).toHaveBeenCalled();
+  });
+
+  it('toggleShuffle sends the inverse of the current server flag', () => {
+    setUp();
+    (playbackSpy.session as unknown as WritableSignal<any>).set({
+      userId: 'u',
+      activeDeviceId: null,
+      trackId: null,
+      positionMs: 0,
+      isPlaying: false,
+      queue: [],
+      queueIndex: 0,
+      repeatMode: 'off',
+      shuffle: false,
+      updatedAt: '2026-05-23T00:00:00Z',
+    });
+    fixture.detectChanges();
+    component.toggleShuffle();
+    expect(playbackSpy.setShuffle).toHaveBeenCalledWith(true);
+  });
+
+  it('cycleRepeat walks off → all → one → off', () => {
+    setUp();
+    const sessionSig = playbackSpy.session as unknown as WritableSignal<any>;
+    const base = {
+      userId: 'u',
+      activeDeviceId: null,
+      trackId: null,
+      positionMs: 0,
+      isPlaying: false,
+      queue: [],
+      queueIndex: 0,
+      shuffle: false,
+      updatedAt: '2026-05-23T00:00:00Z',
+    };
+    sessionSig.set({ ...base, repeatMode: 'off' });
+    fixture.detectChanges();
+    component.cycleRepeat();
+    expect(playbackSpy.setRepeatMode).toHaveBeenCalledWith('all');
+
+    sessionSig.set({ ...base, repeatMode: 'all' });
+    fixture.detectChanges();
+    component.cycleRepeat();
+    expect(playbackSpy.setRepeatMode).toHaveBeenCalledWith('one');
+
+    sessionSig.set({ ...base, repeatMode: 'one' });
+    fixture.detectChanges();
+    component.cycleRepeat();
+    expect(playbackSpy.setRepeatMode).toHaveBeenCalledWith('off');
   });
 
   it('formats progress time as M:SS', () => {

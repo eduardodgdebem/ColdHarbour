@@ -51,6 +51,23 @@ export class PlayerPageComponent {
     return Math.min(100, Math.max(0, (t / d) * 100));
   });
 
+  readonly shuffleOn = computed<boolean>(
+    () => this.playbackSession.session()?.shuffle ?? false,
+  );
+  readonly repeatMode = computed<'off' | 'all' | 'one'>(
+    () => this.playbackSession.session()?.repeatMode ?? 'off',
+  );
+  readonly repeatLabel = computed(() => {
+    switch (this.repeatMode()) {
+      case 'all':
+        return 'REP•A';
+      case 'one':
+        return 'REP•1';
+      default:
+        return 'REP';
+    }
+  });
+
   readonly volumePercent = computed(
     () => Math.round(this.audioService.volume() * 100),
   );
@@ -65,6 +82,16 @@ export class PlayerPageComponent {
     } else {
       this.playbackSession.resume();
     }
+  }
+
+  toggleShuffle(): void {
+    this.playbackSession.setShuffle(!this.shuffleOn());
+  }
+
+  cycleRepeat(): void {
+    const order: Array<'off' | 'all' | 'one'> = ['off', 'all', 'one'];
+    const idx = order.indexOf(this.repeatMode());
+    this.playbackSession.setRepeatMode(order[(idx + 1) % order.length]);
   }
 
   next(): void {

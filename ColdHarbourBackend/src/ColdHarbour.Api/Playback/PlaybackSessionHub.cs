@@ -33,6 +33,7 @@ public sealed class PlaybackSessionHub(
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
     };
 
     public async Task HandleAsync(HttpContext ctx, WebSocket ws)
@@ -185,6 +186,28 @@ public sealed class PlaybackSessionHub(
                         session.Clear();
                         break;
                     }
+                case "setRepeatMode":
+                    {
+                        var rawMode = node!["mode"]?.GetValue<string>();
+                        if (!Enum.TryParse<RepeatMode>(rawMode, ignoreCase: true, out var mode))
+                            break;
+                        await mediator.Send(new SetRepeatModeCommand(userId, mode), ct);
+                        break;
+                    }
+                case "setShuffle":
+                    {
+                        var enabled = node!["enabled"]?.GetValue<bool>() ?? false;
+                        await mediator.Send(new SetShuffleCommand(userId, enabled), ct);
+                        break;
+                    }
+                case "trackEnded":
+                    {
+                        var sender = node!["deviceId"]!.GetValue<Guid>();
+                        var trackId = node!["trackId"]!.GetValue<Guid>();
+                        var durationMs = node!["durationMs"]?.GetValue<long>() ?? 0;
+                        await mediator.Send(new TrackEndedCommand(userId, sender, trackId, durationMs), ct);
+                        break;
+                    }
             }
         }
         catch (Exception ex)
@@ -213,6 +236,8 @@ public sealed class PlaybackSessionHub(
             session.IsPlaying,
             session.Queue,
             session.QueueIndex,
+            session.RepeatMode,
+            session.Shuffle,
             session.UpdatedAt);
 
         var payload = JsonSerializer.Serialize(new { type = "session", session = dto }, _jsonOpts);

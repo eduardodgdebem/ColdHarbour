@@ -12,6 +12,8 @@ import { DeviceService } from '../../devices/device.service';
 import { AudioService } from './audio.service';
 import { MusicService } from './music.service';
 
+export type RepeatMode = 'off' | 'all' | 'one';
+
 export type PlaybackSessionDto = {
   userId: string;
   activeDeviceId: string | null;
@@ -20,6 +22,8 @@ export type PlaybackSessionDto = {
   isPlaying: boolean;
   queue: string[];
   queueIndex: number;
+  repeatMode: RepeatMode;
+  shuffle: boolean;
   updatedAt: string;
 };
 
@@ -194,6 +198,23 @@ export class PlaybackSessionService {
       });
     });
 
+    // The active device tells the server when its <audio> hits 'ended'. The
+    // server decides what plays next (shuffle/repeat honored there). Inactive
+    // devices ignore their own ended signal — there is no audio playing on
+    // them, so any 'ended' would be stale.
+    effect(() => {
+      if (!audioService.ended()) return;
+      const sess = untracked(() => this.session());
+      const myId = deviceService.getOrCreateDeviceId();
+      if (sess && sess.activeDeviceId === myId && sess.trackId) {
+        const durationMs = Math.floor(
+          untracked(() => audioService.duration()) * 1000,
+        );
+        this.trackEnded(sess.trackId, durationMs);
+      }
+      audioService.ended.set(false);
+    });
+
     // Inactive-device position interpolation: re-baseline whenever the server
     // sends a fresh session, then tick locally while the server says playing.
     effect(() => {
@@ -261,6 +282,28 @@ export class PlaybackSessionService {
     this.send({
       type: 'resume',
       deviceId: this.deviceService.getOrCreateDeviceId(),
+    });
+  }
+
+  setRepeatMode(mode: RepeatMode): void {
+    this.send({ type: 'setRepeatMode', mode });
+  }
+
+  setShuffle(enabled: boolean): void {
+    this.send({ type: 'setShuffle', enabled });
+  }
+
+  /**
+   * Called when the active device's `<audio>` element fires the `ended`
+   * event. The server then runs AdvanceAfterEnd (honoring repeat + shuffle)
+   * and broadcasts the new session.
+   */
+  trackEnded(trackId: string, durationMs: number): void {
+    this.send({
+      type: 'trackEnded',
+      deviceId: this.deviceService.getOrCreateDeviceId(),
+      trackId,
+      durationMs: Math.max(0, Math.floor(durationMs)),
     });
   }
 

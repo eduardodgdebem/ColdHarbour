@@ -55,6 +55,8 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
   let currentPlayList = signal<Playlist | null>(null);
   let isPlaying = signal(false);
   let currentTime = signal(0);
+  let duration = signal(200);
+  let ended = signal(false);
   let audioSpy!: jasmine.SpyObj<AudioService>;
   let musicSpy!: jasmine.SpyObj<MusicService>;
 
@@ -72,6 +74,8 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     currentPlayList = signal<Playlist | null>(null);
     isPlaying = signal(false);
     currentTime = signal(0);
+    duration = signal(200);
+    ended = signal(false);
 
     const authSpy = jasmine.createSpyObj(
       'AuthService',
@@ -83,7 +87,7 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     audioSpy = jasmine.createSpyObj(
       'AudioService',
       ['playToggle', 'play', 'pause', 'seekTo', 'loadMusic', 'cleanup'],
-      { isPlaying, currentTime, duration: signal(200) },
+      { isPlaying, currentTime, duration, ended },
     );
 
     musicSpy = jasmine.createSpyObj(
@@ -323,6 +327,8 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
           isPlaying: true,
           queue: ['tt', 'tt2'],
           queueIndex: 0,
+          repeatMode: 'off',
+          shuffle: false,
           updatedAt: '2026-05-23T00:00:00Z',
         },
       }),
@@ -330,5 +336,54 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
 
     expect(service.session()?.queue).toEqual(['tt', 'tt2']);
     expect(service.session()?.queueIndex).toBe(0);
+    expect(service.session()?.repeatMode).toBe('off');
+    expect(service.session()?.shuffle).toBeFalse();
+  });
+
+  // ── Phase 3: shuffle / repeat / trackEnded ──────────────────────────────
+
+  it('setRepeatMode sends a setRepeatMode message', async () => {
+    const service = await setupAndConnect();
+    service.setRepeatMode('all');
+    expect(sent('setRepeatMode')[0]).toEqual(
+      jasmine.objectContaining({ type: 'setRepeatMode', mode: 'all' }),
+    );
+  });
+
+  it('setShuffle sends a setShuffle message', async () => {
+    const service = await setupAndConnect();
+    service.setShuffle(true);
+    expect(sent('setShuffle')[0]).toEqual(
+      jasmine.objectContaining({ type: 'setShuffle', enabled: true }),
+    );
+  });
+
+  it('sends trackEnded only when this device is the active one', async () => {
+    const t = track('11111111-0000-0000-0000-000000000001');
+    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
+    await setupAndConnect();
+
+    // Active device: ended fires → trackEnded sent.
+    await pushSession({ trackId: t.trackId, activeDeviceId: MY_DEVICE });
+    duration.set(180);
+    ended.set(true);
+    TestBed.flushEffects();
+    await flushMicrotasks();
+    expect(sent('trackEnded').length).toBe(1);
+    expect(sent('trackEnded')[0]).toEqual(
+      jasmine.objectContaining({
+        type: 'trackEnded',
+        trackId: t.trackId,
+        durationMs: 180_000,
+      }),
+    );
+
+    // Inactive device: ended is ignored.
+    ended.set(false);
+    await pushSession({ trackId: t.trackId, activeDeviceId: OTHER_DEVICE });
+    ended.set(true);
+    TestBed.flushEffects();
+    await flushMicrotasks();
+    expect(sent('trackEnded').length).toBe(1); // still 1
   });
 });

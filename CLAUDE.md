@@ -289,13 +289,16 @@ JWT is supplied as a query param because the browser WebSocket API cannot set cu
 
 **Client → server messages (all include `deviceId`):**
 
-- `{ type: "setQueue", deviceId, trackIds: Guid[], startIndex: int }` — declare the ordered queue + the current index. Sent by the client when a track is picked from a playlist. The handler also sets `TrackId = Queue[startIndex]`, `IsPlaying = true`, `PositionMs = 0`, and claims the sender as `ActiveDeviceId` if none is set. Subsumes the retired `start` message.
+- `{ type: "setQueue", deviceId, trackIds: Guid[], startIndex: int }` — declare the ordered queue + the current index. Sent by the client when a track is picked from a playlist. The handler also sets `TrackId = Queue[startIndex]`, `IsPlaying = true`, `PositionMs = 0`, and claims the sender as `ActiveDeviceId` if none is set. Subsumes the retired `start` message. Also re-seeds the shuffle order when `Shuffle` is on.
 - `{ type: "next", deviceId }` / `{ type: "previous", deviceId }` — advance / rewind the queue (wraps around). Accepted from **any** device — transport commands affect the active device, not the sender. If no active device is set, the sender claims it.
 - `{ type: "seek", deviceId, positionMs }` — seek to `positionMs` in the current track. Accepted from any device.
 - `{ type: "pause", deviceId }` / `{ type: "resume", deviceId }` — pause / resume on the active device. Accepted from any device. If no active device is set, the sender claims it. (No `positionMs` payload — the server already has the last heartbeat.)
 - `{ type: "heartbeat", deviceId, positionMs }` — every 2s from the active device.
 - `{ type: "transfer", deviceId, positionMs }` — hand off to `deviceId` at `positionMs`.
 - `{ type: "stop", deviceId }` — clear session.
+- `{ type: "setRepeatMode", mode: "off" | "all" | "one" }` — set the session's repeat mode. Affects only auto-advance (`trackEnded` → `AdvanceAfterEnd`); user-clicked `next`/`previous` always navigate the queue linearly.
+- `{ type: "setShuffle", enabled: bool }` — toggle shuffle. When enabled, the server keeps a stable shuffled order (Fisher-Yates) that auto-advance walks through; the order re-seeds on `setQueue` and on `setShuffle(true)`.
+- `{ type: "trackEnded", deviceId, trackId, durationMs }` — sent by the active device when its `<audio>` fires `ended`. The handler closes the open `PlayEvent` (`PlayEvent.Complete(durationMs, durationMs)`) and runs `AdvanceAfterEnd`, honoring `RepeatMode` + `Shuffle`. If a new track results, opens a fresh `PlayEvent.Begin`. Stale `trackEnded` from a non-active device or for a stale `trackId` is dropped.
 
 **Active-device guard (phase 2 narrowing):** the guard now applies **only** to `heartbeat` and `stop` — these carry position truth / destructive intent and must come from the device actually playing audio. Transport commands (`pause`, `resume`, `next`, `previous`, `seek`, `setQueue`) explicitly accept any device's deviceId so any client can drive playback on the active device (Spotify-Connect semantics).
 
@@ -319,12 +322,12 @@ JWT is supplied as a query param because the browser WebSocket API cannot set cu
 - `User { Id, Name, Email, PasswordHash, Role, TotpSecret?, CreatedAt }`
 - `RefreshToken { Id, UserId, DeviceId, TokenHash, ExpiresAt, RevokedAt?, FamilyId }`
 - `Device { Id, UserId, Name, UserAgent, SupportedCodecs, PreferredProfile, BitrateCap?, LastSeenAt }`
-- `PlaybackSession { UserId, ActiveDeviceId, TrackId, PositionMs, IsPlaying, Queue, QueueIndex, UpdatedAt }` — in-memory, one per user. `Queue` is an ordered list of `Guid` track IDs; `QueueIndex` points at the current item. Invariant: when `Queue` is non-empty, `0 ≤ QueueIndex < Queue.Count`. `SetQueue` also primes `TrackId = Queue[startIndex]`, `IsPlaying = true`, `PositionMs = 0` (subsumes the retired `Start`). `AdvanceNext` / `AdvancePrevious` wrap. `ClaimActiveIfNone(deviceId)` lets the hub install the sender as active when no device owns playback.
+- `PlaybackSession { UserId, ActiveDeviceId, TrackId, PositionMs, IsPlaying, Queue, QueueIndex, RepeatMode, Shuffle, UpdatedAt }` — in-memory, one per user. `Queue` is an ordered list of `Guid` track IDs; `QueueIndex` points at the current item. Invariant: when `Queue` is non-empty, `0 ≤ QueueIndex < Queue.Count`. `SetQueue` also primes `TrackId = Queue[startIndex]`, `IsPlaying = true`, `PositionMs = 0` (subsumes the retired `Start`). `AdvanceNext` / `AdvancePrevious` wrap. `AdvanceAfterEnd` honors `RepeatMode` (`Off` stops at end of cycle, `All` wraps, `One` restarts the same track) and `Shuffle` (stable Fisher-Yates order, re-seeded on `SetQueue` / `SetShuffle(true)`). `ClaimActiveIfNone(deviceId)` lets the hub install the sender as active when no device owns playback.
 - `PlayEvent { Id, UserId, DeviceId, TrackId, StartedAt, EndedAt?, CompletedRatio? }` — persisted
 
 **Application commands / queries**
 
-- Commands: `RegisterUser`, `AuthenticateUser`, `RefreshAccessToken`, `Logout`, `RegisterDevice`, `SetQueue`, `NextTrack`, `PreviousTrack`, `Seek`, `UpdatePlaybackPosition`, `TransferPlayback`, `UploadTrack`, `DeleteTrack`, `SyncLibrary`
+- Commands: `RegisterUser`, `AuthenticateUser`, `RefreshAccessToken`, `Logout`, `RegisterDevice`, `SetQueue`, `NextTrack`, `PreviousTrack`, `Seek`, `SetRepeatMode`, `SetShuffle`, `TrackEnded`, `UpdatePlaybackPosition`, `TransferPlayback`, `UploadTrack`, `DeleteTrack`, `SyncLibrary`
 - Queries: `GetPlaylist`, `GetActiveSession`, `ListDevices`, `PreviewLibrarySync`
 
 **Infrastructure services**

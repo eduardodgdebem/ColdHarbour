@@ -308,6 +308,52 @@ $mobile: 768px;
   }
 }
 
+.modes {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  @media (max-width: $mobile - 1px) {
+    order: 1;
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+.modes__btn {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  padding: 8px 12px;
+  background: var(--off-white);
+  color: var(--black);
+  border: var(--border);
+  cursor: pointer;
+  text-transform: uppercase;
+
+  &:hover {
+    background: var(--accent);
+    box-shadow: 4px 4px 0 0 var(--black);
+  }
+
+  &:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 0 var(--black);
+  }
+
+  &--active {
+    background: var(--black);
+    color: var(--accent);
+
+    &:hover {
+      background: var(--accent);
+      color: var(--black);
+    }
+  }
+}
+
 .transport {
   grid-column: 2;
   display: flex;
@@ -360,13 +406,19 @@ $mobile: 768px;
     display: inline-flex;
     width: 32px;
     height: 32px;
-    color: var(--blac);
+    // Yellow icon on the black play button background.
+    color: var(--accent);
   }
 
   &:hover {
     color: var(--black);
     background: var(--accent);
     box-shadow: 6px 6px 0 0 var(--black);
+
+    app-play-icon,
+    app-pause-icon {
+      color: var(--black);
+    }
   }
 
   &:active {

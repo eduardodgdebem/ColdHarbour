@@ -70,6 +70,29 @@
       </div>
 
       <div class="deck__row">
+        <div class="modes">
+          <button
+            type="button"
+            class="modes__btn"
+            [class.modes__btn--active]="shuffleOn()"
+            [attr.aria-pressed]="shuffleOn()"
+            aria-label="Shuffle"
+            title="Shuffle"
+            (click)="toggleShuffle()"
+          >
+            SHUF
+          </button>
+          <button
+            type="button"
+            class="modes__btn"
+            [class.modes__btn--active]="repeatMode() !== 'off'"
+            [attr.aria-label]="'Repeat: ' + repeatMode()"
+            title="Repeat (off / all / one)"
+            (click)="cycleRepeat()"
+          >
+            {{ repeatLabel() }}
+          </button>
+        </div>
         <div class="transport">
           <button
             type="button"

@@ -85,6 +85,19 @@ public sealed class PlaybackSession
         _queue.Clear();
         _queue.AddRange(trackIds);
         QueueIndex = startIndex;
+        PositionMs = 0;
+
+        if (_queue.Count > 0)
+        {
+            TrackId = _queue[startIndex];
+            IsPlaying = true;
+        }
+        else
+        {
+            TrackId = null;
+            IsPlaying = false;
+        }
+
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
@@ -98,5 +111,46 @@ public sealed class PlaybackSession
 
         QueueIndex = index;
         UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void AdvanceNext()
+    {
+        if (_queue.Count == 0)
+            throw new InvalidOperationException("Cannot advance: queue is empty.");
+
+        QueueIndex = (QueueIndex + 1) % _queue.Count;
+        TrackId = _queue[QueueIndex];
+        PositionMs = 0;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void AdvancePrevious()
+    {
+        if (_queue.Count == 0)
+            throw new InvalidOperationException("Cannot advance: queue is empty.");
+
+        QueueIndex = (QueueIndex - 1 + _queue.Count) % _queue.Count;
+        TrackId = _queue[QueueIndex];
+        PositionMs = 0;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Seek(long positionMs)
+    {
+        if (TrackId is null)
+            throw new InvalidOperationException("Cannot seek: no track is loaded.");
+        ArgumentOutOfRangeException.ThrowIfNegative(positionMs);
+
+        PositionMs = positionMs;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void ClaimActiveIfNone(Guid deviceId)
+    {
+        if (ActiveDeviceId is null)
+        {
+            ActiveDeviceId = deviceId;
+            UpdatedAt = DateTimeOffset.UtcNow;
+        }
     }
 }

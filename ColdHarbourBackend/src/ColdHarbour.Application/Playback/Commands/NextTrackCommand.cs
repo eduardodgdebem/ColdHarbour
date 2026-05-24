@@ -4,21 +4,19 @@ using MediatR;
 
 namespace ColdHarbour.Application.Playback.Commands;
 
-public sealed record SetQueueCommand(
-    Guid UserId,
-    IReadOnlyList<Guid> TrackIds,
-    int StartIndex,
-    Guid SenderDeviceId) : IRequest;
+public sealed record NextTrackCommand(Guid UserId, Guid SenderDeviceId) : IRequest;
 
-public sealed class SetQueueCommandHandler(
+public sealed class NextTrackCommandHandler(
     IPlaybackSessionStore store,
-    IPlayEventRepository events) : IRequestHandler<SetQueueCommand>
+    IPlayEventRepository events) : IRequestHandler<NextTrackCommand>
 {
-    public async Task Handle(SetQueueCommand request, CancellationToken cancellationToken)
+    public async Task Handle(NextTrackCommand request, CancellationToken cancellationToken)
     {
         var session = store.GetOrCreate(request.UserId);
-        session.SetQueue(request.TrackIds, request.StartIndex);
+        if (session.Queue.Count == 0) return;
+
         session.ClaimActiveIfNone(request.SenderDeviceId);
+        session.AdvanceNext();
 
         if (session.TrackId is { } trackId && session.ActiveDeviceId is { } activeDeviceId)
         {

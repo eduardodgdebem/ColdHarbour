@@ -1,6 +1,7 @@
 import { effect, inject, Injectable } from '@angular/core';
 import { AudioService } from './audio.service';
 import { MusicService } from './music.service';
+import { PlaybackSessionService } from './playback-session.service';
 
 @Injectable({
   providedIn: 'root',
@@ -8,6 +9,9 @@ import { MusicService } from './music.service';
 export class ControllerService {
   private audioService: AudioService = inject(AudioService);
   private musicService: MusicService = inject(MusicService);
+  private playbackSession: PlaybackSessionService = inject(
+    PlaybackSessionService,
+  );
 
   private mediaSession: MediaSession | null = null;
 
@@ -27,27 +31,40 @@ export class ControllerService {
   }
 
   private setupEffects() {
+    // Track ended on the active device → ask the server to advance.
+    // (Phase 3 will replace this with a dedicated 'trackEnded' message
+    // that lets the server choose the next item per shuffle/repeat.)
     effect(() => {
       if (this.audioService.ended()) {
-        this.musicService.nextMusic();
+        this.playbackSession.next();
         this.audioService.ended.set(false);
       }
     });
   }
 
+  private togglePlayPause() {
+    if (this.audioService.isPlaying()) {
+      this.playbackSession.pause();
+    } else {
+      this.playbackSession.resume();
+    }
+  }
+
   private handleKey(event: KeyboardEvent) {
     switch (event.key) {
       case 'l':
-        this.audioService.seekTo(this.audioService.currentTime() + 10);
+        this.playbackSession.seek(
+          (this.audioService.currentTime() + 10) * 1000,
+        );
         break;
       case 'j':
-        this.audioService.seekTo(this.audioService.currentTime() - 10);
+        this.playbackSession.seek(
+          (this.audioService.currentTime() - 10) * 1000,
+        );
         break;
       case ' ':
-        this.audioService.playToggle();
-        break;
       case 'k':
-        this.audioService.playToggle();
+        this.togglePlayPause();
         break;
     }
   }
@@ -56,19 +73,19 @@ export class ControllerService {
     if (this.mediaSession) {
       this.mediaSession.setActionHandler('play', () => {
         if (!this.audioService.isPlaying()) {
-          this.audioService.playToggle();
+          this.playbackSession.resume();
         }
       });
       this.mediaSession.setActionHandler('pause', () => {
         if (this.audioService.isPlaying()) {
-          this.audioService.playToggle();
+          this.playbackSession.pause();
         }
       });
       this.mediaSession.setActionHandler('nexttrack', () => {
-        this.musicService.nextMusic();
+        this.playbackSession.next();
       });
       this.mediaSession.setActionHandler('previoustrack', () => {
-        this.musicService.previousMusic();
+        this.playbackSession.previous();
       });
     }
   }

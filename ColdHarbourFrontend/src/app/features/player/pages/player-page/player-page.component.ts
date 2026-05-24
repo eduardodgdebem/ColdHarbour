@@ -3,6 +3,7 @@ import { Location } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MusicService } from '../../services/music.service';
 import { AudioService } from '../../services/audio.service';
+import { PlaybackSessionService } from '../../services/playback-session.service';
 import { PlayIconComponent } from '../../../../shared/icons/play-icon.component';
 import { PauseIconComponent } from '../../../../shared/icons/pause-icon.component';
 
@@ -17,6 +18,7 @@ import { PauseIconComponent } from '../../../../shared/icons/pause-icon.componen
 export class PlayerPageComponent {
   protected readonly musicService = inject(MusicService);
   protected readonly audioService = inject(AudioService);
+  protected readonly playbackSession = inject(PlaybackSessionService);
   private readonly location = inject(Location);
 
   readonly currentMusic = this.musicService.currentMusic;
@@ -38,20 +40,24 @@ export class PlayerPageComponent {
   }
 
   togglePlay(): void {
-    this.audioService.playToggle();
+    if (this.audioService.isPlaying()) {
+      this.playbackSession.pause();
+    } else {
+      this.playbackSession.resume();
+    }
   }
 
   next(): void {
-    this.musicService.nextMusic();
+    this.playbackSession.next();
   }
 
   prev(): void {
-    this.musicService.previousMusic();
+    this.playbackSession.previous();
   }
 
   onSeek(event: Event): void {
     const input = event.target as HTMLInputElement;
-    this.audioService.seekTo(parseFloat(input.value));
+    this.playbackSession.seek(parseFloat(input.value) * 1000);
   }
 
   onVolume(event: Event): void {

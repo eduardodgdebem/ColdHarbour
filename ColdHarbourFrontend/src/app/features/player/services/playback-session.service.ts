@@ -29,6 +29,10 @@ export type DeviceDto = {
   lastSeenAt: string;
 };
 
+// If the server's broadcast position is within this many ms of local audio
+// position, do not seek — avoids audible micro-skips on every heartbeat echo.
+const DRIFT_TOLERANCE_MS = 1000;
+
 @Injectable({ providedIn: 'root' })
 export class PlaybackSessionService {
   readonly session = signal<PlaybackSessionDto | null>(null);
@@ -38,20 +42,18 @@ export class PlaybackSessionService {
   private heartbeatTimer?: ReturnType<typeof setInterval>;
   private reconnectTimer?: ReturnType<typeof setTimeout>;
 
-  // Track the last trackId we sent 'start' for, to avoid duplicates
+  // Track the last trackId we sent setQueue for, to avoid duplicate sends.
   private lastTrackId: string | null = null;
 
-  // Track previous session values to detect meaningful transitions
+  // Track previous session values to detect meaningful transitions.
   private prevActiveDeviceId: string | null = null;
   private prevTrackId: string | null = null;
+  private prevIsPlaying = false;
 
-  // Pending activation: set when we become the active device but the playlist isn't loaded yet
+  // Pending activation: set when we become the active device but the
+  // playlist isn't loaded yet.
   private pendingActivation: { trackId: string; positionMs: number } | null =
     null;
-
-  // Suppress outgoing WS messages triggered by server-driven state changes
-  private suppressStart = false;
-  private suppressPauseResume = false;
 
   constructor(
     private authService: AuthService,
@@ -61,8 +63,9 @@ export class PlaybackSessionService {
     destroyRef: DestroyRef,
   ) {
     // Connect only after both token and device registration are ready.
-    // Device registration must complete first so the hub's initial BroadcastDevicesAsync
-    // finds the row; otherwise the devices list arrives empty.
+    // Device registration must complete first so the hub's initial
+    // BroadcastDevicesAsync finds the row; otherwise the devices list
+    // arrives empty.
     effect(() => {
       const token = authService.accessToken();
       const registered = deviceService.registered();
@@ -70,62 +73,32 @@ export class PlaybackSessionService {
       else if (!token) this.disconnect();
     });
 
-    // Send 'setQueue' (Phase 1) + 'start' when the user selects a new track locally.
-    // setQueue tells the server about the full ordered queue and which item the user
-    // is on, so other devices can render it. start retains its existing semantics
-    // and is retired in Phase 2 once next/previous become hub commands.
+    // Emit setQueue whenever the user picks a new track from a loaded playlist.
+    // Phase 2: setQueue is the single entry into "play this." The legacy 'start'
+    // message has been retired — setQueue now carries the start semantics
+    // (sets TrackId, IsPlaying=true, sender-claims-active) on the server.
     effect(() => {
       const music = musicService.currentMusic();
       if (!music || music.trackId === this.lastTrackId) return;
       this.lastTrackId = music.trackId;
-      if (this.suppressStart) {
-        this.suppressStart = false;
-        return;
-      }
-      const deviceId = deviceService.getOrCreateDeviceId();
       const playlist = untracked(() => musicService.currentPlayList());
-      if (playlist) {
-        const idx = playlist.musics.findIndex(
-          (t) => t.trackId === music.trackId,
-        );
-        if (idx >= 0) {
-          this.send({
-            type: 'setQueue',
-            deviceId,
-            trackIds: playlist.musics.map((t) => t.trackId),
-            startIndex: idx,
-          });
-        }
-      }
+      if (!playlist) return;
+      const idx = playlist.musics.findIndex(
+        (t) => t.trackId === music.trackId,
+      );
+      if (idx < 0) return;
       this.send({
-        type: 'start',
-        deviceId,
-        trackId: music.trackId,
+        type: 'setQueue',
+        deviceId: deviceService.getOrCreateDeviceId(),
+        trackIds: playlist.musics.map((t) => t.trackId),
+        startIndex: idx,
       });
     });
 
-    // Mirror local pause/resume to the hub (include deviceId so server can guard)
-    effect(() => {
-      const isPlaying = audioService.isPlaying();
-      if (!musicService.currentMusic()) return;
-      if (this.suppressPauseResume) {
-        this.suppressPauseResume = false;
-        return;
-      }
-      const deviceId = deviceService.getOrCreateDeviceId();
-      if (isPlaying) {
-        this.send({ type: 'resume', deviceId });
-      } else {
-        this.send({
-          type: 'pause',
-          deviceId,
-          positionMs: Math.floor(audioService.currentTime() * 1000),
-        });
-      }
-    });
-
-    // React to server-pushed session changes (transfers, remote play/pause)
-    // Also reads currentPlayList so the effect re-runs when the playlist loads
+    // React to server-pushed session changes: transfers, remote next/prev/seek,
+    // remote pause/resume. The active device drives its own <audio>; inactive
+    // devices stay silent (and pause if they lose active status).
+    // Also reads currentPlayList so the effect re-runs when the playlist loads.
     effect(() => {
       const sess = this.session();
       const playlist = this.musicService.currentPlayList();
@@ -136,15 +109,17 @@ export class PlaybackSessionService {
       const wasActive = this.prevActiveDeviceId === myId;
       const isNowActive = sess.activeDeviceId === myId;
       const prevTrackId = this.prevTrackId;
+      const prevIsPlaying = this.prevIsPlaying;
 
       this.prevActiveDeviceId = sess.activeDeviceId;
       this.prevTrackId = sess.trackId;
+      this.prevIsPlaying = sess.isPlaying;
 
       if (
         isNowActive &&
         (!wasActive || (sess.trackId !== null && sess.trackId !== prevTrackId))
       ) {
-        // Just became the active device, or the track changed while we're active
+        // Just became the active device, or the track changed while we're active.
         if (sess.trackId) {
           this.pendingActivation = {
             trackId: sess.trackId,
@@ -152,13 +127,24 @@ export class PlaybackSessionService {
           };
         }
       } else if (wasActive && !isNowActive) {
-        // Lost active status — pause local audio without sending back to server
+        // Lost active status — pause local audio without echoing to the server.
         this.pendingActivation = null;
         queueMicrotask(() => this.pauseLocally());
         return;
+      } else if (isNowActive && sess.trackId === prevTrackId) {
+        // Same track, still active — react to remote pause/resume + drift seek.
+        if (sess.isPlaying !== prevIsPlaying) {
+          queueMicrotask(() => this.matchIsPlayingLocally(sess.isPlaying));
+        }
+        const localMs = untracked(() => this.audioService.currentTime() * 1000);
+        if (Math.abs(localMs - sess.positionMs) > DRIFT_TOLERANCE_MS) {
+          queueMicrotask(() =>
+            this.audioService.seekTo(sess.positionMs / 1000),
+          );
+        }
       }
 
-      // Apply the pending activation now if the playlist is ready
+      // Apply a pending activation now if the playlist is ready.
       if (this.pendingActivation && playlist) {
         const { trackId, positionMs } = this.pendingActivation;
         const track = playlist.musics.find((m) => m.trackId === trackId);
@@ -180,11 +166,51 @@ export class PlaybackSessionService {
     destroyRef.onDestroy(() => this.disconnect());
   }
 
+  // ── Transport: thin wrappers around the hub. The frontend never mutates
+  //    audio directly from user input anymore; it always asks the server.
+
+  next(): void {
+    this.send({
+      type: 'next',
+      deviceId: this.deviceService.getOrCreateDeviceId(),
+    });
+  }
+
+  previous(): void {
+    this.send({
+      type: 'previous',
+      deviceId: this.deviceService.getOrCreateDeviceId(),
+    });
+  }
+
+  seek(positionMs: number): void {
+    this.send({
+      type: 'seek',
+      deviceId: this.deviceService.getOrCreateDeviceId(),
+      positionMs: Math.max(0, Math.floor(positionMs)),
+    });
+  }
+
+  pause(): void {
+    this.send({
+      type: 'pause',
+      deviceId: this.deviceService.getOrCreateDeviceId(),
+    });
+  }
+
+  resume(): void {
+    this.send({
+      type: 'resume',
+      deviceId: this.deviceService.getOrCreateDeviceId(),
+    });
+  }
+
   transferPlayback(deviceId: string): void {
     const myId = this.deviceService.getOrCreateDeviceId();
     const sess = this.session();
-    // If this device is currently active, use local audio time (more accurate than last heartbeat).
-    // Otherwise use the server session's position (the active device's last reported position).
+    // If this device is currently active, use local audio time (more accurate
+    // than last heartbeat). Otherwise use the server session's position
+    // (the active device's last reported position).
     const positionMs =
       sess?.activeDeviceId === myId
         ? Math.floor(this.audioService.currentTime() * 1000)
@@ -197,19 +223,18 @@ export class PlaybackSessionService {
     const currentMusic = untracked(() => this.musicService.currentMusic());
 
     if (currentMusic?.trackId === track.trackId) {
-      // Same track — just seek to the transferred position and resume if paused
+      // Same track — just seek to the transferred position and play if paused.
       if (!untracked(() => this.audioService.isPlaying())) {
         this.audioService.seekTo(positionMs / 1000);
-        this.suppressPauseResume = true;
         this.audioService.playToggle();
       }
       return;
     }
 
-    // Different track — load it directly (works even if player component isn't mounted)
-    // lastTrackId guards the 'start' effect — suppressStart is not needed here.
+    // Different track — load it directly (works even if the player component
+    // isn't mounted). lastTrackId guards the setQueue effect from re-emitting
+    // for a track the server already knows about.
     this.lastTrackId = track.trackId;
-    this.suppressPauseResume = true;
     this.musicService.selectMusic(track);
     this.audioService.loadMusic(track.audioRef);
     if (positionMs > 0) {
@@ -219,7 +244,12 @@ export class PlaybackSessionService {
 
   private pauseLocally(): void {
     if (!untracked(() => this.audioService.isPlaying())) return;
-    this.suppressPauseResume = true;
+    this.audioService.playToggle();
+  }
+
+  private matchIsPlayingLocally(shouldBePlaying: boolean): void {
+    const isPlaying = untracked(() => this.audioService.isPlaying());
+    if (isPlaying === shouldBePlaying) return;
     this.audioService.playToggle();
   }
 

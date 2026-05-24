@@ -2,35 +2,50 @@ import { TestBed } from '@angular/core/testing';
 import { ControllerService } from './controller.service';
 import { AudioService } from './audio.service';
 import { MusicService } from './music.service';
+import { PlaybackSessionService } from './playback-session.service';
 import { signal } from '@angular/core';
 
 describe('ControllerService', () => {
   let service: ControllerService;
+  let playbackSpy: jasmine.SpyObj<PlaybackSessionService>;
+  let audioEnded: ReturnType<typeof signal<boolean>>;
+  let audioIsPlaying: ReturnType<typeof signal<boolean>>;
 
   beforeEach(() => {
+    audioEnded = signal(false);
+    audioIsPlaying = signal(false);
     const audioSpy = jasmine.createSpyObj(
       'AudioService',
       ['playToggle', 'seekTo', 'setVolume'],
       {
-        isPlaying: signal(false),
-        currentTime: signal(0),
-        duration: signal(0),
+        isPlaying: audioIsPlaying,
+        currentTime: signal(30),
+        duration: signal(180),
         volume: signal(1),
-        ended: signal(false),
+        ended: audioEnded,
       },
     );
 
     const musicSpy = jasmine.createSpyObj(
       'MusicService',
-      ['nextMusic', 'previousMusic'],
+      ['selectMusic'],
       { currentMusic: signal(null) },
     );
+
+    playbackSpy = jasmine.createSpyObj('PlaybackSessionService', [
+      'next',
+      'previous',
+      'seek',
+      'pause',
+      'resume',
+    ]);
 
     TestBed.configureTestingModule({
       providers: [
         ControllerService,
         { provide: AudioService, useValue: audioSpy },
         { provide: MusicService, useValue: musicSpy },
+        { provide: PlaybackSessionService, useValue: playbackSpy },
       ],
     });
     service = TestBed.inject(ControllerService);
@@ -38,5 +53,11 @@ describe('ControllerService', () => {
 
   it('should be created', () => {
     expect(service).toBeTruthy();
+  });
+
+  it('asks the hub for the next track when audio ends', () => {
+    audioEnded.set(true);
+    TestBed.flushEffects();
+    expect(playbackSpy.next).toHaveBeenCalled();
   });
 });

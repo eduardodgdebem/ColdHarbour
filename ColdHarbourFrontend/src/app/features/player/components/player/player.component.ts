@@ -8,6 +8,7 @@ import {
 import { Router } from '@angular/router';
 import { AudioService } from '../../services/audio.service';
 import { MusicService } from '../../services/music.service';
+import { PlaybackSessionService } from '../../services/playback-session.service';
 import { PlayIconComponent } from '../../../../shared/icons/play-icon.component';
 import { PauseIconComponent } from '../../../../shared/icons/pause-icon.component';
 
@@ -35,6 +36,7 @@ export class PlayerComponent {
   constructor(
     public audioService: AudioService,
     public musicService: MusicService,
+    public playbackSession: PlaybackSessionService,
   ) {
     this.setupEffects();
   }
@@ -83,15 +85,26 @@ export class PlayerComponent {
   public mainButtonClick(e: Event) {
     const button = e.target as HTMLButtonElement;
     button.blur();
-    if (this.musicService.currentMusic()) {
-      this.audioService.playToggle();
+    if (!this.musicService.currentMusic()) return;
+    if (this.audioService.isPlaying()) {
+      this.playbackSession.pause();
+    } else {
+      this.playbackSession.resume();
     }
+  }
+
+  public nextClick() {
+    this.playbackSession.next();
+  }
+
+  public previousClick() {
+    this.playbackSession.previous();
   }
 
   public onInputChange(e: Event) {
     const input = e.target as HTMLInputElement;
     const newTime = parseFloat(input.value);
-    this.audioService.seekTo(newTime);
+    this.playbackSession.seek(newTime * 1000);
   }
 
   public onSliderClick(e: MouseEvent) {
@@ -102,7 +115,7 @@ export class PlayerComponent {
     const input = wrapper.querySelector('input') as HTMLInputElement;
     switch (input.id as SlidersId) {
       case 'progress':
-        this.audioService.seekTo(newValue);
+        this.playbackSession.seek(newValue * 1000);
         break;
       case 'volume':
         this.audioService.volume.set(newValue / this.audioService.duration());

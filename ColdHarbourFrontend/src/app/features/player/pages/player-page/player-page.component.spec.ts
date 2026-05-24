@@ -6,6 +6,7 @@ import { provideRouter } from '@angular/router';
 import { PlayerPageComponent } from './player-page.component';
 import { MusicService } from '../../services/music.service';
 import { AudioService } from '../../services/audio.service';
+import { PlaybackSessionService } from '../../services/playback-session.service';
 import type { Music, Playlist } from '../../../../core/api/api.service';
 
 function makeTrack(overrides: Partial<Music> = {}): Music {
@@ -27,6 +28,7 @@ describe('PlayerPageComponent', () => {
   let component: PlayerPageComponent;
   let musicSpy: jasmine.SpyObj<MusicService>;
   let audioSpy: jasmine.SpyObj<AudioService>;
+  let playbackSpy: jasmine.SpyObj<PlaybackSessionService>;
   let locationSpy: jasmine.SpyObj<Location>;
   let currentMusic: ReturnType<typeof signal<Music | null>>;
   let isPlaying: ReturnType<typeof signal<boolean>>;
@@ -44,7 +46,7 @@ describe('PlayerPageComponent', () => {
 
     musicSpy = jasmine.createSpyObj(
       'MusicService',
-      ['selectMusic', 'nextMusic', 'previousMusic', 'isCurrentMusic'],
+      ['selectMusic', 'isCurrentMusic'],
       {
         currentMusic,
         currentPlayList: signal<Playlist | null>(null),
@@ -59,6 +61,14 @@ describe('PlayerPageComponent', () => {
       { isPlaying, currentTime, duration, volume, ended: signal(false) },
     );
 
+    playbackSpy = jasmine.createSpyObj('PlaybackSessionService', [
+      'next',
+      'previous',
+      'seek',
+      'pause',
+      'resume',
+    ]);
+
     locationSpy = jasmine.createSpyObj('Location', ['back']);
 
     TestBed.configureTestingModule({
@@ -67,6 +77,7 @@ describe('PlayerPageComponent', () => {
         provideRouter([]),
         { provide: MusicService, useValue: musicSpy },
         { provide: AudioService, useValue: audioSpy },
+        { provide: PlaybackSessionService, useValue: playbackSpy },
         { provide: Location, useValue: locationSpy },
       ],
     });
@@ -115,28 +126,48 @@ describe('PlayerPageComponent', () => {
     expect(playBtn.getAttribute('aria-label')).toBe('Pause');
   });
 
-  it('toggles playback when the play button is clicked', () => {
-    setUp();
-    const playBtn = fixture.debugElement.query(By.css('.transport__play'))
-      .nativeElement as HTMLButtonElement;
-    playBtn.click();
-    expect(audioSpy.playToggle).toHaveBeenCalled();
+  it('sends pause via the hub when the play button is clicked while playing', () => {
+    setUp({ playing: true });
+    fixture.debugElement
+      .query(By.css('.transport__play'))
+      .nativeElement.click();
+    expect(playbackSpy.pause).toHaveBeenCalled();
+    expect(audioSpy.playToggle).not.toHaveBeenCalled();
   });
 
-  it('calls musicService.previousMusic when prev is clicked', () => {
+  it('sends resume via the hub when the play button is clicked while paused', () => {
+    setUp({ playing: false });
+    fixture.debugElement
+      .query(By.css('.transport__play'))
+      .nativeElement.click();
+    expect(playbackSpy.resume).toHaveBeenCalled();
+  });
+
+  it('sends previous via the hub when prev is clicked', () => {
     setUp();
     fixture.debugElement
       .query(By.css('.transport__prev'))
       .nativeElement.click();
-    expect(musicSpy.previousMusic).toHaveBeenCalled();
+    expect(playbackSpy.previous).toHaveBeenCalled();
   });
 
-  it('calls musicService.nextMusic when next is clicked', () => {
+  it('sends next via the hub when next is clicked', () => {
     setUp();
     fixture.debugElement
       .query(By.css('.transport__next'))
       .nativeElement.click();
-    expect(musicSpy.nextMusic).toHaveBeenCalled();
+    expect(playbackSpy.next).toHaveBeenCalled();
+  });
+
+  it('routes onSeek through playbackSession.seek (in ms)', () => {
+    setUp();
+    const ev = new Event('input');
+    const input = document.createElement('input');
+    input.value = '83';
+    Object.defineProperty(ev, 'target', { value: input });
+    component.onSeek(ev);
+    expect(playbackSpy.seek).toHaveBeenCalledWith(83_000);
+    expect(audioSpy.seekTo).not.toHaveBeenCalled();
   });
 
   it('calls location.back when the close button is clicked', () => {

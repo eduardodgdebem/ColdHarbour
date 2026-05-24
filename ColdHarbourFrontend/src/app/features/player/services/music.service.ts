@@ -63,39 +63,14 @@ export class MusicService {
 
   public selectMusic(music: Music) {
     this.currentMusic.set(music);
+    const playlist = this.currentPlayList();
+    if (playlist) {
+      const idx = playlist.musics.findIndex((m) => m.trackId === music.trackId);
+      if (idx >= 0) this.currentMusicIndex.set(idx);
+    }
   }
 
   public isCurrentMusic(music: Music): boolean {
     return this.currentMusic()?.id === music.id;
-  }
-
-  public nextMusic() {
-    const currentMusic = this.currentMusic();
-    if (currentMusic) {
-      let nextIndex = this.currentMusicIndex() + 1;
-      if (nextIndex >= (this.currentPlayList()?.musics?.length ?? 1)) {
-        nextIndex = 0;
-      }
-      const nextMusic = this.currentPlayList()?.musics[nextIndex];
-      if (nextMusic) {
-        this.selectMusic(nextMusic);
-        this.currentMusicIndex.set(nextIndex);
-      }
-    }
-  }
-
-  public previousMusic() {
-    const currentMusic = this.currentMusic();
-    if (currentMusic) {
-      let previousIndex = this.currentMusicIndex() - 1;
-      if (previousIndex < 0) {
-        previousIndex = (this.currentPlayList()?.musics?.length ?? 1) - 1;
-      }
-      const previousMusic = this.currentPlayList()?.musics[previousIndex];
-      if (previousMusic) {
-        this.selectMusic(previousMusic);
-        this.currentMusicIndex.set(previousIndex);
-      }
-    }
   }
 }

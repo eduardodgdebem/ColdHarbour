@@ -113,44 +113,57 @@ public sealed class PlaybackSessionHub(
             {
                 case "setQueue":
                     {
+                        var sender = node!["deviceId"]!.GetValue<Guid>();
                         var trackIdsNode = node!["trackIds"] as JsonArray;
                         var trackIds = trackIdsNode is null
                             ? Array.Empty<Guid>()
                             : trackIdsNode.Select(n => n!.GetValue<Guid>()).ToArray();
                         var startIndex = node!["startIndex"]?.GetValue<int>() ?? 0;
-                        await mediator.Send(new SetQueueCommand(userId, trackIds, startIndex), ct);
+                        await mediator.Send(new SetQueueCommand(userId, trackIds, startIndex, sender), ct);
                         break;
                     }
-                case "start":
+                case "next":
                     {
-                        var deviceId = node!["deviceId"]!.GetValue<Guid>();
-                        var trackId = node!["trackId"]!.GetValue<Guid>();
-                        // Phase 1: seed the queue from a 'start' so the session always has a queue.
-                        // Deprecated — will be retired in Phase 2 in favor of setQueue + transport commands.
-                        var session = store.GetOrCreate(userId);
-                        if (session.Queue.Count == 0 || !session.Queue.Contains(trackId))
-                            await mediator.Send(new SetQueueCommand(userId, new[] { trackId }, 0), ct);
-                        await mediator.Send(new StartPlaybackCommand(userId, deviceId, trackId), ct);
+                        var sender = node!["deviceId"]!.GetValue<Guid>();
+                        await mediator.Send(new NextTrackCommand(userId, sender), ct);
+                        break;
+                    }
+                case "previous":
+                    {
+                        var sender = node!["deviceId"]!.GetValue<Guid>();
+                        await mediator.Send(new PreviousTrackCommand(userId, sender), ct);
+                        break;
+                    }
+                case "seek":
+                    {
+                        var sender = node!["deviceId"]!.GetValue<Guid>();
+                        var posMs = node!["positionMs"]!.GetValue<long>();
+                        await mediator.Send(new SeekCommand(userId, sender, posMs), ct);
                         break;
                     }
                 case "pause":
                     {
+                        // Phase 2: any device can pause. Active-device guard removed
+                        // here; transport commands act on the active device, not the sender.
+                        var sender = node!["deviceId"]?.GetValue<Guid>();
                         var session = store.GetOrCreate(userId);
-                        if (!IsActiveDevice(node!, session)) break;
-                        var posMs = node!["positionMs"]?.GetValue<long>() ?? 0;
-                        session.UpdatePosition(posMs);
+                        if (sender.HasValue) session.ClaimActiveIfNone(sender.Value);
                         session.Pause();
                         break;
                     }
                 case "resume":
                     {
+                        var sender = node!["deviceId"]?.GetValue<Guid>();
                         var session = store.GetOrCreate(userId);
-                        if (!IsActiveDevice(node!, session)) break;
-                        session.Resume();
+                        if (sender.HasValue) session.ClaimActiveIfNone(sender.Value);
+                        if (session.TrackId is not null) session.Resume();
                         break;
                     }
                 case "heartbeat":
                     {
+                        // Heartbeat is the only message that keeps the active-device guard:
+                        // it carries position truth and must come from the device actually
+                        // playing audio, never from a stale prior-active device.
                         var session = store.GetOrCreate(userId);
                         if (!IsActiveDevice(node!, session)) break;
                         var posMs = node!["positionMs"]!.GetValue<long>();

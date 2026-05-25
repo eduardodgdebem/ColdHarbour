@@ -399,4 +399,240 @@ public sealed class PlaybackSessionTests
 
         session.ActiveDeviceId.Should().Be(DeviceId);
     }
+
+    // --- Phase 3: RepeatMode + Shuffle defaults --------------------------------
+
+    [Fact]
+    public void Create_DefaultsRepeatModeOffAndShuffleFalse()
+    {
+        var session = PlaybackSession.Create(UserId);
+
+        session.RepeatMode.Should().Be(RepeatMode.Off);
+        session.Shuffle.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(RepeatMode.Off)]
+    [InlineData(RepeatMode.All)]
+    [InlineData(RepeatMode.One)]
+    public void SetRepeatMode_StoresMode(RepeatMode mode)
+    {
+        var session = PlaybackSession.Create(UserId);
+
+        session.SetRepeatMode(mode);
+
+        session.RepeatMode.Should().Be(mode);
+    }
+
+    [Fact]
+    public void SetShuffle_StoresFlag()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { Guid.NewGuid(), Guid.NewGuid() }, 0);
+
+        session.SetShuffle(true);
+
+        session.Shuffle.Should().BeTrue();
+    }
+
+    // --- Phase 3: AdvanceAfterEnd matrix ---------------------------------------
+
+    [Fact]
+    public void AdvanceAfterEnd_RepeatOne_RestartsSameTrackAtZero()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 0);
+        session.UpdatePosition(120_000);
+        session.SetRepeatMode(RepeatMode.One);
+
+        session.AdvanceAfterEnd();
+
+        session.QueueIndex.Should().Be(0);
+        session.TrackId.Should().Be(tracks[0]);
+        session.PositionMs.Should().Be(0);
+        session.IsPlaying.Should().BeTrue();
+    }
+
+    [Fact]
+    public void AdvanceAfterEnd_RepeatOff_MidQueue_AdvancesToNext()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 0);
+        session.SetRepeatMode(RepeatMode.Off);
+
+        session.AdvanceAfterEnd();
+
+        session.QueueIndex.Should().Be(1);
+        session.TrackId.Should().Be(tracks[1]);
+        session.IsPlaying.Should().BeTrue();
+    }
+
+    [Fact]
+    public void AdvanceAfterEnd_RepeatOff_LastTrack_StopsPlayback()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 1);
+        session.SetRepeatMode(RepeatMode.Off);
+
+        session.AdvanceAfterEnd();
+
+        session.IsPlaying.Should().BeFalse();
+        session.TrackId.Should().BeNull();
+    }
+
+    [Fact]
+    public void AdvanceAfterEnd_RepeatAll_LastTrack_WrapsToFirst()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 2);
+        session.SetRepeatMode(RepeatMode.All);
+
+        session.AdvanceAfterEnd();
+
+        session.QueueIndex.Should().Be(0);
+        session.TrackId.Should().Be(tracks[0]);
+        session.IsPlaying.Should().BeTrue();
+    }
+
+    [Fact]
+    public void AdvanceAfterEnd_EmptyQueue_NoOp()
+    {
+        var session = PlaybackSession.Create(UserId);
+
+        session.AdvanceAfterEnd();
+
+        session.TrackId.Should().BeNull();
+        session.QueueIndex.Should().Be(0);
+    }
+
+    // --- Phase 3: Shuffle stability --------------------------------------------
+
+    [Fact]
+    public void AdvanceAfterEnd_Shuffle_PlaysEveryTrackExactlyOnceBeforeRepeating()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = Enumerable.Range(0, 8).Select(_ => Guid.NewGuid()).ToArray();
+        session.SetQueue(tracks, 0);
+        session.SetRepeatMode(RepeatMode.All);
+        // Deterministic seed so the test is repeatable.
+        session.SetShuffle(true, new Random(42));
+
+        // Capture the first cycle's visit order (the initial track at index 0
+        // counts as the first visit).
+        var visited = new List<Guid> { session.TrackId!.Value };
+        for (int i = 0; i < tracks.Length - 1; i++)
+        {
+            session.AdvanceAfterEnd(new Random(42));
+            visited.Add(session.TrackId!.Value);
+        }
+
+        visited.Distinct().Should().HaveCount(tracks.Length,
+            "shuffle within a cycle should not repeat any track");
+        visited.Should().BeEquivalentTo(tracks);
+    }
+
+    [Fact]
+    public void AdvanceAfterEnd_ShuffleRepeatOff_StopsAtEndOfShuffledCycle()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 0);
+        session.SetRepeatMode(RepeatMode.Off);
+        session.SetShuffle(true, new Random(7));
+
+        // Step through all tracks. After the last shuffled track, the next
+        // AdvanceAfterEnd must stop playback (RepeatMode.Off).
+        for (int i = 0; i < tracks.Length - 1; i++)
+        {
+            session.AdvanceAfterEnd(new Random(7));
+        }
+        session.IsPlaying.Should().BeTrue("haven't reached end of cycle yet");
+
+        session.AdvanceAfterEnd(new Random(7));
+
+        session.IsPlaying.Should().BeFalse();
+        session.TrackId.Should().BeNull();
+    }
+
+    // --- Phase 3: Next / Previous honor Shuffle when enabled ----------------
+
+    [Fact]
+    public void AdvanceNext_Shuffle_WalksShuffleOrder()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = Enumerable.Range(0, 6).Select(_ => Guid.NewGuid()).ToArray();
+        session.SetQueue(tracks, 0);
+        session.SetShuffle(true, new Random(99));
+
+        var visited = new List<Guid> { session.TrackId!.Value };
+        for (int i = 0; i < tracks.Length - 1; i++)
+        {
+            session.AdvanceNext();
+            visited.Add(session.TrackId!.Value);
+        }
+
+        visited.Distinct().Should().HaveCount(tracks.Length,
+            "Next under shuffle must visit every track exactly once within a cycle");
+        visited.Should().BeEquivalentTo(tracks);
+    }
+
+    [Fact]
+    public void AdvanceNext_ShuffleAtEndOfCycle_WrapsToBeginning()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 0);
+        session.SetShuffle(true, new Random(5));
+
+        // Walk through the whole cycle.
+        session.AdvanceNext();
+        session.AdvanceNext();
+
+        // Next from the end wraps — user-clicked Next never stops.
+        session.AdvanceNext();
+        session.TrackId.Should().NotBeNull();
+        session.IsPlaying.Should().BeTrue();
+    }
+
+    [Fact]
+    public void AdvancePrevious_Shuffle_WalksBackThroughShuffleOrder()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 0);
+        session.SetShuffle(true, new Random(13));
+
+        var first = session.TrackId!.Value;
+        session.AdvanceNext();
+        var second = session.TrackId!.Value;
+
+        session.AdvancePrevious();
+        session.TrackId.Should().Be(first,
+            "Previous after a shuffle Next must return to the prior shuffle entry");
+
+        session.AdvanceNext();
+        session.TrackId.Should().Be(second);
+    }
+
+    [Fact]
+    public void SetQueue_ResetsShuffleOrderWhenShuffleOn()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var first = Enumerable.Range(0, 4).Select(_ => Guid.NewGuid()).ToArray();
+        session.SetQueue(first, 0);
+        session.SetRepeatMode(RepeatMode.All);
+        session.SetShuffle(true, new Random(1));
+
+        var fresh = Enumerable.Range(0, 4).Select(_ => Guid.NewGuid()).ToArray();
+        session.SetQueue(fresh, 0);
+
+        // After a new SetQueue, the first AdvanceAfterEnd must pick from the
+        // fresh queue (not the prior shuffled order).
+        session.AdvanceAfterEnd(new Random(1));
+        fresh.Should().Contain(session.TrackId!.Value);
+    }
 }

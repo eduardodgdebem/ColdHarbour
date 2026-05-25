@@ -52,6 +52,27 @@
 
       <div class="player-transport">
         <button
+          type="button"
+          class="mode-btn"
+          [class.mode-btn--active]="shuffleOn()"
+          [attr.aria-pressed]="shuffleOn()"
+          aria-label="Shuffle"
+          title="Shuffle"
+          (click)="toggleShuffle()"
+        >
+          SHUF
+        </button>
+        <button
+          type="button"
+          class="mode-btn"
+          [class.mode-btn--active]="repeatMode() !== 'off'"
+          [attr.aria-label]="'Repeat: ' + repeatMode()"
+          title="Repeat (off / all / one)"
+          (click)="cycleRepeat()"
+        >
+          {{ repeatLabel() }}
+        </button>
+        <button
           class="transport-btn"
           title="Previous"
           (click)="previousClick()"

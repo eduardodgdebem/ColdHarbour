@@ -180,6 +180,46 @@ $compact: 540px; /* below this: hide progress + volume */
   padding-right: 8px;
 }
 
+.mode-btn {
+  margin: auto 0;
+  align-self: center;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--off-white);
+  color: var(--black);
+  border: var(--border);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--accent);
+    box-shadow: 3px 3px 0 0 var(--black);
+  }
+
+  &:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 0 var(--black);
+  }
+
+  &--active {
+    background: var(--black);
+    color: var(--accent);
+
+    &:hover {
+      background: var(--accent);
+      color: var(--black);
+    }
+  }
+
+  /* hide mode toggles on small screens; they live on /player */
+  @media (max-width: $compact - 1px) {
+    display: none;
+  }
+}
+
 .transport-btn {
   width: 52px;
   height: 52px;

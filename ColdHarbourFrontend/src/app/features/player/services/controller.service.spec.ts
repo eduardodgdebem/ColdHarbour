@@ -53,9 +53,6 @@ describe('ControllerService', () => {
     expect(service).toBeTruthy();
   });
 
-  it('asks the hub for the next track when audio ends', () => {
-    audioEnded.set(true);
-    TestBed.flushEffects();
-    expect(playbackSpy.next).toHaveBeenCalled();
-  });
+  // Track-ended handling lives in PlaybackSessionService (phase 3); see
+  // playback-session.service.spec.ts. ControllerService no longer listens.
 });

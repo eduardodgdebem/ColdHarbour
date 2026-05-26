@@ -372,6 +372,166 @@ public sealed class TrackEndedCommandHandlerTests
     }
 }
 
+public sealed class AddToQueueCommandHandlerTests
+{
+    private readonly IPlaybackSessionStore _store = Substitute.For<IPlaybackSessionStore>();
+    private readonly IPlayEventRepository _events = Substitute.For<IPlayEventRepository>();
+
+    private AddToQueueCommandHandler CreateHandler() => new(_store, _events);
+
+    [Fact]
+    public async Task Handle_AppendsAndClaimsActiveIfNone()
+    {
+        var userId = Guid.NewGuid();
+        var sender = Guid.NewGuid();
+        var existing = new[] { Guid.NewGuid() };
+        var session = PlaybackSession.Create(userId);
+        session.SetQueue(existing, 0);
+        _store.GetOrCreate(userId).Returns(session);
+        var newTrack = Guid.NewGuid();
+
+        await CreateHandler().Handle(
+            new AddToQueueCommand(userId, sender, newTrack, null),
+            CancellationToken.None);
+
+        session.Queue.Should().Equal(existing[0], newTrack);
+        session.ActiveDeviceId.Should().Be(sender);
+        await _events.DidNotReceive().AddAsync(Arg.Any<PlayEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_FirstAddToEmptyQueue_RecordsPlayEvent()
+    {
+        var userId = Guid.NewGuid();
+        var sender = Guid.NewGuid();
+        var session = PlaybackSession.Create(userId);
+        _store.GetOrCreate(userId).Returns(session);
+        var t = Guid.NewGuid();
+
+        await CreateHandler().Handle(
+            new AddToQueueCommand(userId, sender, t, null),
+            CancellationToken.None);
+
+        session.TrackId.Should().Be(t);
+        session.IsPlaying.Should().BeTrue();
+        await _events.Received(1).AddAsync(
+            Arg.Is<PlayEvent>(e => e.TrackId == t && e.DeviceId == sender),
+            Arg.Any<CancellationToken>());
+    }
+}
+
+public sealed class RemoveFromQueueCommandHandlerTests
+{
+    private readonly IPlaybackSessionStore _store = Substitute.For<IPlaybackSessionStore>();
+    private readonly IPlayEventRepository _events = Substitute.For<IPlayEventRepository>();
+
+    private RemoveFromQueueCommandHandler CreateHandler() => new(_store, _events);
+
+    [Fact]
+    public async Task Handle_RemovingCurrentTrack_ClosesOldEventAndOpensNew()
+    {
+        var userId = Guid.NewGuid();
+        var device = Guid.NewGuid();
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        var session = PlaybackSession.Create(userId);
+        session.SetQueue(tracks, 0);
+        session.ClaimActiveIfNone(device);
+        _store.GetOrCreate(userId).Returns(session);
+
+        var openEvent = PlayEvent.Begin(userId, device, tracks[0]);
+        _events.FindActiveByUserAsync(userId, Arg.Any<CancellationToken>()).Returns(openEvent);
+
+        await CreateHandler().Handle(
+            new RemoveFromQueueCommand(userId, device, 0),
+            CancellationToken.None);
+
+        session.Queue.Should().ContainSingle().Which.Should().Be(tracks[1]);
+        session.TrackId.Should().Be(tracks[1]);
+        openEvent.EndedAt.Should().NotBeNull();
+        await _events.Received(1).AddAsync(
+            Arg.Is<PlayEvent>(e => e.TrackId == tracks[1] && e.DeviceId == device),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_RemovingNonCurrentTrack_DoesNotTouchPlayEvents()
+    {
+        var userId = Guid.NewGuid();
+        var device = Guid.NewGuid();
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        var session = PlaybackSession.Create(userId);
+        session.SetQueue(tracks, 0);
+        session.ClaimActiveIfNone(device);
+        _store.GetOrCreate(userId).Returns(session);
+
+        await CreateHandler().Handle(
+            new RemoveFromQueueCommand(userId, device, 2),
+            CancellationToken.None);
+
+        session.Queue.Count.Should().Be(2);
+        session.TrackId.Should().Be(tracks[0]);
+        await _events.DidNotReceive().AddAsync(Arg.Any<PlayEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_OutOfRangeIndex_NoOp()
+    {
+        var userId = Guid.NewGuid();
+        var session = PlaybackSession.Create(userId);
+        session.SetQueue(new[] { Guid.NewGuid() }, 0);
+        _store.GetOrCreate(userId).Returns(session);
+
+        await CreateHandler().Handle(
+            new RemoveFromQueueCommand(userId, Guid.NewGuid(), 99),
+            CancellationToken.None);
+
+        session.Queue.Count.Should().Be(1);
+    }
+}
+
+public sealed class ReorderQueueCommandHandlerTests
+{
+    private readonly IPlaybackSessionStore _store = Substitute.For<IPlaybackSessionStore>();
+
+    [Fact]
+    public async Task Handle_MovesItem_KeepingCurrentTrackPlaying()
+    {
+        var userId = Guid.NewGuid();
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        var session = PlaybackSession.Create(userId);
+        session.SetQueue(tracks, 0);
+        _store.GetOrCreate(userId).Returns(session);
+
+        await new ReorderQueueCommandHandler(_store).Handle(
+            new ReorderQueueCommand(userId, Guid.NewGuid(), 0, 2),
+            CancellationToken.None);
+
+        session.Queue.Should().Equal(tracks[1], tracks[2], tracks[0]);
+        session.TrackId.Should().Be(tracks[0]);
+    }
+}
+
+public sealed class ClearQueueCommandHandlerTests
+{
+    private readonly IPlaybackSessionStore _store = Substitute.For<IPlaybackSessionStore>();
+
+    [Fact]
+    public async Task Handle_ClearsQueueAndStopsPlayback()
+    {
+        var userId = Guid.NewGuid();
+        var session = PlaybackSession.Create(userId);
+        session.SetQueue(new[] { Guid.NewGuid(), Guid.NewGuid() }, 1);
+        _store.GetOrCreate(userId).Returns(session);
+
+        await new ClearQueueCommandHandler(_store).Handle(
+            new ClearQueueCommand(userId, Guid.NewGuid()),
+            CancellationToken.None);
+
+        session.Queue.Should().BeEmpty();
+        session.IsPlaying.Should().BeFalse();
+    }
+}
+
 public sealed class ListDevicesQueryHandlerTests
 {
     private readonly IDeviceRepository _repo = Substitute.For<IDeviceRepository>();

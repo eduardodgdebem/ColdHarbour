@@ -635,4 +635,232 @@ public sealed class PlaybackSessionTests
         session.AdvanceAfterEnd(new Random(1));
         fresh.Should().Contain(session.TrackId!.Value);
     }
+
+    // --- Phase 4: queue mutations -----------------------------------------
+
+    [Fact]
+    public void AddToQueue_AppendsAtEndByDefault()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var initial = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(initial, 0);
+        var newTrack = Guid.NewGuid();
+
+        session.AddToQueue(newTrack);
+
+        session.Queue.Should().Equal(initial[0], initial[1], newTrack);
+        session.QueueIndex.Should().Be(0);
+    }
+
+    [Fact]
+    public void AddToQueue_AtPosition_InsertsBeforeIndex()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var initial = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(initial, 1);
+        var inserted = Guid.NewGuid();
+
+        session.AddToQueue(inserted, position: 0);
+
+        session.Queue.Should().Equal(inserted, initial[0], initial[1], initial[2]);
+        // Inserting BEFORE QueueIndex shifts QueueIndex forward so the
+        // currently-playing track stays at the same logical position.
+        session.QueueIndex.Should().Be(2);
+        session.TrackId.Should().Be(initial[1]);
+    }
+
+    [Fact]
+    public void AddToQueue_AtPositionEqualToQueueIndex_KeepsCurrentItem()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var initial = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(initial, 1);
+        var inserted = Guid.NewGuid();
+
+        session.AddToQueue(inserted, position: 1);
+
+        session.Queue.Should().Equal(initial[0], inserted, initial[1]);
+        session.QueueIndex.Should().Be(2);
+        session.TrackId.Should().Be(initial[1]);
+    }
+
+    [Fact]
+    public void AddToQueue_PositionBeyondLength_AppendsAtEnd()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var initial = new[] { Guid.NewGuid() };
+        session.SetQueue(initial, 0);
+
+        var t = Guid.NewGuid();
+        session.AddToQueue(t, position: 999);
+
+        session.Queue.Last().Should().Be(t);
+    }
+
+    [Fact]
+    public void AddToQueue_OnEmptyQueue_AlsoPrimesPlayback()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var t = Guid.NewGuid();
+
+        session.AddToQueue(t);
+
+        session.Queue.Should().ContainSingle().Which.Should().Be(t);
+        session.TrackId.Should().Be(t);
+        session.IsPlaying.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RemoveFromQueue_BeforeQueueIndex_DecrementsIndex()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 2);
+
+        session.RemoveFromQueue(0);
+
+        session.Queue.Should().Equal(tracks[1], tracks[2]);
+        session.QueueIndex.Should().Be(1);
+        session.TrackId.Should().Be(tracks[2]);
+    }
+
+    [Fact]
+    public void RemoveFromQueue_AfterQueueIndex_LeavesIndexAlone()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 0);
+
+        session.RemoveFromQueue(2);
+
+        session.Queue.Should().Equal(tracks[0], tracks[1]);
+        session.QueueIndex.Should().Be(0);
+        session.TrackId.Should().Be(tracks[0]);
+    }
+
+    [Fact]
+    public void RemoveFromQueue_AtQueueIndex_AdvancesToNextTrack()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 1);
+
+        session.RemoveFromQueue(1);
+
+        session.Queue.Should().Equal(tracks[0], tracks[2]);
+        session.QueueIndex.Should().Be(1);
+        session.TrackId.Should().Be(tracks[2]);
+        session.PositionMs.Should().Be(0);
+    }
+
+    [Fact]
+    public void RemoveFromQueue_AtLastIndex_WrapsToZeroAndPlays()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 1);
+
+        session.RemoveFromQueue(1);
+
+        session.Queue.Should().ContainSingle().Which.Should().Be(tracks[0]);
+        session.QueueIndex.Should().Be(0);
+        session.TrackId.Should().Be(tracks[0]);
+    }
+
+    [Fact]
+    public void RemoveFromQueue_LastRemaining_ClearsPlayback()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var only = Guid.NewGuid();
+        session.SetQueue(new[] { only }, 0);
+
+        session.RemoveFromQueue(0);
+
+        session.Queue.Should().BeEmpty();
+        session.TrackId.Should().BeNull();
+        session.IsPlaying.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(5)]
+    public void RemoveFromQueue_OutOfRange_Throws(int badIndex)
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { Guid.NewGuid(), Guid.NewGuid() }, 0);
+
+        var act = () => session.RemoveFromQueue(badIndex);
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void ReorderQueue_MovingItemForward_KeepsCurrentItemAtQueueIndex()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 1);
+
+        session.ReorderQueue(from: 0, to: 2);
+
+        session.Queue.Should().Equal(tracks[1], tracks[2], tracks[0], tracks[3]);
+        session.QueueIndex.Should().Be(0);
+        session.TrackId.Should().Be(tracks[1]);
+    }
+
+    [Fact]
+    public void ReorderQueue_MovingItemAcrossFromAboveToBelowCurrent_FollowsCurrent()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 2);
+
+        session.ReorderQueue(from: 3, to: 0);
+
+        session.Queue.Should().Equal(tracks[3], tracks[0], tracks[1], tracks[2]);
+        session.QueueIndex.Should().Be(3);
+        session.TrackId.Should().Be(tracks[2]);
+    }
+
+    [Fact]
+    public void ReorderQueue_MovingTheCurrentItem_TracksItsNewIndex()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 0);
+
+        session.ReorderQueue(from: 0, to: 2);
+
+        session.Queue.Should().Equal(tracks[1], tracks[2], tracks[0]);
+        session.QueueIndex.Should().Be(2);
+        session.TrackId.Should().Be(tracks[0]);
+    }
+
+    [Theory]
+    [InlineData(-1, 0)]
+    [InlineData(0, 5)]
+    [InlineData(5, 0)]
+    public void ReorderQueue_OutOfRange_Throws(int from, int to)
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() }, 0);
+
+        var act = () => session.ReorderQueue(from, to);
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void ClearQueue_ClearsEverythingAndStopsPlayback()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { Guid.NewGuid(), Guid.NewGuid() }, 1);
+
+        session.ClearQueue();
+
+        session.Queue.Should().BeEmpty();
+        session.TrackId.Should().BeNull();
+        session.IsPlaying.Should().BeFalse();
+        session.QueueIndex.Should().Be(0);
+    }
 }

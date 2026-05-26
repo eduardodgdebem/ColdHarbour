@@ -208,6 +208,35 @@ public sealed class PlaybackSessionHub(
                         await mediator.Send(new TrackEndedCommand(userId, sender, trackId, durationMs), ct);
                         break;
                     }
+                case "addToQueue":
+                    {
+                        var sender = node!["deviceId"]!.GetValue<Guid>();
+                        var trackId = node!["trackId"]!.GetValue<Guid>();
+                        var position = node!["position"]?.GetValue<int>();
+                        await mediator.Send(new AddToQueueCommand(userId, sender, trackId, position), ct);
+                        break;
+                    }
+                case "removeFromQueue":
+                    {
+                        var sender = node!["deviceId"]!.GetValue<Guid>();
+                        var index = node!["index"]!.GetValue<int>();
+                        await mediator.Send(new RemoveFromQueueCommand(userId, sender, index), ct);
+                        break;
+                    }
+                case "reorderQueue":
+                    {
+                        var sender = node!["deviceId"]!.GetValue<Guid>();
+                        var from = node!["from"]!.GetValue<int>();
+                        var to = node!["to"]!.GetValue<int>();
+                        await mediator.Send(new ReorderQueueCommand(userId, sender, from, to), ct);
+                        break;
+                    }
+                case "clearQueue":
+                    {
+                        var sender = node!["deviceId"]!.GetValue<Guid>();
+                        await mediator.Send(new ClearQueueCommand(userId, sender), ct);
+                        break;
+                    }
             }
         }
         catch (Exception ex)

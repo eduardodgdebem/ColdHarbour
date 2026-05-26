@@ -45,6 +45,14 @@
             formatDuration(music.durationSeconds)
           }}</span>
           <button
+            class="queue-btn"
+            title="Add to queue"
+            aria-label="Add to queue"
+            (click)="addToQueue($event, music)"
+          >
+            <span class="queue-btn-plus">+</span>
+          </button>
+          <button
             class="delete-btn"
             title="Delete track"
             (click)="requestDelete($event, music)"

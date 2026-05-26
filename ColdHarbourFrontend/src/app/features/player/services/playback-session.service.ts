@@ -307,6 +307,42 @@ export class PlaybackSessionService {
     });
   }
 
+  /** Append (or insert at `position`) — server claims sender as active if no
+   *  device owns playback, and primes playback when the queue was empty. */
+  addToQueue(trackId: string, position?: number): void {
+    const msg: Record<string, unknown> = {
+      type: 'addToQueue',
+      deviceId: this.deviceService.getOrCreateDeviceId(),
+      trackId,
+    };
+    if (position !== undefined) msg['position'] = position;
+    this.send(msg);
+  }
+
+  removeFromQueue(index: number): void {
+    this.send({
+      type: 'removeFromQueue',
+      deviceId: this.deviceService.getOrCreateDeviceId(),
+      index,
+    });
+  }
+
+  reorderQueue(from: number, to: number): void {
+    this.send({
+      type: 'reorderQueue',
+      deviceId: this.deviceService.getOrCreateDeviceId(),
+      from,
+      to,
+    });
+  }
+
+  clearQueue(): void {
+    this.send({
+      type: 'clearQueue',
+      deviceId: this.deviceService.getOrCreateDeviceId(),
+    });
+  }
+
   transferPlayback(deviceId: string): void {
     const myId = this.deviceService.getOrCreateDeviceId();
     const sess = this.session();

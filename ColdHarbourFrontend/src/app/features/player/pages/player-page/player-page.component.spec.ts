@@ -251,4 +251,95 @@ describe('PlayerPageComponent', () => {
     expect(text).toContain('1:23');
     expect(text).toContain('4:00');
   });
+
+  describe('queue panel toggle', () => {
+    it('showQueue is false by default', () => {
+      setUp();
+      expect(component.showQueue()).toBe(false);
+    });
+
+    it('toggleQueue flips showQueue between false and true', () => {
+      setUp();
+      component.toggleQueue();
+      expect(component.showQueue()).toBe(true);
+      component.toggleQueue();
+      expect(component.showQueue()).toBe(false);
+    });
+
+    it('renders the queue toggle button in the top bar', () => {
+      setUp();
+      const btn = fixture.debugElement.query(By.css('.bar__queue-toggle'));
+      expect(btn).toBeTruthy();
+    });
+
+    it('clicking the queue toggle button toggles showQueue', () => {
+      setUp();
+      expect(component.showQueue()).toBe(false);
+      fixture.debugElement
+        .query(By.css('.bar__queue-toggle'))
+        .nativeElement.click();
+      fixture.detectChanges();
+      expect(component.showQueue()).toBe(true);
+    });
+
+    it('shows the album art plate when showQueue is false', () => {
+      setUp({ music: makeTrack() });
+      expect(fixture.debugElement.query(By.css('.stage__art'))).toBeTruthy();
+      expect(fixture.debugElement.query(By.css('.stage__queue'))).toBeNull();
+    });
+
+    it('hides the art and shows the queue panel in the left column when showQueue is true', () => {
+      setUp({ music: makeTrack() });
+      component.toggleQueue();
+      fixture.detectChanges();
+      expect(fixture.debugElement.query(By.css('.stage__queue'))).toBeTruthy();
+      expect(fixture.debugElement.query(By.css('.stage__art'))).toBeNull();
+    });
+
+    it('queue toggle button has --active modifier class when showQueue is true', () => {
+      setUp();
+      component.toggleQueue();
+      fixture.detectChanges();
+      const btn = fixture.debugElement.query(By.css('.bar__queue-toggle'));
+      expect(btn.nativeElement.classList).toContain('bar__queue-toggle--active');
+    });
+
+    it('renders a close button inside the queue panel when open', () => {
+      setUp({ music: makeTrack() });
+      component.toggleQueue();
+      fixture.detectChanges();
+      // Both desktop and mobile panels have the close button
+      const closeBtns = fixture.debugElement.queryAll(By.css('.stage__queue-close'));
+      expect(closeBtns.length).toBeGreaterThan(0);
+    });
+
+    it('clicking the queue panel close button closes the queue', () => {
+      setUp({ music: makeTrack() });
+      component.toggleQueue(); // open
+      fixture.detectChanges();
+      fixture.debugElement
+        .query(By.css('.stage__queue-close'))
+        .nativeElement.click();
+      fixture.detectChanges();
+      expect(component.showQueue()).toBe(false);
+    });
+
+    it('renders a mobile-page queue panel in the DOM when showQueue is true', () => {
+      setUp({ music: makeTrack() });
+      component.toggleQueue();
+      fixture.detectChanges();
+      const mobilePanel = fixture.debugElement.query(
+        By.css('.stage__queue--mobile-page'),
+      );
+      expect(mobilePanel).toBeTruthy();
+    });
+
+    it('stage gets --queue-open class on mobile when showQueue is true', () => {
+      setUp({ music: makeTrack() });
+      component.toggleQueue();
+      fixture.detectChanges();
+      const stage = fixture.debugElement.query(By.css('.stage'));
+      expect(stage.nativeElement.classList).toContain('stage--queue-open');
+    });
+  });
 });

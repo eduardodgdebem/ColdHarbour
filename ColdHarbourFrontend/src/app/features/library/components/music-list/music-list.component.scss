@@ -111,6 +111,32 @@
   text-align: right;
 }
 
+.queue-btn {
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: 2px solid var(--black);
+  color: var(--black);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--accent);
+    box-shadow: 3px 3px 0 0 var(--black);
+  }
+}
+
+.queue-btn-plus {
+  font-size: 20px;
+  line-height: 16px;
+  margin: 0;
+}
+
 .delete-btn {
   width: 24px;
   height: 24px;

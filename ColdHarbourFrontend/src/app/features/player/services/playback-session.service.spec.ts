@@ -386,4 +386,44 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     await flushMicrotasks();
     expect(sent('trackEnded').length).toBe(1); // still 1
   });
+
+  // ── Phase 4: queue mutations ───────────────────────────────────────────
+
+  it('addToQueue sends an addToQueue message (append by default)', async () => {
+    const service = await setupAndConnect();
+    service.addToQueue('11111111-0000-0000-0000-00000000abcd');
+    expect(sent('addToQueue').length).toBe(1);
+    expect(sent('addToQueue')[0]).toEqual(
+      jasmine.objectContaining({
+        type: 'addToQueue',
+        trackId: '11111111-0000-0000-0000-00000000abcd',
+      }),
+    );
+    // No position in the payload when appending.
+    expect((sent('addToQueue')[0] as Record<string, unknown>)['position']).toBeUndefined();
+  });
+
+  it('addToQueue with a position includes the position field', async () => {
+    const service = await setupAndConnect();
+    service.addToQueue('aaaa', 3);
+    expect(sent('addToQueue')[0]).toEqual(
+      jasmine.objectContaining({ trackId: 'aaaa', position: 3 }),
+    );
+  });
+
+  it('removeFromQueue / reorderQueue / clearQueue all dispatch correctly', async () => {
+    const service = await setupAndConnect();
+    service.removeFromQueue(2);
+    service.reorderQueue(0, 4);
+    service.clearQueue();
+    expect(sent('removeFromQueue')[0]).toEqual(
+      jasmine.objectContaining({ type: 'removeFromQueue', index: 2 }),
+    );
+    expect(sent('reorderQueue')[0]).toEqual(
+      jasmine.objectContaining({ type: 'reorderQueue', from: 0, to: 4 }),
+    );
+    expect(sent('clearQueue')[0]).toEqual(
+      jasmine.objectContaining({ type: 'clearQueue' }),
+    );
+  });
 });

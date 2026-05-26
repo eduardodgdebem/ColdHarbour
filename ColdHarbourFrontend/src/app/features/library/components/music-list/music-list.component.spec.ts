@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MusicListComponent } from './music-list.component';
 import { MusicService } from '../../../player/services/music.service';
+import { PlaybackSessionService } from '../../../player/services/playback-session.service';
 import { LibraryService } from '../../library.service';
 import type { Music, Playlist } from '../../../../core/api/api.service';
 import { By } from '@angular/platform-browser';
@@ -11,6 +12,7 @@ describe('MusicListComponent', () => {
   let fixture: ComponentFixture<MusicListComponent>;
   let musicService: jasmine.SpyObj<MusicService>;
   let libraryService: jasmine.SpyObj<LibraryService>;
+  let playbackSpy: jasmine.SpyObj<PlaybackSessionService>;
 
   const mockMusic: Music = {
     id: 1,
@@ -52,11 +54,19 @@ describe('MusicListComponent', () => {
       },
     );
 
+    playbackSpy = jasmine.createSpyObj('PlaybackSessionService', [
+      'addToQueue',
+      'removeFromQueue',
+      'reorderQueue',
+      'clearQueue',
+    ]);
+
     await TestBed.configureTestingModule({
       imports: [MusicListComponent],
       providers: [
         { provide: MusicService, useValue: musicSpy },
         { provide: LibraryService, useValue: librarySpy },
+        { provide: PlaybackSessionService, useValue: playbackSpy },
       ],
     }).compileComponents();
 
@@ -67,6 +77,16 @@ describe('MusicListComponent', () => {
       LibraryService,
     ) as jasmine.SpyObj<LibraryService>;
     fixture.detectChanges();
+  });
+
+  it('sends addToQueue via the hub when the queue button is clicked', () => {
+    const queueBtn = fixture.debugElement
+      .query(By.css('.track .queue-btn'))
+      .nativeElement as HTMLButtonElement;
+    queueBtn.click();
+    expect(playbackSpy.addToQueue).toHaveBeenCalledWith(mockMusic.trackId);
+    // Click should not also select the track (stopPropagation).
+    expect(musicService.selectMusic).not.toHaveBeenCalled();
   });
 
   it('should create', () => {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Location } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MusicService } from '../../services/music.service';
@@ -72,6 +72,38 @@ export class PlayerPageComponent {
     () => Math.round(this.audioService.volume() * 100),
   );
 
+  /** Queue items resolved against the loaded playlist for display.
+   *  When a queued track is not in `currentPlayList`, render a minimal
+   *  placeholder so the row count still matches the server's queue. */
+  readonly queueItems = computed(() => {
+    const sess = this.playbackSession.session();
+    if (!sess) return [];
+    const playlist = this.musicService.currentPlayList();
+    const lookup = new Map<string, { name: string; author: string }>();
+    if (playlist) {
+      for (const m of playlist.musics) {
+        lookup.set(m.trackId, { name: m.name, author: m.author });
+      }
+    }
+    return sess.queue.map((trackId, index) => {
+      const meta = lookup.get(trackId);
+      return {
+        index,
+        trackId,
+        name: meta?.name ?? trackId.slice(0, 8),
+        author: meta?.author ?? '—',
+        isCurrent: index === sess.queueIndex,
+      };
+    });
+  });
+
+  /** Whether the left column is showing the queue panel instead of album art. */
+  readonly showQueue = signal(false);
+
+  toggleQueue(): void {
+    this.showQueue.update((v) => !v);
+  }
+
   close(): void {
     this.location.back();
   }
@@ -110,6 +142,25 @@ export class PlayerPageComponent {
   onVolume(event: Event): void {
     const input = event.target as HTMLInputElement;
     this.audioService.setVolume(parseFloat(input.value));
+  }
+
+  removeFromQueueAt(index: number): void {
+    this.playbackSession.removeFromQueue(index);
+  }
+
+  moveQueueItemUp(index: number): void {
+    if (index <= 0) return;
+    this.playbackSession.reorderQueue(index, index - 1);
+  }
+
+  moveQueueItemDown(index: number): void {
+    const queue = this.playbackSession.session()?.queue ?? [];
+    if (index >= queue.length - 1) return;
+    this.playbackSession.reorderQueue(index, index + 1);
+  }
+
+  clearQueue(): void {
+    this.playbackSession.clearQueue();
   }
 
   formatTime(seconds: number): string {

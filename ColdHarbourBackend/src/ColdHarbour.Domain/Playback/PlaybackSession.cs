@@ -211,6 +211,132 @@ public sealed class PlaybackSession
     }
 
     /// <summary>
+    /// Insert <paramref name="trackId"/> into the queue at
+    /// <paramref name="position"/> (clamped to <c>[0, Queue.Count]</c>).
+    /// Adjusts <see cref="QueueIndex"/> so the currently-playing track
+    /// stays the currently-playing track. On an empty queue, also primes
+    /// playback (mirrors <see cref="SetQueue"/>).
+    /// </summary>
+    public void AddToQueue(Guid trackId, int? position = null)
+    {
+        var insertAt = position is null
+            ? _queue.Count
+            : Math.Clamp(position.Value, 0, _queue.Count);
+
+        if (_queue.Count == 0)
+        {
+            _queue.Add(trackId);
+            QueueIndex = 0;
+            TrackId = trackId;
+            IsPlaying = true;
+            PositionMs = 0;
+            if (Shuffle) RebuildShuffleOrder(null);
+            UpdatedAt = DateTimeOffset.UtcNow;
+            return;
+        }
+
+        _queue.Insert(insertAt, trackId);
+        if (insertAt <= QueueIndex) QueueIndex++;
+        if (Shuffle) RebuildShuffleOrder(null);
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>
+    /// Remove the item at <paramref name="index"/>. Preserves the
+    /// QueueIndex invariant:
+    ///   index &lt; QueueIndex → QueueIndex decrements (current track unchanged);
+    ///   index &gt; QueueIndex → no change to QueueIndex;
+    ///   index == QueueIndex → advance to the next item (wraps when at end);
+    ///     if that was the last item, clear TrackId and stop playback.
+    /// </summary>
+    public void RemoveFromQueue(int index)
+    {
+        if ((uint)index >= (uint)_queue.Count)
+            throw new ArgumentOutOfRangeException(nameof(index), $"Index {index} is outside the queue range [0, {_queue.Count - 1}].");
+
+        _queue.RemoveAt(index);
+
+        if (_queue.Count == 0)
+        {
+            QueueIndex = 0;
+            TrackId = null;
+            IsPlaying = false;
+            PositionMs = 0;
+            _shuffleOrder.Clear();
+            _shuffleCursor = 0;
+            UpdatedAt = DateTimeOffset.UtcNow;
+            return;
+        }
+
+        if (index < QueueIndex)
+        {
+            QueueIndex--;
+        }
+        else if (index == QueueIndex)
+        {
+            // The currently-playing item was removed. Stay at the same
+            // logical position in the queue; if we were at the end, wrap.
+            if (QueueIndex >= _queue.Count) QueueIndex = 0;
+            TrackId = _queue[QueueIndex];
+            PositionMs = 0;
+        }
+        // index > QueueIndex: nothing to do.
+
+        if (Shuffle) RebuildShuffleOrder(null);
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>
+    /// Move the item at <paramref name="from"/> to <paramref name="to"/>.
+    /// <see cref="QueueIndex"/> follows the originally-current item so it
+    /// keeps pointing at the same track after the reorder.
+    /// </summary>
+    public void ReorderQueue(int from, int to)
+    {
+        if ((uint)from >= (uint)_queue.Count)
+            throw new ArgumentOutOfRangeException(nameof(from), $"From index {from} is outside the queue range [0, {_queue.Count - 1}].");
+        if ((uint)to >= (uint)_queue.Count)
+            throw new ArgumentOutOfRangeException(nameof(to), $"To index {to} is outside the queue range [0, {_queue.Count - 1}].");
+        if (from == to)
+        {
+            UpdatedAt = DateTimeOffset.UtcNow;
+            return;
+        }
+
+        var currentTrackId = TrackId;
+        var item = _queue[from];
+        _queue.RemoveAt(from);
+        _queue.Insert(to, item);
+
+        // Recompute QueueIndex by locating the originally-current track.
+        if (currentTrackId is not null)
+        {
+            var newIdx = _queue.IndexOf(currentTrackId.Value);
+            if (newIdx >= 0) QueueIndex = newIdx;
+        }
+
+        if (Shuffle) RebuildShuffleOrder(null);
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>
+    /// Drop every queued item and stop playback. Unlike <see cref="Clear"/>,
+    /// this preserves <see cref="ActiveDeviceId"/> — the active device
+    /// stays subscribed and ready for a fresh SetQueue.
+    /// </summary>
+    public void ClearQueue()
+    {
+        _queue.Clear();
+        QueueIndex = 0;
+        TrackId = null;
+        IsPlaying = false;
+        PositionMs = 0;
+        _shuffleOrder.Clear();
+        _shuffleCursor = 0;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>
     /// Called when the active device finishes playing the current track.
     /// Picks the next track based on <see cref="RepeatMode"/> and
     /// <see cref="Shuffle"/>. May stop playback (RepeatMode.Off at end of

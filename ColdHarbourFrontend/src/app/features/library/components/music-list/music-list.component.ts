@@ -1,6 +1,7 @@
 import { Component, computed, input, signal } from '@angular/core';
 
 import { MusicService } from '../../../player/services/music.service';
+import { PlaybackSessionService } from '../../../player/services/playback-session.service';
 import type { Music } from '../../../../core/api/api.service';
 import { LibraryService } from '../../library.service';
 import {
@@ -36,10 +37,16 @@ export class MusicListComponent {
   constructor(
     public musicService: MusicService,
     public libraryService: LibraryService,
+    public playbackSession: PlaybackSessionService,
   ) {}
 
   selectMusic(music: Music) {
     this.musicService.selectMusic(music);
+  }
+
+  addToQueue(event: Event, music: Music) {
+    event.stopPropagation();
+    this.playbackSession.addToQueue(music.trackId);
   }
 
   isCurrentMusic(music: Music): boolean {

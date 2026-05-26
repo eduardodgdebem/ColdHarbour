@@ -9,24 +9,109 @@
       ← CLOSE
     </button>
     <span class="bar__tag">// NOW PLAYING</span>
-    <a class="bar__devices" routerLink="/devices">
-      <span class="bar__devices-label">DEVICES</span>
-      <span class="bar__devices-arrow">→</span>
-    </a>
+    <div class="bar__right">
+      <button
+        type="button"
+        class="bar__queue-toggle"
+        [class.bar__queue-toggle--active]="showQueue()"
+        [attr.aria-pressed]="showQueue()"
+        aria-label="Toggle queue"
+        (click)="toggleQueue()"
+      >
+        <span>// QUEUE</span>
+        @if (queueItems().length > 0) {
+          <span class="bar__queue-count">{{ queueItems().length }}</span>
+        }
+      </button>
+      <a class="bar__devices" routerLink="/devices">
+        <span class="bar__devices-label">DEVICES</span>
+        <span class="bar__devices-arrow">→</span>
+      </a>
+    </div>
   </header>
 
   @if (currentMusic(); as music) {
-    <div class="stage">
-      <div class="stage__plate">
-        <span class="stage__side">// SIDE A</span>
-        <div class="stage__art">
-          @if (music.imageRef) {
-            <img [src]="music.imageRef" [alt]="music.name" />
-          } @else {
-            <div class="stage__art-placeholder"></div>
-          }
-        </div>
-        <span class="stage__catno">CH-{{ music.id ?? '—' }}</span>
+    <!--
+      Stage: desktop = 2-col grid always visible.
+      Mobile with queue open = hidden (queue replaces it as a flex sibling).
+    -->
+    <div class="stage" [class.stage--queue-open]="showQueue()">
+      <div
+        class="stage__plate"
+        [class.stage__plate--has-queue]="showQueue()"
+      >
+        @if (!showQueue()) {
+          <span class="stage__side">// SIDE A</span>
+          <div class="stage__art">
+            @if (music.imageRef) {
+              <img [src]="music.imageRef" [alt]="music.name" />
+            } @else {
+              <div class="stage__art-placeholder"></div>
+            }
+          </div>
+          <span class="stage__catno">CH-{{ music.id ?? '—' }}</span>
+        } @else {
+          <!-- Desktop queue panel (CSS hides it on mobile) -->
+          <div class="stage__queue">
+            <header class="stage__queue-header">
+              <span class="stage__queue-title">// QUEUE</span>
+              @if (queueItems().length > 0) {
+                <span class="stage__queue-track-count">
+                  {{ queueItems().length }} TRACKS
+                </span>
+              }
+              <button
+                type="button"
+                class="stage__queue-clear"
+                [disabled]="queueItems().length === 0"
+                (click)="clearQueue()"
+                aria-label="Clear queue"
+              >CLEAR</button>
+              <button
+                type="button"
+                class="stage__queue-close"
+                (click)="toggleQueue()"
+                aria-label="Close queue"
+                title="Close queue"
+              >✕</button>
+            </header>
+
+            @if (queueItems().length === 0) {
+              <div class="stage__queue-empty">
+                <span class="stage__queue-empty-tag">// EMPTY MANIFEST</span>
+                <p>No tracks in the queue.</p>
+              </div>
+            } @else {
+              <ol class="stage__queue-list">
+                @for (item of queueItems(); track item.index) {
+                  <li
+                    class="stage__queue-row"
+                    [class.stage__queue-row--current]="item.isCurrent"
+                  >
+                    <span class="stage__queue-idx">{{ item.index + 1 }}.</span>
+                    <div class="stage__queue-info">
+                      <span class="stage__queue-name">{{ item.name }}</span>
+                      <span class="stage__queue-author">{{ item.author }}</span>
+                    </div>
+                    <div class="stage__queue-actions">
+                      <button type="button" class="stage__queue-btn"
+                        [disabled]="item.index === 0"
+                        (click)="moveQueueItemUp(item.index)"
+                        aria-label="Move up" title="Move up">▲</button>
+                      <button type="button" class="stage__queue-btn"
+                        [disabled]="item.index === queueItems().length - 1"
+                        (click)="moveQueueItemDown(item.index)"
+                        aria-label="Move down" title="Move down">▼</button>
+                      <button type="button" class="stage__queue-btn stage__queue-btn--remove"
+                        (click)="removeFromQueueAt(item.index)"
+                        aria-label="Remove from queue" title="Remove">✕</button>
+                    </div>
+                  </li>
+                }
+              </ol>
+            }
+          </div>
+        }
       </div>
 
       <div class="stage__sleeve">
@@ -50,6 +135,73 @@
         </dl>
       </div>
     </div>
+
+    <!--
+      Mobile-only full-page queue.
+      Shown as a flex:1 sibling replacing the stage on mobile.
+      CSS keeps it hidden on desktop (≥768px).
+    -->
+    @if (showQueue()) {
+      <div class="stage__queue stage__queue--mobile-page" aria-label="Playback queue">
+        <header class="stage__queue-header">
+          <span class="stage__queue-title">// QUEUE</span>
+          @if (queueItems().length > 0) {
+            <span class="stage__queue-track-count">
+              {{ queueItems().length }} TRACKS
+            </span>
+          }
+          <button
+            type="button"
+            class="stage__queue-clear"
+            [disabled]="queueItems().length === 0"
+            (click)="clearQueue()"
+            aria-label="Clear queue"
+          >CLEAR</button>
+          <button
+            type="button"
+            class="stage__queue-close"
+            (click)="toggleQueue()"
+            aria-label="Close queue"
+            title="Close queue"
+          >✕</button>
+        </header>
+
+        @if (queueItems().length === 0) {
+          <div class="stage__queue-empty">
+            <span class="stage__queue-empty-tag">// EMPTY MANIFEST</span>
+            <p>No tracks in the queue.</p>
+          </div>
+        } @else {
+          <ol class="stage__queue-list">
+            @for (item of queueItems(); track item.index) {
+              <li
+                class="stage__queue-row"
+                [class.stage__queue-row--current]="item.isCurrent"
+              >
+                <span class="stage__queue-idx">{{ item.index + 1 }}.</span>
+                <div class="stage__queue-info">
+                  <span class="stage__queue-name">{{ item.name }}</span>
+                  <span class="stage__queue-author">{{ item.author }}</span>
+                </div>
+                <div class="stage__queue-actions">
+                  <button type="button" class="stage__queue-btn"
+                    [disabled]="item.index === 0"
+                    (click)="moveQueueItemUp(item.index)"
+                    aria-label="Move up" title="Move up">▲</button>
+                  <button type="button" class="stage__queue-btn"
+                    [disabled]="item.index === queueItems().length - 1"
+                    (click)="moveQueueItemDown(item.index)"
+                    aria-label="Move down" title="Move down">▼</button>
+                  <button type="button" class="stage__queue-btn stage__queue-btn--remove"
+                    (click)="removeFromQueueAt(item.index)"
+                    aria-label="Remove from queue" title="Remove">✕</button>
+                </div>
+              </li>
+            }
+          </ol>
+        }
+      </div>
+    }
 
     <footer class="deck">
       <div class="deck__progress">

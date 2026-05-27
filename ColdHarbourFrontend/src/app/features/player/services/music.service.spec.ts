@@ -50,8 +50,11 @@ describe('MusicService', () => {
     expect(service).toBeTruthy();
   });
 
-  it('should initialize with loading state', () => {
-    expect(service.isLoading()).toBeTrue();
+  it('should initialize idle — isLoading false, no data, no error', () => {
+    // Nothing is loading until setCurrentPlaylist() is explicitly called.
+    // Starting as true would block the PlaybackSessionService from ever
+    // triggering the playlist bootstrap on page refresh.
+    expect(service.isLoading()).toBeFalse();
     expect(service.error()).toBeNull();
     expect(service.currentMusic()).toBeNull();
     expect(service.currentPlayList()).toBeNull();

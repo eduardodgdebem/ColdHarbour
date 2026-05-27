@@ -144,6 +144,19 @@ export class PlaybackSessionService {
       this.prevTrackId = sess.trackId;
       this.prevIsPlaying = sess.isPlaying;
 
+      // ── Playlist bootstrap (all devices) ──────────────────────────────
+      // When a session has a track but no playlist is loaded, kick off a load.
+      // This runs on BOTH the active device and any inactive device (second tab,
+      // page refresh) so the mini-player appears on all clients.
+      // Guard with isLoading() to avoid a duplicate fetch if one is already
+      // in flight (e.g., the PlaylistPageComponent triggered it first).
+      if (sess.trackId && !playlist) {
+        if (!untracked(() => this.musicService.isLoading())) {
+          this.musicService.setCurrentPlaylist(1);
+        }
+        return; // wait for the playlist signal to change, then re-enter
+      }
+
       // ── Step 1: sync UI on every device ────────────────────────────────
       if (sess.trackId && playlist) {
         const track = playlist.musics.find((m) => m.trackId === sess.trackId);
@@ -174,14 +187,7 @@ export class PlaybackSessionService {
         return;
       }
 
-      if (!playlist) {
-        if (!untracked(() => this.musicService.isLoading())) {
-          this.musicService.setCurrentPlaylist(1);
-        }
-        return;
-      }
-
-      const track = playlist.musics.find((m) => m.trackId === sess.trackId);
+      const track = playlist?.musics.find((m) => m.trackId === sess.trackId);
       if (!track) return;
 
       queueMicrotask(() => {

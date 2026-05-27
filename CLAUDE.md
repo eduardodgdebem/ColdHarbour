@@ -6,7 +6,7 @@
 
 ## Design system
 
-The visual design is defined in [`DESIGN.md`](./DESIGN.md) and is named **Sonic Brutalism**. All UI work must align with it.
+The visual design is defined in [`DESIGN.md`](./docs/DESIGN.md) and is named **Sonic Brutalism**. All UI work must align with it.
 
 Key rules from that document:
 

@@ -66,8 +66,7 @@ public sealed class PlaybackSessionHub(
                 connectedDeviceStore.Remove(deviceId.Value);
 
                 var session = store.GetOrCreate(userId);
-                if (session.ActiveDeviceId == deviceId)
-                    session.Clear();
+                ApplyDisconnectPolicy(session, deviceId.Value);
 
                 await BroadcastDevicesAsync(userId, CancellationToken.None);
             }
@@ -134,6 +133,20 @@ public sealed class PlaybackSessionHub(
         requestAborted.IsCancellationRequested
             ? WebSocketCloseStatus.EndpointUnavailable  // 1001 — server going away → client must reconnect
             : WebSocketCloseStatus.NormalClosure;        // 1000 — intentional clean close → no reconnect
+
+    /// <summary>
+    /// Session policy when a device disconnects. The playback session is durable
+    /// (Phase 5): a disconnect is a page refresh / network blip / app close, after
+    /// which the same or another device reconnects and resumes — so the session
+    /// must NOT be wiped here. Clearing on the active device's disconnect used to
+    /// blank TrackId / Queue / IsPlaying on every page refresh. Only an explicit
+    /// <c>stop</c> message clears the session. Kept as a named, tested seam so this
+    /// guarantee cannot silently regress.
+    /// </summary>
+    internal static void ApplyDisconnectPolicy(PlaybackSession session, Guid disconnectingDeviceId)
+    {
+        // Intentionally a no-op — the session outlives any single connection.
+    }
 
     /// <summary>
     /// Processes a single WS message.

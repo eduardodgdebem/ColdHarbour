@@ -86,25 +86,54 @@ public sealed class PlaybackSessionHub(
     private async Task ReceiveLoopAsync(WebSocket ws, Guid userId, CancellationToken ct)
     {
         var buffer = new byte[4096];
-        while (ws.State == WebSocketState.Open && !ct.IsCancellationRequested)
+        try
         {
-            var result = await ws.ReceiveAsync(buffer, ct);
-            if (result.MessageType == WebSocketMessageType.Close)
-                break;
+            while (ws.State == WebSocketState.Open && !ct.IsCancellationRequested)
+            {
+                var result = await ws.ReceiveAsync(buffer, ct);
+                if (result.MessageType == WebSocketMessageType.Close)
+                    break;
 
-            if (result.MessageType != WebSocketMessageType.Text)
-                continue;
+                if (result.MessageType != WebSocketMessageType.Text)
+                    continue;
 
-            var json = Encoding.UTF8.GetString(buffer, 0, result.Count);
-            bool isHeartbeat = await ProcessMessageAsync(userId, json, ct);
-            var session = store.GetOrCreate(userId);
-            await store.SaveAsync(session, isHeartbeat, ct);
-            await BroadcastSessionAsync(userId);
+                var json = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                bool isHeartbeat = await ProcessMessageAsync(userId, json, ct);
+                var session = store.GetOrCreate(userId);
+                await store.SaveAsync(session, isHeartbeat, ct);
+                await BroadcastSessionAsync(userId);
+            }
         }
-
-        if (ws.State == WebSocketState.Open)
-            await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "bye", CancellationToken.None);
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Server is shutting down — RequestAborted was cancelled while ReceiveAsync
+            // was awaiting. This is expected; fall through to send the close frame.
+        }
+        finally
+        {
+            if (ws.State == WebSocketState.Open)
+            {
+                // Use 1001 (EndpointUnavailable / "Going Away") when the server is
+                // shutting down so the client knows to reconnect. 1000 (NormalClosure)
+                // is treated by the frontend as an intentional disconnect and suppresses
+                // the automatic reconnect.
+                await ws.CloseAsync(PickCloseStatus(ct), "bye", CancellationToken.None);
+            }
+        }
     }
+
+    /// <summary>
+    /// Picks the WebSocket close status based on whether the connection is ending
+    /// because the server is shutting down or for a normal reason.
+    /// </summary>
+    /// <param name="requestAborted">
+    /// The <c>RequestAborted</c> token for the current connection.
+    /// Cancelled when the ASP.NET Core host is stopping.
+    /// </param>
+    internal static WebSocketCloseStatus PickCloseStatus(CancellationToken requestAborted) =>
+        requestAborted.IsCancellationRequested
+            ? WebSocketCloseStatus.EndpointUnavailable  // 1001 — server going away → client must reconnect
+            : WebSocketCloseStatus.NormalClosure;        // 1000 — intentional clean close → no reconnect
 
     /// <summary>
     /// Processes a single WS message.

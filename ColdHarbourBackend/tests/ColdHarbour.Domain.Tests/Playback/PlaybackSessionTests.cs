@@ -863,4 +863,104 @@ public sealed class PlaybackSessionTests
         session.IsPlaying.Should().BeFalse();
         session.QueueIndex.Should().Be(0);
     }
+
+    // --- Phase 5: Restore (durable session hydration) --------------------------
+
+    [Fact]
+    public void Restore_PreservesAllScalarFields()
+    {
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+        var activeDevice = Guid.NewGuid();
+        var at = DateTimeOffset.UtcNow.AddMinutes(-2);
+
+        var session = PlaybackSession.Restore(
+            userId: UserId,
+            activeDeviceId: activeDevice,
+            trackId: tracks[1],
+            positionMs: 42_000,
+            isPlaying: true,
+            queue: tracks,
+            queueIndex: 1,
+            repeatMode: RepeatMode.All,
+            shuffle: false,
+            updatedAt: at);
+
+        session.UserId.Should().Be(UserId);
+        session.ActiveDeviceId.Should().Be(activeDevice);
+        session.TrackId.Should().Be(tracks[1]);
+        session.PositionMs.Should().Be(42_000);
+        session.IsPlaying.Should().BeTrue();
+        session.Queue.Should().Equal(tracks);
+        session.QueueIndex.Should().Be(1);
+        session.RepeatMode.Should().Be(RepeatMode.All);
+        session.Shuffle.Should().BeFalse();
+        session.UpdatedAt.Should().Be(at);
+    }
+
+    [Fact]
+    public void Restore_WithShuffleOn_CanAdvanceWithoutException()
+    {
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
+
+        var session = PlaybackSession.Restore(
+            userId: UserId,
+            activeDeviceId: null,
+            trackId: tracks[0],
+            positionMs: 0,
+            isPlaying: false,
+            queue: tracks,
+            queueIndex: 0,
+            repeatMode: RepeatMode.All,
+            shuffle: true,
+            updatedAt: DateTimeOffset.UtcNow);
+
+        // Shuffle is on — AdvanceNext must work without NullReferenceException or index errors.
+        var act = () => session.AdvanceNext();
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Restore_EmptyQueue_ProducesIdleSession()
+    {
+        var session = PlaybackSession.Restore(
+            userId: UserId,
+            activeDeviceId: null,
+            trackId: null,
+            positionMs: 0,
+            isPlaying: false,
+            queue: [],
+            queueIndex: 0,
+            repeatMode: RepeatMode.Off,
+            shuffle: false,
+            updatedAt: DateTimeOffset.UtcNow);
+
+        session.Queue.Should().BeEmpty();
+        session.TrackId.Should().BeNull();
+        session.IsPlaying.Should().BeFalse();
+        // Mutations on an empty queue still throw correctly.
+        ((Action)(() => session.AdvanceNext())).Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void Restore_RestoredSession_CanMutate()
+    {
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
+
+        var session = PlaybackSession.Restore(
+            userId: UserId,
+            activeDeviceId: Guid.NewGuid(),
+            trackId: tracks[0],
+            positionMs: 5_000,
+            isPlaying: true,
+            queue: tracks,
+            queueIndex: 0,
+            repeatMode: RepeatMode.Off,
+            shuffle: false,
+            updatedAt: DateTimeOffset.UtcNow);
+
+        session.AdvanceNext();
+
+        session.QueueIndex.Should().Be(1);
+        session.TrackId.Should().Be(tracks[1]);
+    }
 }

@@ -27,6 +27,42 @@ public sealed class PlaybackSession
     public static PlaybackSession Create(Guid userId) =>
         new() { UserId = userId, UpdatedAt = DateTimeOffset.UtcNow };
 
+    /// <summary>
+    /// Re-hydrate a <see cref="PlaybackSession"/> from persisted data (e.g. a
+    /// Postgres snapshot). All fields are restored exactly as stored; the shuffle
+    /// order is re-seeded from the current queue + <paramref name="queueIndex"/>
+    /// because the order itself is not persisted.
+    /// </summary>
+    public static PlaybackSession Restore(
+        Guid userId,
+        Guid? activeDeviceId,
+        Guid? trackId,
+        long positionMs,
+        bool isPlaying,
+        IReadOnlyList<Guid> queue,
+        int queueIndex,
+        RepeatMode repeatMode,
+        bool shuffle,
+        DateTimeOffset updatedAt)
+    {
+        var s = new PlaybackSession
+        {
+            UserId = userId,
+            ActiveDeviceId = activeDeviceId,
+            TrackId = trackId,
+            PositionMs = positionMs,
+            IsPlaying = isPlaying,
+            QueueIndex = queueIndex,
+            RepeatMode = repeatMode,
+            Shuffle = shuffle,
+            UpdatedAt = updatedAt,
+        };
+        s._queue.AddRange(queue);
+        if (shuffle && s._queue.Count > 0)
+            s.RebuildShuffleOrder(null);
+        return s;
+    }
+
     public void Start(Guid deviceId, Guid trackId)
     {
         ActiveDeviceId = deviceId;

@@ -426,4 +426,44 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
       jasmine.objectContaining({ type: 'clearQueue' }),
     );
   });
+
+  // ── Phase 5: page-refresh / session restore ───────────────────────────────
+  // When the server session carries a trackId but the app just started and has
+  // no playlist loaded yet, the service must kick off setCurrentPlaylist so the
+  // mini-player can appear. This must happen for BOTH the active device AND any
+  // inactive device (second tab) — previously it only ran for the active device.
+
+  it('calls setCurrentPlaylist when session arrives with a trackId but no playlist loaded (active device)', async () => {
+    // playlist starts null (not pre-seeded — simulates page refresh)
+    await setupAndConnect();
+
+    await pushSession({ trackId: '11111111-0000-0000-0000-000000000001', activeDeviceId: MY_DEVICE });
+
+    expect(musicSpy.setCurrentPlaylist).toHaveBeenCalledWith(1);
+  });
+
+  it('calls setCurrentPlaylist when session arrives with a trackId but no playlist loaded (inactive device)', async () => {
+    // Same scenario but another device is the active one.
+    // Previously the early return for inactive devices prevented this call.
+    await setupAndConnect();
+
+    await pushSession({ trackId: '11111111-0000-0000-0000-000000000001', activeDeviceId: OTHER_DEVICE });
+
+    expect(musicSpy.setCurrentPlaylist).toHaveBeenCalledWith(1);
+  });
+
+  it('sets currentMusic on an inactive device once the playlist loads after a session broadcast', async () => {
+    await setupAndConnect();
+    const t = track('11111111-0000-0000-0000-000000000001');
+
+    // Session arrives — no playlist yet. Bootstrap should fire.
+    await pushSession({ trackId: t.trackId, activeDeviceId: OTHER_DEVICE });
+
+    // Simulate the playlist arriving (what setCurrentPlaylist would eventually do).
+    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
+    TestBed.flushEffects();
+    await flushMicrotasks();
+
+    expect(musicSpy.selectMusic).toHaveBeenCalledWith(t);
+  });
 });

@@ -16,6 +16,7 @@ public class ColdHarbourDbContext : DbContext
     public DbSet<Device> Devices => Set<Device>();
     public DbSet<PlayEvent> PlayEvents => Set<PlayEvent>();
     public DbSet<PlayStats> PlayStats => Set<PlayStats>();
+    public DbSet<PlaybackSessionSnapshot> PlaybackSessionSnapshots => Set<PlaybackSessionSnapshot>();
 
     public ColdHarbourDbContext(DbContextOptions<ColdHarbourDbContext> options) : base(options) { }
 

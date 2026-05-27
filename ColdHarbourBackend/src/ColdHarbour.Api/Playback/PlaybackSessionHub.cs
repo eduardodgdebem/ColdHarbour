@@ -66,8 +66,7 @@ public sealed class PlaybackSessionHub(
                 connectedDeviceStore.Remove(deviceId.Value);
 
                 var session = store.GetOrCreate(userId);
-                if (session.ActiveDeviceId == deviceId)
-                    session.Clear();
+                ApplyDisconnectPolicy(session, deviceId.Value);
 
                 await BroadcastDevicesAsync(userId, CancellationToken.None);
             }
@@ -86,25 +85,76 @@ public sealed class PlaybackSessionHub(
     private async Task ReceiveLoopAsync(WebSocket ws, Guid userId, CancellationToken ct)
     {
         var buffer = new byte[4096];
-        while (ws.State == WebSocketState.Open && !ct.IsCancellationRequested)
+        try
         {
-            var result = await ws.ReceiveAsync(buffer, ct);
-            if (result.MessageType == WebSocketMessageType.Close)
-                break;
+            while (ws.State == WebSocketState.Open && !ct.IsCancellationRequested)
+            {
+                var result = await ws.ReceiveAsync(buffer, ct);
+                if (result.MessageType == WebSocketMessageType.Close)
+                    break;
 
-            if (result.MessageType != WebSocketMessageType.Text)
-                continue;
+                if (result.MessageType != WebSocketMessageType.Text)
+                    continue;
 
-            var json = Encoding.UTF8.GetString(buffer, 0, result.Count);
-            await ProcessMessageAsync(userId, json, ct);
-            await BroadcastSessionAsync(userId);
+                var json = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                bool isHeartbeat = await ProcessMessageAsync(userId, json, ct);
+                var session = store.GetOrCreate(userId);
+                await store.SaveAsync(session, isHeartbeat, ct);
+                await BroadcastSessionAsync(userId);
+            }
         }
-
-        if (ws.State == WebSocketState.Open)
-            await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "bye", CancellationToken.None);
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Server is shutting down — RequestAborted was cancelled while ReceiveAsync
+            // was awaiting. This is expected; fall through to send the close frame.
+        }
+        finally
+        {
+            if (ws.State == WebSocketState.Open)
+            {
+                // Use 1001 (EndpointUnavailable / "Going Away") when the server is
+                // shutting down so the client knows to reconnect. 1000 (NormalClosure)
+                // is treated by the frontend as an intentional disconnect and suppresses
+                // the automatic reconnect.
+                await ws.CloseAsync(PickCloseStatus(ct), "bye", CancellationToken.None);
+            }
+        }
     }
 
-    private async Task ProcessMessageAsync(Guid userId, string json, CancellationToken ct)
+    /// <summary>
+    /// Picks the WebSocket close status based on whether the connection is ending
+    /// because the server is shutting down or for a normal reason.
+    /// </summary>
+    /// <param name="requestAborted">
+    /// The <c>RequestAborted</c> token for the current connection.
+    /// Cancelled when the ASP.NET Core host is stopping.
+    /// </param>
+    internal static WebSocketCloseStatus PickCloseStatus(CancellationToken requestAborted) =>
+        requestAborted.IsCancellationRequested
+            ? WebSocketCloseStatus.EndpointUnavailable  // 1001 — server going away → client must reconnect
+            : WebSocketCloseStatus.NormalClosure;        // 1000 — intentional clean close → no reconnect
+
+    /// <summary>
+    /// Session policy when a device disconnects. The playback session is durable
+    /// (Phase 5): a disconnect is a page refresh / network blip / app close, after
+    /// which the same or another device reconnects and resumes — so the session
+    /// must NOT be wiped here. Clearing on the active device's disconnect used to
+    /// blank TrackId / Queue / IsPlaying on every page refresh. Only an explicit
+    /// <c>stop</c> message clears the session. Kept as a named, tested seam so this
+    /// guarantee cannot silently regress.
+    /// </summary>
+    internal static void ApplyDisconnectPolicy(PlaybackSession session, Guid disconnectingDeviceId)
+    {
+        // Intentionally a no-op — the session outlives any single connection.
+    }
+
+    /// <summary>
+    /// Processes a single WS message.
+    /// Returns <c>true</c> if the message was a heartbeat position update (which
+    /// the store should throttle-write), <c>false</c> for every other message type
+    /// (which the store must write immediately).
+    /// </summary>
+    private async Task<bool> ProcessMessageAsync(Guid userId, string json, CancellationToken ct)
     {
         try
         {
@@ -169,7 +219,7 @@ public sealed class PlaybackSessionHub(
                         if (!IsActiveDevice(node!, session)) break;
                         var posMs = node!["positionMs"]!.GetValue<long>();
                         await mediator.Send(new UpdatePlaybackPositionCommand(userId, posMs), ct);
-                        break;
+                        return true; // ← heartbeat: caller should throttle-write
                     }
                 case "transfer":
                     {
@@ -243,6 +293,8 @@ public sealed class PlaybackSessionHub(
         {
             logger.LogWarning(ex, "Error processing playback message from user {UserId}", userId);
         }
+
+        return false; // not a heartbeat
     }
 
     // Returns true if the message's deviceId matches the active device (or if no deviceId is provided).

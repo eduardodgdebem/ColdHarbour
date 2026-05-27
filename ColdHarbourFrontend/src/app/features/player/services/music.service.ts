@@ -10,7 +10,10 @@ export type { Music, Playlist };
 export class MusicService {
   public currentMusic = signal<Music | null>(null);
   public currentPlayList = signal<Playlist | null>(null);
-  public isLoading = signal<boolean>(true);
+  // Nothing is loading until setCurrentPlaylist() is explicitly called.
+  // Starting as true would block PlaybackSessionService's playlist bootstrap
+  // from ever triggering on page refresh (the guard checks !isLoading()).
+  public isLoading = signal<boolean>(false);
   public error = signal<string | null>(null);
   public currentMusicIndex = signal<number>(0);
 

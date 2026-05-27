@@ -96,7 +96,9 @@ public sealed class PlaybackSessionHub(
                 continue;
 
             var json = Encoding.UTF8.GetString(buffer, 0, result.Count);
-            await ProcessMessageAsync(userId, json, ct);
+            bool isHeartbeat = await ProcessMessageAsync(userId, json, ct);
+            var session = store.GetOrCreate(userId);
+            await store.SaveAsync(session, isHeartbeat, ct);
             await BroadcastSessionAsync(userId);
         }
 
@@ -104,7 +106,13 @@ public sealed class PlaybackSessionHub(
             await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "bye", CancellationToken.None);
     }
 
-    private async Task ProcessMessageAsync(Guid userId, string json, CancellationToken ct)
+    /// <summary>
+    /// Processes a single WS message.
+    /// Returns <c>true</c> if the message was a heartbeat position update (which
+    /// the store should throttle-write), <c>false</c> for every other message type
+    /// (which the store must write immediately).
+    /// </summary>
+    private async Task<bool> ProcessMessageAsync(Guid userId, string json, CancellationToken ct)
     {
         try
         {
@@ -169,7 +177,7 @@ public sealed class PlaybackSessionHub(
                         if (!IsActiveDevice(node!, session)) break;
                         var posMs = node!["positionMs"]!.GetValue<long>();
                         await mediator.Send(new UpdatePlaybackPositionCommand(userId, posMs), ct);
-                        break;
+                        return true; // ← heartbeat: caller should throttle-write
                     }
                 case "transfer":
                     {
@@ -243,6 +251,8 @@ public sealed class PlaybackSessionHub(
         {
             logger.LogWarning(ex, "Error processing playback message from user {UserId}", userId);
         }
+
+        return false; // not a heartbeat
     }
 
     // Returns true if the message's deviceId matches the active device (or if no deviceId is provided).

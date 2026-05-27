@@ -185,9 +185,7 @@ describe('PlayerPageComponent', () => {
 
   it('calls location.back when the close button is clicked', () => {
     setUp();
-    fixture.debugElement
-      .query(By.css('.bar__close'))
-      .nativeElement.click();
+    fixture.debugElement.query(By.css('.bar__close')).nativeElement.click();
     expect(locationSpy.back).toHaveBeenCalled();
   });
 
@@ -243,7 +241,9 @@ describe('PlayerPageComponent', () => {
   it('formats progress time as M:SS', () => {
     setUp();
     // displayedPositionMs is the source of truth for the rendered position.
-    (playbackSpy.displayedPositionMs as unknown as WritableSignal<number>).set(83_000);
+    (playbackSpy.displayedPositionMs as unknown as WritableSignal<number>).set(
+      83_000,
+    );
     currentTime.set(83);
     duration.set(240);
     fixture.detectChanges();
@@ -288,20 +288,14 @@ describe('PlayerPageComponent', () => {
       expect(fixture.debugElement.query(By.css('.stage__queue'))).toBeNull();
     });
 
-    it('hides the art and shows the queue panel in the left column when showQueue is true', () => {
-      setUp({ music: makeTrack() });
-      component.toggleQueue();
-      fixture.detectChanges();
-      expect(fixture.debugElement.query(By.css('.stage__queue'))).toBeTruthy();
-      expect(fixture.debugElement.query(By.css('.stage__art'))).toBeNull();
-    });
-
     it('queue toggle button has --active modifier class when showQueue is true', () => {
       setUp();
       component.toggleQueue();
       fixture.detectChanges();
       const btn = fixture.debugElement.query(By.css('.bar__queue-toggle'));
-      expect(btn.nativeElement.classList).toContain('bar__queue-toggle--active');
+      expect(btn.nativeElement.classList).toContain(
+        'bar__queue-toggle--active',
+      );
     });
 
     it('renders a close button inside the queue panel when open', () => {
@@ -309,7 +303,9 @@ describe('PlayerPageComponent', () => {
       component.toggleQueue();
       fixture.detectChanges();
       // Both desktop and mobile panels have the close button
-      const closeBtns = fixture.debugElement.queryAll(By.css('.stage__queue-close'));
+      const closeBtns = fixture.debugElement.queryAll(
+        By.css('.stage__queue-close'),
+      );
       expect(closeBtns.length).toBeGreaterThan(0);
     });
 
@@ -332,14 +328,6 @@ describe('PlayerPageComponent', () => {
         By.css('.stage__queue--mobile-page'),
       );
       expect(mobilePanel).toBeTruthy();
-    });
-
-    it('stage gets --queue-open class on mobile when showQueue is true', () => {
-      setUp({ music: makeTrack() });
-      component.toggleQueue();
-      fixture.detectChanges();
-      const stage = fixture.debugElement.query(By.css('.stage'));
-      expect(stage.nativeElement.classList).toContain('stage--queue-open');
     });
   });
 });

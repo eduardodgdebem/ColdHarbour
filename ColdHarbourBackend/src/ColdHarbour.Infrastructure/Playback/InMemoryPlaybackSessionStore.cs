@@ -13,4 +13,8 @@ public sealed class InMemoryPlaybackSessionStore : IPlaybackSessionStore
 
     public IReadOnlyList<PlaybackSession> GetAllForUser(Guid userId) =>
         _sessions.TryGetValue(userId, out var session) ? [session] : [];
+
+    /// <summary>No-op: in-memory sessions are never persisted.</summary>
+    public Task SaveAsync(PlaybackSession session, bool isHeartbeat, CancellationToken ct = default) =>
+        Task.CompletedTask;
 }

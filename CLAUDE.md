@@ -340,7 +340,7 @@ JWT is supplied as a query param because the browser WebSocket API cannot set cu
 - `TokenService` — JWT sign, refresh rotation, family revocation, `media_token` minting.
 - `PasswordHasher` — Argon2id.
 - `PlaybackSessionHub` — raw WebSocket handler at `/ws/playback`.
-- `InMemoryPlaybackSessionStore` — `ConcurrentDictionary<Guid, PlaybackSession>` behind `IPlaybackSessionStore`.
+- `PostgresPlaybackSessionStore` — write-through Postgres snapshot store behind `IPlaybackSessionStore`; pre-warms an in-memory `ConcurrentDictionary` cache on `IHostedService.StartAsync`. Heartbeat writes are throttled to one per 5 s. `InMemoryPlaybackSessionStore` is kept for the test suite.
 - `DeviceRepository`, `PlayEventRepository` — EF Core repositories for persisted playback data.
 
 **Scheduled jobs (`IHostedService`)**

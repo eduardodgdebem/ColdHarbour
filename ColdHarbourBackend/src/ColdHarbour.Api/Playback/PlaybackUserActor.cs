@@ -4,7 +4,6 @@ using System.Threading.Channels;
 using ColdHarbour.Application.Playback.Commands;
 using ColdHarbour.Application.Playback.Dtos;
 using ColdHarbour.Application.Playback.Ports;
-// ListDevicesQuery lives in the Commands namespace despite being in the Queries folder
 using ColdHarbour.Domain.Playback;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,8 +13,9 @@ namespace ColdHarbour.Api.Playback;
 /// <summary>
 /// Per-user serialized command pump. Owns the in-memory PlaybackSession for one user
 /// and processes all mutations through a single-reader channel, eliminating the data
-/// races present in the previous hub design (concurrent receive loops mutating the same
-/// PlaybackSession reference). Phase 1 of the playback concurrency migration.
+/// races present in the previous hub design. Phase 1 introduced the actor; Phase 3
+/// moves session hydration into the actor (LoadAsync on first command) and drops the
+/// shared mutable reference that GetOrCreate used to hand out.
 /// </summary>
 public sealed class PlaybackUserActor : IAsyncDisposable
 {
@@ -85,7 +85,7 @@ public sealed class PlaybackUserActor : IAsyncDisposable
     /// </summary>
     public async Task BroadcastCurrentSessionAsync(CancellationToken ct)
     {
-        var session = _session ?? _store.GetOrCreate(_userId);
+        var session = _session ?? await _store.LoadAsync(_userId, ct) ?? PlaybackSession.Create(_userId);
         await BroadcastSessionAsync(session, ct);
     }
 
@@ -95,6 +95,14 @@ public sealed class PlaybackUserActor : IAsyncDisposable
         _channel.Writer.TryComplete();
         try { await _pumpTask.WaitAsync(TimeSpan.FromSeconds(10)); }
         catch (TimeoutException) { _cts.Cancel(); }
+
+        // Persist final state on graceful eviction / host shutdown.
+        if (_session is { } session)
+        {
+            try { await _store.SaveAsync(session, SaveReason.Shutdown, CancellationToken.None).ConfigureAwait(false); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to save session on dispose for user {UserId}", _userId); }
+        }
+
         _cts.Dispose();
     }
 
@@ -117,7 +125,8 @@ public sealed class PlaybackUserActor : IAsyncDisposable
 
     private async Task ProcessCommandAsync(InboundCommand cmd, CancellationToken ct)
     {
-        _session ??= _store.GetOrCreate(_userId);
+        // Hydrate from store on first command; actor owns the reference from here on.
+        _session ??= await _store.LoadAsync(_userId, ct) ?? PlaybackSession.Create(_userId);
         var session = _session;
 
         bool changed = false;
@@ -194,13 +203,13 @@ public sealed class PlaybackUserActor : IAsyncDisposable
             var now = DateTimeOffset.UtcNow;
             if (now - _lastHeartbeatWrite >= HeartbeatThrottle)
             {
-                await _store.SaveAsync(session, isHeartbeat: true, ct);
+                await _store.SaveAsync(session, SaveReason.HeartbeatThrottled, ct);
                 _lastHeartbeatWrite = now;
             }
         }
         else
         {
-            await _store.SaveAsync(session, isHeartbeat: false, ct);
+            await _store.SaveAsync(session, SaveReason.MaterialChange, ct);
         }
 
         await BroadcastSessionAsync(session, ct);

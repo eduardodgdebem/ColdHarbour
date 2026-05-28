@@ -77,7 +77,7 @@ public sealed class PlaybackUserActorTests
         await actor.DisposeAsync();
 
         var store = sp.GetRequiredService<IPlaybackSessionStore>();
-        var session = store.GetOrCreate(userId);
+        var session = await store.LoadAsync(userId) ?? PlaybackSession.Create(userId);
 
         if (session.Queue.Count > 0)
         {
@@ -113,7 +113,7 @@ public sealed class PlaybackUserActorTests
 
         await actor.DisposeAsync();
 
-        var session = sp.GetRequiredService<IPlaybackSessionStore>().GetOrCreate(userId);
+        var session = await sp.GetRequiredService<IPlaybackSessionStore>().LoadAsync(userId) ?? PlaybackSession.Create(userId);
         session.PositionMs.Should().Be(steps * 1000L,
             "FIFO dispatch means the last seek wins; position must equal the final value");
     }

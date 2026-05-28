@@ -1,3 +1,4 @@
+using ColdHarbour.Application.Playback.Ports;
 using ColdHarbour.Domain.Playback;
 using ColdHarbour.Infrastructure.Persistence;
 using ColdHarbour.Infrastructure.Playback;
@@ -22,11 +23,8 @@ public sealed class PostgresPlaybackSessionStoreTests : IAsyncLifetime
 
     private IServiceScopeFactory _scopeFactory = null!;
 
-    // Helper to create a fresh store, optionally with a controllable clock.
-    private PostgresPlaybackSessionStore CreateStore(Func<DateTimeOffset>? clock = null) =>
-        new(_scopeFactory, clock);
+    private PostgresPlaybackSessionStore CreateStore() => new(_scopeFactory);
 
-    // Helper to get a context for direct DB assertions.
     private ColdHarbourDbContext CreateContext()
     {
         var scope = _scopeFactory.CreateScope();
@@ -50,54 +48,40 @@ public sealed class PostgresPlaybackSessionStoreTests : IAsyncLifetime
 
     public async Task DisposeAsync() => await _postgres.DisposeAsync();
 
-    // -----------------------------------------------------------------------
-    // GetOrCreate
-    // -----------------------------------------------------------------------
+    // ── LoadAsync ────────────────────────────────────────────────────────────
 
     [Fact]
-    public void GetOrCreate_NoSnapshot_ReturnsFreshIdleSession()
+    public async Task LoadAsync_NoSnapshot_ReturnsNull()
     {
         var store = CreateStore();
-        var userId = Guid.NewGuid();
-
-        var session = store.GetOrCreate(userId);
-
-        session.UserId.Should().Be(userId);
-        session.TrackId.Should().BeNull();
-        session.IsPlaying.Should().BeFalse();
-        session.Queue.Should().BeEmpty();
+        var result = await store.LoadAsync(Guid.NewGuid(), CancellationToken.None);
+        result.Should().BeNull("no snapshot exists for this user");
     }
 
     [Fact]
-    public async Task GetOrCreate_SnapshotExists_ReturnsHydratedSession()
+    public async Task LoadAsync_SnapshotExists_ReturnsHydratedSession()
     {
         var store = CreateStore();
         var userId = Guid.NewGuid();
         var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
 
-        // Seed a session and persist it.
-        var session = store.GetOrCreate(userId);
+        var session = PlaybackSession.Create(userId);
         session.SetQueue(tracks, 1);
         session.ClaimActiveIfNone(Guid.NewGuid());
         session.Seek(12_000);
-        await store.SaveAsync(session, isHeartbeat: false);
+        await store.SaveAsync(session, SaveReason.MaterialChange, CancellationToken.None);
 
-        // A fresh store instance must hydrate from the DB via StartAsync.
-        var freshStore = CreateStore();
-        await freshStore.StartAsync(CancellationToken.None);
+        var restored = await store.LoadAsync(userId, CancellationToken.None);
 
-        var restored = freshStore.GetOrCreate(userId);
-
-        restored.Queue.Should().Equal(tracks);
+        restored.Should().NotBeNull();
+        restored!.Queue.Should().Equal(tracks);
         restored.QueueIndex.Should().Be(1);
         restored.TrackId.Should().Be(tracks[1]);
         restored.PositionMs.Should().Be(12_000);
         restored.IsPlaying.Should().BeTrue();
     }
 
-    // -----------------------------------------------------------------------
-    // SaveAsync — material mutations
-    // -----------------------------------------------------------------------
+    // ── SaveAsync — material mutations ───────────────────────────────────────
 
     [Fact]
     public async Task SaveAsync_Material_WritesSnapshotImmediately()
@@ -106,11 +90,10 @@ public sealed class PostgresPlaybackSessionStoreTests : IAsyncLifetime
         var userId = Guid.NewGuid();
         var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
 
-        var session = store.GetOrCreate(userId);
+        var session = PlaybackSession.Create(userId);
         session.SetQueue(tracks, 2);
-        await store.SaveAsync(session, isHeartbeat: false);
+        await store.SaveAsync(session, SaveReason.MaterialChange, CancellationToken.None);
 
-        // Read snapshot directly from DB.
         await using var ctx = CreateContext();
         var snap = await ctx.PlaybackSessionSnapshots.FindAsync(userId);
 
@@ -128,13 +111,12 @@ public sealed class PostgresPlaybackSessionStoreTests : IAsyncLifetime
         var userId = Guid.NewGuid();
         var tracks = new[] { Guid.NewGuid() };
 
-        var session = store.GetOrCreate(userId);
+        var session = PlaybackSession.Create(userId);
         session.SetQueue(tracks, 0);
-        await store.SaveAsync(session, isHeartbeat: false);
+        await store.SaveAsync(session, SaveReason.MaterialChange, CancellationToken.None);
 
-        // Mutate further and save again — must upsert, not duplicate.
         session.Seek(99_000);
-        await store.SaveAsync(session, isHeartbeat: false);
+        await store.SaveAsync(session, SaveReason.MaterialChange, CancellationToken.None);
 
         await using var ctx = CreateContext();
         var count = await ctx.PlaybackSessionSnapshots.CountAsync(s => s.UserId == userId);
@@ -144,110 +126,48 @@ public sealed class PostgresPlaybackSessionStoreTests : IAsyncLifetime
         snap!.PositionMs.Should().Be(99_000);
     }
 
-    // -----------------------------------------------------------------------
-    // SaveAsync — heartbeat throttle
-    // -----------------------------------------------------------------------
+    // ── SaveAsync — HeartbeatThrottled writes unconditionally (throttle is actor-side) ──
 
     [Fact]
-    public async Task SaveAsync_Heartbeat_FirstWrite_Persists()
+    public async Task SaveAsync_HeartbeatThrottled_WritesImmediately()
     {
         var store = CreateStore();
         var userId = Guid.NewGuid();
         var tracks = new[] { Guid.NewGuid() };
 
-        var session = store.GetOrCreate(userId);
+        var session = PlaybackSession.Create(userId);
         session.SetQueue(tracks, 0);
-
-        // First heartbeat: must write.
         session.Seek(1_000);
-        await store.SaveAsync(session, isHeartbeat: true);
+        await store.SaveAsync(session, SaveReason.HeartbeatThrottled, CancellationToken.None);
 
         await using var ctx = CreateContext();
         var snap = await ctx.PlaybackSessionSnapshots.FindAsync(userId);
-        snap.Should().NotBeNull("first heartbeat must be persisted");
+        snap.Should().NotBeNull("HeartbeatThrottled writes are unconditional at the store level");
         snap!.PositionMs.Should().Be(1_000);
     }
 
-    [Fact]
-    public async Task SaveAsync_Heartbeat_SecondWriteWithin5s_IsSkipped()
-    {
-        var now = DateTimeOffset.UtcNow;
-        Func<DateTimeOffset> clock = () => now;
-
-        var store = CreateStore(clock);
-        var userId = Guid.NewGuid();
-        var tracks = new[] { Guid.NewGuid() };
-
-        var session = store.GetOrCreate(userId);
-        session.SetQueue(tracks, 0);
-
-        // First heartbeat at T=0 — writes.
-        session.Seek(1_000);
-        await store.SaveAsync(session, isHeartbeat: true);
-
-        // Second heartbeat at T=1s — must be throttled.
-        now = now.AddSeconds(1);
-        session.Seek(3_000);
-        await store.SaveAsync(session, isHeartbeat: true);
-
-        await using var ctx = CreateContext();
-        var snap = await ctx.PlaybackSessionSnapshots.FindAsync(userId);
-        snap!.PositionMs.Should().Be(1_000, "throttled write must not overwrite the persisted value");
-    }
+    // ── Round-trip: all fields ───────────────────────────────────────────────
 
     [Fact]
-    public async Task SaveAsync_Heartbeat_AfterThrottleWindow_Writes()
-    {
-        var now = DateTimeOffset.UtcNow;
-        Func<DateTimeOffset> clock = () => now;
-
-        var store = CreateStore(clock);
-        var userId = Guid.NewGuid();
-        var tracks = new[] { Guid.NewGuid() };
-
-        var session = store.GetOrCreate(userId);
-        session.SetQueue(tracks, 0);
-
-        // First heartbeat at T=0.
-        session.Seek(1_000);
-        await store.SaveAsync(session, isHeartbeat: true);
-
-        // Second heartbeat at T=6s — past the 5 s window, must write.
-        now = now.AddSeconds(6);
-        session.Seek(7_000);
-        await store.SaveAsync(session, isHeartbeat: true);
-
-        await using var ctx = CreateContext();
-        var snap = await ctx.PlaybackSessionSnapshots.FindAsync(userId);
-        snap!.PositionMs.Should().Be(7_000, "heartbeat after throttle window must persist");
-    }
-
-    // -----------------------------------------------------------------------
-    // Round-trip: all fields
-    // -----------------------------------------------------------------------
-
-    [Fact]
-    public async Task RoundTrip_AllFields_PreservedAfterRestart()
+    public async Task RoundTrip_AllFields_PreservedAcrossLoad()
     {
         var store = CreateStore();
         var userId = Guid.NewGuid();
         var activeDevice = Guid.NewGuid();
         var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
 
-        var session = store.GetOrCreate(userId);
+        var session = PlaybackSession.Create(userId);
         session.SetQueue(tracks, 1);
         session.ClaimActiveIfNone(activeDevice);
         session.Seek(55_000);
         session.SetRepeatMode(RepeatMode.All);
         session.SetShuffle(true);
-        await store.SaveAsync(session, isHeartbeat: false);
+        await store.SaveAsync(session, SaveReason.MaterialChange, CancellationToken.None);
 
-        // Fresh store simulates api restart.
-        var freshStore = CreateStore();
-        await freshStore.StartAsync(CancellationToken.None);
-        var restored = freshStore.GetOrCreate(userId);
+        var restored = await store.LoadAsync(userId, CancellationToken.None);
 
-        restored.UserId.Should().Be(userId);
+        restored.Should().NotBeNull();
+        restored!.UserId.Should().Be(userId);
         restored.ActiveDeviceId.Should().Be(activeDevice);
         restored.TrackId.Should().Be(tracks[1]);
         restored.PositionMs.Should().Be(55_000);
@@ -256,5 +176,22 @@ public sealed class PostgresPlaybackSessionStoreTests : IAsyncLifetime
         restored.QueueIndex.Should().Be(1);
         restored.RepeatMode.Should().Be(RepeatMode.All);
         restored.Shuffle.Should().BeTrue();
+    }
+
+    // ── Clone semantics: each LoadAsync returns an independent snapshot ───────
+
+    [Fact]
+    public async Task LoadAsync_ReturnsFreshInstance_EachTime()
+    {
+        var store = CreateStore();
+        var userId = Guid.NewGuid();
+
+        var session = PlaybackSession.Create(userId);
+        await store.SaveAsync(session, SaveReason.MaterialChange, CancellationToken.None);
+
+        var a = await store.LoadAsync(userId, CancellationToken.None);
+        var b = await store.LoadAsync(userId, CancellationToken.None);
+
+        a.Should().NotBeSameAs(b, "each LoadAsync deserialises a fresh instance from the DB");
     }
 }

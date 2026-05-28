@@ -8,13 +8,13 @@ public sealed record GetActiveSessionQuery(Guid UserId) : IRequest<PlaybackSessi
 
 public sealed class GetActiveSessionQueryHandler(IPlaybackSessionStore store) : IRequestHandler<GetActiveSessionQuery, PlaybackSessionDto?>
 {
-    public Task<PlaybackSessionDto?> Handle(GetActiveSessionQuery request, CancellationToken cancellationToken)
+    public async Task<PlaybackSessionDto?> Handle(GetActiveSessionQuery request, CancellationToken cancellationToken)
     {
-        var session = store.GetOrCreate(request.UserId);
-        if (session.TrackId is null)
-            return Task.FromResult<PlaybackSessionDto?>(null);
+        var session = await store.LoadAsync(request.UserId, cancellationToken);
+        if (session?.TrackId is null)
+            return null;
 
-        return Task.FromResult<PlaybackSessionDto?>(new PlaybackSessionDto(
+        return new PlaybackSessionDto(
             session.UserId,
             session.ActiveDeviceId,
             session.TrackId,
@@ -24,6 +24,6 @@ public sealed class GetActiveSessionQueryHandler(IPlaybackSessionStore store) : 
             session.QueueIndex,
             session.RepeatMode,
             session.Shuffle,
-            session.UpdatedAt));
+            session.UpdatedAt);
     }
 }

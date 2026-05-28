@@ -17,7 +17,7 @@
 | Phase | Title | Status |
 |---|---|---|
 | 1 | Per-user serialized command pump (silent) | ✅ Done — landed on playback-concurrency-phase-1-command-pump (a6efed0) 2026-05-28 |
-| 2 | Connection-set primitive fix | ⏳ Not started |
+| 2 | Connection-set primitive fix | ✅ Done — landed on playback-concurrency-phase-2-connection-set 2026-05-28 |
 | 3 | `IPlaybackSessionStore` reshape (`LoadAsync` + `SaveAsync(snapshot, reason)`) | ⏳ Not started |
 | 4 | Protocol revisioning + command acks | ⏳ Not started |
 | 5 | Broadcast split (`tick` vs `state`) | ⏳ Not started |

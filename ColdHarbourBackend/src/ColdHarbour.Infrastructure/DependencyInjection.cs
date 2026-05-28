@@ -34,12 +34,8 @@ public static class DependencyInjection
         services.AddScoped<IPlayEventRepository, PlayEventRepository>();
         services.AddScoped<ITranscodeService, TranscodeService>();
 
-        // Phase 5: Postgres-backed session store (replaces InMemoryPlaybackSessionStore).
-        // Implements IHostedService — the host calls StartAsync before serving requests,
-        // which pre-warms the in-memory cache from the DB snapshot table.
-        services.AddSingleton<PostgresPlaybackSessionStore>();
-        services.AddSingleton<IPlaybackSessionStore>(sp => sp.GetRequiredService<PostgresPlaybackSessionStore>());
-        services.AddHostedService(sp => sp.GetRequiredService<PostgresPlaybackSessionStore>());
+        // Phase 3: cache-free Postgres store; the actor holds the live session reference.
+        services.AddSingleton<IPlaybackSessionStore, PostgresPlaybackSessionStore>();
 
         services.AddSingleton<InMemoryConnectedDeviceStore>();
         services.AddSingleton<IConnectedDeviceStore>(sp => sp.GetRequiredService<InMemoryConnectedDeviceStore>());

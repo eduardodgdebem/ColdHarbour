@@ -1,19 +1,18 @@
-using ColdHarbour.Application.Playback.Ports;
+using ColdHarbour.Domain.Playback;
 using MediatR;
 
 namespace ColdHarbour.Application.Playback.Commands;
 
-public sealed record SeekCommand(Guid UserId, Guid SenderDeviceId, long PositionMs) : IRequest;
+public sealed record SeekCommand(PlaybackSession Session, Guid SenderDeviceId, long PositionMs) : IRequest<bool>;
 
-public sealed class SeekCommandHandler(IPlaybackSessionStore store) : IRequestHandler<SeekCommand>
+public sealed class SeekCommandHandler : IRequestHandler<SeekCommand, bool>
 {
-    public Task Handle(SeekCommand request, CancellationToken cancellationToken)
+    public Task<bool> Handle(SeekCommand request, CancellationToken cancellationToken)
     {
-        var session = store.GetOrCreate(request.UserId);
-        if (session.TrackId is null) return Task.CompletedTask;
+        if (request.Session.TrackId is null) return Task.FromResult(false);
 
-        session.ClaimActiveIfNone(request.SenderDeviceId);
-        session.Seek(request.PositionMs);
-        return Task.CompletedTask;
+        request.Session.ClaimActiveIfNone(request.SenderDeviceId);
+        request.Session.Seek(request.PositionMs);
+        return Task.FromResult(true);
     }
 }

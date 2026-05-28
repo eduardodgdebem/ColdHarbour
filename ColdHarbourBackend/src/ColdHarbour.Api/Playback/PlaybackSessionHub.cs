@@ -1,17 +1,14 @@
-using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using ColdHarbour.Application.Playback.Commands;
-using ColdHarbour.Application.Playback.Dtos;
 using ColdHarbour.Application.Playback.Ports;
 using ColdHarbour.Domain.Playback;
 using MediatR;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
-using System.Text.Json.Serialization;
 
 namespace ColdHarbour.Api.Playback;
 
@@ -19,16 +16,20 @@ namespace ColdHarbour.Api.Playback;
 /// Raw WebSocket hub at /ws/playback. JWT is supplied as ?access_token= query param
 /// (browser WS API does not allow custom headers). On JWT expiry the socket is closed
 /// with code 4001 so the client can refresh and reconnect.
+///
+/// Phase 1 change: the hub is now a thin message parser. Each inbound WS frame is
+/// parsed into an InboundCommand and written to the per-user PlaybackUserActor's channel.
+/// The actor serializes all mutations for a given user, eliminating the data races
+/// that existed when multiple WS receive loops mutated the same PlaybackSession reference.
 /// </summary>
 public sealed class PlaybackSessionHub(
     IMediator mediator,
-    IPlaybackSessionStore store,
     IConnectedDeviceStore connectedDeviceStore,
+    PlaybackConnectionStore connectionStore,
+    PlaybackUserActorRegistry registry,
     IConfiguration config,
     ILogger<PlaybackSessionHub> logger)
 {
-    private static readonly ConcurrentDictionary<Guid, ConcurrentBag<WebSocket>> _connections = new();
-
     private static readonly JsonSerializerOptions _jsonOpts = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -50,39 +51,31 @@ public sealed class PlaybackSessionHub(
         if (deviceId.HasValue)
             connectedDeviceStore.Add(deviceId.Value);
 
-        var bag = _connections.GetOrAdd(userId, _ => []);
-        bag.Add(ws);
+        connectionStore.Add(userId, ws);
+        var actor = registry.GetOrCreate(userId);
+        actor.NotifyConnected();
 
         try
         {
-            await BroadcastSessionAsync(userId);
+            await actor.BroadcastCurrentSessionAsync(CancellationToken.None);
             await BroadcastDevicesAsync(userId, CancellationToken.None);
-            await ReceiveLoopAsync(ws, userId, ctx.RequestAborted);
+            await ReceiveLoopAsync(ws, userId, actor, ctx.RequestAborted);
         }
         finally
         {
+            actor.NotifyDisconnected();
+            connectionStore.Remove(userId, ws);
+
             if (deviceId.HasValue)
             {
                 connectedDeviceStore.Remove(deviceId.Value);
-
-                var session = store.GetOrCreate(userId);
-                ApplyDisconnectPolicy(session, deviceId.Value);
-
+                ApplyDisconnectPolicy(userId, deviceId.Value);
                 await BroadcastDevicesAsync(userId, CancellationToken.None);
-            }
-
-            _connections.TryGetValue(userId, out var b);
-            // Rebuild bag without this socket (ConcurrentBag has no Remove)
-            if (b is not null)
-            {
-                var remaining = b.Where(s => s != ws).ToList();
-                var newBag = new ConcurrentBag<WebSocket>(remaining);
-                _connections.TryUpdate(userId, newBag, b);
             }
         }
     }
 
-    private async Task ReceiveLoopAsync(WebSocket ws, Guid userId, CancellationToken ct)
+    private async Task ReceiveLoopAsync(WebSocket ws, Guid userId, PlaybackUserActor actor, CancellationToken ct)
     {
         var buffer = new byte[4096];
         try
@@ -97,263 +90,123 @@ public sealed class PlaybackSessionHub(
                     continue;
 
                 var json = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                bool isHeartbeat = await ProcessMessageAsync(userId, json, ct);
-                var session = store.GetOrCreate(userId);
-                await store.SaveAsync(session, isHeartbeat, ct);
-                await BroadcastSessionAsync(userId);
+                var cmd = ParseCommand(json);
+                if (cmd is not null)
+                    await actor.EnqueueAsync(cmd, ct);
             }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            // Server is shutting down — RequestAborted was cancelled while ReceiveAsync
-            // was awaiting. This is expected; fall through to send the close frame.
-        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
         finally
         {
             if (ws.State == WebSocketState.Open)
-            {
-                // Use 1001 (EndpointUnavailable / "Going Away") when the server is
-                // shutting down so the client knows to reconnect. 1000 (NormalClosure)
-                // is treated by the frontend as an intentional disconnect and suppresses
-                // the automatic reconnect.
                 await ws.CloseAsync(PickCloseStatus(ct), "bye", CancellationToken.None);
-            }
         }
     }
 
     /// <summary>
-    /// Picks the WebSocket close status based on whether the connection is ending
-    /// because the server is shutting down or for a normal reason.
+    /// Parses a raw JSON WS frame into a typed InboundCommand.
+    /// Returns null for unrecognised or malformed messages — these are silently dropped
+    /// and never enter the actor's channel, keeping the channel free of junk.
     /// </summary>
-    /// <param name="requestAborted">
-    /// The <c>RequestAborted</c> token for the current connection.
-    /// Cancelled when the ASP.NET Core host is stopping.
-    /// </param>
-    internal static WebSocketCloseStatus PickCloseStatus(CancellationToken requestAborted) =>
-        requestAborted.IsCancellationRequested
-            ? WebSocketCloseStatus.EndpointUnavailable  // 1001 — server going away → client must reconnect
-            : WebSocketCloseStatus.NormalClosure;        // 1000 — intentional clean close → no reconnect
-
-    /// <summary>
-    /// Session policy when a device disconnects. The playback session is durable
-    /// (Phase 5): a disconnect is a page refresh / network blip / app close, after
-    /// which the same or another device reconnects and resumes — so the session
-    /// must NOT be wiped here. Clearing on the active device's disconnect used to
-    /// blank TrackId / Queue / IsPlaying on every page refresh. Only an explicit
-    /// <c>stop</c> message clears the session. Kept as a named, tested seam so this
-    /// guarantee cannot silently regress.
-    /// </summary>
-    internal static void ApplyDisconnectPolicy(PlaybackSession session, Guid disconnectingDeviceId)
-    {
-        // Intentionally a no-op — the session outlives any single connection.
-    }
-
-    /// <summary>
-    /// Processes a single WS message.
-    /// Returns <c>true</c> if the message was a heartbeat position update (which
-    /// the store should throttle-write), <c>false</c> for every other message type
-    /// (which the store must write immediately).
-    /// </summary>
-    private async Task<bool> ProcessMessageAsync(Guid userId, string json, CancellationToken ct)
+    internal InboundCommand? ParseCommand(string json)
     {
         try
         {
             var node = JsonNode.Parse(json);
             var type = node?["type"]?.GetValue<string>();
-            switch (type)
+            return type switch
             {
-                case "setQueue":
-                    {
-                        var sender = node!["deviceId"]!.GetValue<Guid>();
-                        var trackIdsNode = node!["trackIds"] as JsonArray;
-                        var trackIds = trackIdsNode is null
-                            ? Array.Empty<Guid>()
-                            : trackIdsNode.Select(n => n!.GetValue<Guid>()).ToArray();
-                        var startIndex = node!["startIndex"]?.GetValue<int>() ?? 0;
-                        await mediator.Send(new SetQueueCommand(userId, trackIds, startIndex, sender), ct);
-                        break;
-                    }
-                case "next":
-                    {
-                        var sender = node!["deviceId"]!.GetValue<Guid>();
-                        await mediator.Send(new NextTrackCommand(userId, sender), ct);
-                        break;
-                    }
-                case "previous":
-                    {
-                        var sender = node!["deviceId"]!.GetValue<Guid>();
-                        await mediator.Send(new PreviousTrackCommand(userId, sender), ct);
-                        break;
-                    }
-                case "seek":
-                    {
-                        var sender = node!["deviceId"]!.GetValue<Guid>();
-                        var posMs = node!["positionMs"]!.GetValue<long>();
-                        await mediator.Send(new SeekCommand(userId, sender, posMs), ct);
-                        break;
-                    }
-                case "pause":
-                    {
-                        // Phase 2: any device can pause. Active-device guard removed
-                        // here; transport commands act on the active device, not the sender.
-                        var sender = node!["deviceId"]?.GetValue<Guid>();
-                        var session = store.GetOrCreate(userId);
-                        if (sender.HasValue) session.ClaimActiveIfNone(sender.Value);
-                        session.Pause();
-                        break;
-                    }
-                case "resume":
-                    {
-                        var sender = node!["deviceId"]?.GetValue<Guid>();
-                        var session = store.GetOrCreate(userId);
-                        if (sender.HasValue) session.ClaimActiveIfNone(sender.Value);
-                        if (session.TrackId is not null) session.Resume();
-                        break;
-                    }
-                case "heartbeat":
-                    {
-                        // Heartbeat is the only message that keeps the active-device guard:
-                        // it carries position truth and must come from the device actually
-                        // playing audio, never from a stale prior-active device.
-                        var session = store.GetOrCreate(userId);
-                        if (!IsActiveDevice(node!, session)) break;
-                        var posMs = node!["positionMs"]!.GetValue<long>();
-                        await mediator.Send(new UpdatePlaybackPositionCommand(userId, posMs), ct);
-                        return true; // ← heartbeat: caller should throttle-write
-                    }
-                case "transfer":
-                    {
-                        var newDeviceId = node!["deviceId"]!.GetValue<Guid>();
-                        var posMs = node!["positionMs"]?.GetValue<long>() ?? 0;
-                        await mediator.Send(new TransferPlaybackCommand(userId, newDeviceId, posMs), ct);
-                        await BroadcastDevicesAsync(userId, ct);
-                        break;
-                    }
-                case "stop":
-                    {
-                        var session = store.GetOrCreate(userId);
-                        if (!IsActiveDevice(node!, session)) break;
-                        session.Clear();
-                        break;
-                    }
-                case "setRepeatMode":
-                    {
-                        var rawMode = node!["mode"]?.GetValue<string>();
-                        if (!Enum.TryParse<RepeatMode>(rawMode, ignoreCase: true, out var mode))
-                            break;
-                        await mediator.Send(new SetRepeatModeCommand(userId, mode), ct);
-                        break;
-                    }
-                case "setShuffle":
-                    {
-                        var enabled = node!["enabled"]?.GetValue<bool>() ?? false;
-                        await mediator.Send(new SetShuffleCommand(userId, enabled), ct);
-                        break;
-                    }
-                case "trackEnded":
-                    {
-                        var sender = node!["deviceId"]!.GetValue<Guid>();
-                        var trackId = node!["trackId"]!.GetValue<Guid>();
-                        var durationMs = node!["durationMs"]?.GetValue<long>() ?? 0;
-                        await mediator.Send(new TrackEndedCommand(userId, sender, trackId, durationMs), ct);
-                        break;
-                    }
-                case "addToQueue":
-                    {
-                        var sender = node!["deviceId"]!.GetValue<Guid>();
-                        var trackId = node!["trackId"]!.GetValue<Guid>();
-                        var position = node!["position"]?.GetValue<int>();
-                        await mediator.Send(new AddToQueueCommand(userId, sender, trackId, position), ct);
-                        break;
-                    }
-                case "removeFromQueue":
-                    {
-                        var sender = node!["deviceId"]!.GetValue<Guid>();
-                        var index = node!["index"]!.GetValue<int>();
-                        await mediator.Send(new RemoveFromQueueCommand(userId, sender, index), ct);
-                        break;
-                    }
-                case "reorderQueue":
-                    {
-                        var sender = node!["deviceId"]!.GetValue<Guid>();
-                        var from = node!["from"]!.GetValue<int>();
-                        var to = node!["to"]!.GetValue<int>();
-                        await mediator.Send(new ReorderQueueCommand(userId, sender, from, to), ct);
-                        break;
-                    }
-                case "clearQueue":
-                    {
-                        var sender = node!["deviceId"]!.GetValue<Guid>();
-                        await mediator.Send(new ClearQueueCommand(userId, sender), ct);
-                        break;
-                    }
-            }
+                "setQueue" => new SetQueueCmd(
+                    node!["deviceId"]!.GetValue<Guid>(),
+                    (node["trackIds"] as JsonArray)?.Select(n => n!.GetValue<Guid>()).ToArray() ?? [],
+                    node["startIndex"]?.GetValue<int>() ?? 0),
+
+                "next" => new NextCmd(node!["deviceId"]!.GetValue<Guid>()),
+                "previous" => new PreviousCmd(node!["deviceId"]!.GetValue<Guid>()),
+
+                "seek" => new SeekCmd(
+                    node!["deviceId"]!.GetValue<Guid>(),
+                    node["positionMs"]!.GetValue<long>()),
+
+                "pause" => new PauseCmd(ParseOptionalGuid(node?["deviceId"])),
+                "resume" => new ResumeCmd(ParseOptionalGuid(node?["deviceId"])),
+
+                "heartbeat" => new HeartbeatCmd(
+                    node!["deviceId"]!.GetValue<Guid>(),
+                    node["positionMs"]!.GetValue<long>()),
+
+                "transfer" => new TransferCmd(
+                    node!["deviceId"]!.GetValue<Guid>(),
+                    node["positionMs"]?.GetValue<long>() ?? 0),
+
+                "stop" => new StopCmd(node!["deviceId"]!.GetValue<Guid>()),
+
+                "setRepeatMode" when Enum.TryParse<RepeatMode>(
+                    node!["mode"]?.GetValue<string>(), ignoreCase: true, out var mode)
+                    => new SetRepeatModeCmd(mode),
+
+                "setShuffle" => new SetShuffleCmd(node!["enabled"]?.GetValue<bool>() ?? false),
+
+                "trackEnded" => new TrackEndedCmd(
+                    node!["deviceId"]!.GetValue<Guid>(),
+                    node["trackId"]!.GetValue<Guid>(),
+                    node["durationMs"]?.GetValue<long>() ?? 0),
+
+                "addToQueue" => new AddToQueueCmd(
+                    node!["deviceId"]!.GetValue<Guid>(),
+                    node["trackId"]!.GetValue<Guid>(),
+                    node["position"]?.GetValue<int?>()),
+
+                "removeFromQueue" => new RemoveFromQueueCmd(
+                    node!["deviceId"]!.GetValue<Guid>(),
+                    node["index"]!.GetValue<int>()),
+
+                "reorderQueue" => new ReorderQueueCmd(
+                    node!["deviceId"]!.GetValue<Guid>(),
+                    node["from"]!.GetValue<int>(),
+                    node["to"]!.GetValue<int>()),
+
+                "clearQueue" => new ClearQueueCmd(node!["deviceId"]!.GetValue<Guid>()),
+
+                _ => null
+            };
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Error processing playback message from user {UserId}", userId);
+            logger.LogWarning(ex, "Failed to parse playback WS message");
+            return null;
         }
-
-        return false; // not a heartbeat
     }
 
-    // Returns true if the message's deviceId matches the active device (or if no deviceId is provided).
-    private static bool IsActiveDevice(JsonNode node, PlaybackSession session)
-    {
-        var raw = node["deviceId"]?.GetValue<string>();
-        if (raw is null || !Guid.TryParse(raw, out var deviceId))
-            return true; // no deviceId → allow (backward compat)
-        return !session.ActiveDeviceId.HasValue || session.ActiveDeviceId.Value == deviceId;
-    }
+    /// <summary>
+    /// Picks the WebSocket close status based on whether the server is shutting down.
+    /// </summary>
+    internal static WebSocketCloseStatus PickCloseStatus(CancellationToken requestAborted) =>
+        requestAborted.IsCancellationRequested
+            ? WebSocketCloseStatus.EndpointUnavailable
+            : WebSocketCloseStatus.NormalClosure;
 
-    private async Task BroadcastSessionAsync(Guid userId)
+    /// <summary>
+    /// Session policy when a device disconnects. The playback session is durable —
+    /// a disconnect is a page refresh / network blip / app close, not an intentional stop.
+    /// Only an explicit <c>stop</c> message clears the session.
+    /// </summary>
+    internal static void ApplyDisconnectPolicy(Guid userId, Guid disconnectingDeviceId)
     {
-        var session = store.GetOrCreate(userId);
-        var dto = new PlaybackSessionDto(
-            session.UserId,
-            session.ActiveDeviceId,
-            session.TrackId,
-            session.PositionMs,
-            session.IsPlaying,
-            session.Queue,
-            session.QueueIndex,
-            session.RepeatMode,
-            session.Shuffle,
-            session.UpdatedAt);
-
-        var payload = JsonSerializer.Serialize(new { type = "session", session = dto }, _jsonOpts);
-        await BroadcastToUserAsync(userId, payload);
+        // Intentionally a no-op — session outlives any single connection.
     }
 
     private async Task BroadcastDevicesAsync(Guid userId, CancellationToken ct)
     {
         var devices = await mediator.Send(new ListDevicesQuery(userId), ct);
         var payload = JsonSerializer.Serialize(new { type = "devices", devices }, _jsonOpts);
-        await BroadcastToUserAsync(userId, payload);
+        await connectionStore.BroadcastAsync(userId, payload);
     }
 
-    private static async Task BroadcastToUserAsync(Guid userId, string payload)
+    private static Guid? ParseOptionalGuid(JsonNode? node)
     {
-        if (!_connections.TryGetValue(userId, out var sockets))
-            return;
-
-        var bytes = Encoding.UTF8.GetBytes(payload);
-        var segment = new ArraySegment<byte>(bytes);
-        var dead = new List<WebSocket>();
-
-        foreach (var ws in sockets)
-        {
-            if (ws.State != WebSocketState.Open) { dead.Add(ws); continue; }
-            try { await ws.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None); }
-            catch { dead.Add(ws); }
-        }
-
-        // prune dead sockets lazily
-        if (dead.Count > 0)
-        {
-            var remaining = sockets.Except(dead).ToList();
-            _connections.TryUpdate(userId, new ConcurrentBag<WebSocket>(remaining), sockets);
-        }
+        var raw = node?.GetValue<string>();
+        return raw is not null && Guid.TryParse(raw, out var g) ? g : null;
     }
 
     private (Guid userId, Guid? deviceId)? Authenticate(HttpContext ctx)
@@ -392,7 +245,6 @@ public sealed class PlaybackSessionHub(
         }
         catch (SecurityTokenExpiredException)
         {
-            // Signal expiry via close code 4001 — handled in HandleAsync early-exit
             return null;
         }
         catch

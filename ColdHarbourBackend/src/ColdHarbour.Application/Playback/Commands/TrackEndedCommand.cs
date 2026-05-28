@@ -6,49 +6,38 @@ namespace ColdHarbour.Application.Playback.Commands;
 
 /// <summary>
 /// Sent by the active device when its &lt;audio&gt; element fires 'ended'.
-/// Closes the open <see cref="PlayEvent"/> (Complete) and asks the session
-/// to AdvanceAfterEnd, honoring RepeatMode and Shuffle. If a new track
-/// starts as a result, opens a fresh PlayEvent.Begin.
+/// Closes the open <see cref="PlayEvent"/> and advances the session honoring RepeatMode and Shuffle.
 /// </summary>
 public sealed record TrackEndedCommand(
-    Guid UserId,
+    PlaybackSession Session,
     Guid SenderDeviceId,
     Guid TrackId,
-    long DurationMs) : IRequest;
+    long DurationMs) : IRequest<bool>;
 
-public sealed class TrackEndedCommandHandler(
-    IPlaybackSessionStore store,
-    IPlayEventRepository events) : IRequestHandler<TrackEndedCommand>
+public sealed class TrackEndedCommandHandler(IPlayEventRepository events) : IRequestHandler<TrackEndedCommand, bool>
 {
-    public async Task Handle(TrackEndedCommand request, CancellationToken cancellationToken)
+    public async Task<bool> Handle(TrackEndedCommand request, CancellationToken cancellationToken)
     {
-        var session = store.GetOrCreate(request.UserId);
-        // Only trust trackEnded from the active device — stale 'ended' from a
-        // formerly-active device must not advance the session.
-        if (session.ActiveDeviceId != request.SenderDeviceId) return;
-        if (session.TrackId != request.TrackId) return;
+        var session = request.Session;
+        // Only trust trackEnded from the active device — stale 'ended' from a formerly-active device must not advance.
+        if (session.ActiveDeviceId != request.SenderDeviceId) return false;
+        if (session.TrackId != request.TrackId) return false;
 
-        var positionMs = request.DurationMs; // track played to its end
         var endedTrackId = session.TrackId.Value;
 
-        // Close the open PlayEvent for this track (PlayEvent.Complete was the
-        // explicit gap noted before phase 3).
-        var active = await events.FindActiveByUserAsync(request.UserId, cancellationToken);
+        var active = await events.FindActiveByUserAsync(session.UserId, cancellationToken);
         if (active is not null && active.TrackId == endedTrackId)
-        {
-            active.Complete(request.DurationMs, positionMs);
-        }
+            active.Complete(request.DurationMs, request.DurationMs);
 
         session.AdvanceAfterEnd();
 
-        // If AdvanceAfterEnd picked a new track, open its PlayEvent.
-        if (session.TrackId is { } nextTrackId &&
-            session.ActiveDeviceId is { } activeDeviceId)
+        if (session.TrackId is { } nextTrackId && session.ActiveDeviceId is { } activeDeviceId)
         {
-            var begin = PlayEvent.Begin(request.UserId, activeDeviceId, nextTrackId);
+            var begin = PlayEvent.Begin(session.UserId, activeDeviceId, nextTrackId);
             await events.AddAsync(begin, cancellationToken);
         }
 
         await events.SaveChangesAsync(cancellationToken);
+        return true;
     }
 }

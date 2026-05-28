@@ -1,17 +1,15 @@
-using ColdHarbour.Application.Playback.Ports;
 using ColdHarbour.Domain.Playback;
 using MediatR;
 
 namespace ColdHarbour.Application.Playback.Commands;
 
-public sealed record SetRepeatModeCommand(Guid UserId, RepeatMode Mode) : IRequest;
+public sealed record SetRepeatModeCommand(PlaybackSession Session, RepeatMode Mode) : IRequest<bool>;
 
-public sealed class SetRepeatModeCommandHandler(IPlaybackSessionStore store) : IRequestHandler<SetRepeatModeCommand>
+public sealed class SetRepeatModeCommandHandler : IRequestHandler<SetRepeatModeCommand, bool>
 {
-    public Task Handle(SetRepeatModeCommand request, CancellationToken cancellationToken)
+    public Task<bool> Handle(SetRepeatModeCommand request, CancellationToken cancellationToken)
     {
-        var session = store.GetOrCreate(request.UserId);
-        session.SetRepeatMode(request.Mode);
-        return Task.CompletedTask;
+        request.Session.SetRepeatMode(request.Mode);
+        return Task.FromResult(true);
     }
 }

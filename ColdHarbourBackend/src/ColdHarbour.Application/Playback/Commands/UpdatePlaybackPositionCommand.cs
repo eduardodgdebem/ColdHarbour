@@ -1,16 +1,15 @@
-using ColdHarbour.Application.Playback.Ports;
+using ColdHarbour.Domain.Playback;
 using MediatR;
 
 namespace ColdHarbour.Application.Playback.Commands;
 
-public sealed record UpdatePlaybackPositionCommand(Guid UserId, long PositionMs) : IRequest;
+public sealed record UpdatePlaybackPositionCommand(PlaybackSession Session, long PositionMs) : IRequest<bool>;
 
-public sealed class UpdatePlaybackPositionCommandHandler(IPlaybackSessionStore store) : IRequestHandler<UpdatePlaybackPositionCommand>
+public sealed class UpdatePlaybackPositionCommandHandler : IRequestHandler<UpdatePlaybackPositionCommand, bool>
 {
-    public Task Handle(UpdatePlaybackPositionCommand request, CancellationToken cancellationToken)
+    public Task<bool> Handle(UpdatePlaybackPositionCommand request, CancellationToken cancellationToken)
     {
-        var session = store.GetOrCreate(request.UserId);
-        session.UpdatePosition(request.PositionMs);
-        return Task.CompletedTask;
+        request.Session.UpdatePosition(request.PositionMs);
+        return Task.FromResult(true);
     }
 }

@@ -114,6 +114,9 @@ try
 
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
+    builder.Services.AddSingleton<ColdHarbour.Api.Playback.PlaybackConnectionStore>();
+    builder.Services.AddSingleton<ColdHarbour.Api.Playback.PlaybackUserActorRegistry>();
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<ColdHarbour.Api.Playback.PlaybackUserActorRegistry>());
     builder.Services.AddScoped<ColdHarbour.Api.Playback.PlaybackSessionHub>();
 
     var app = builder.Build();

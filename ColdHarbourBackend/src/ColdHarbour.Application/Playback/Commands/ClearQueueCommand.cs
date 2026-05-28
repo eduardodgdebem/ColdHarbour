@@ -1,17 +1,16 @@
-using ColdHarbour.Application.Playback.Ports;
+using ColdHarbour.Domain.Playback;
 using MediatR;
 
 namespace ColdHarbour.Application.Playback.Commands;
 
-public sealed record ClearQueueCommand(Guid UserId, Guid SenderDeviceId) : IRequest;
+public sealed record ClearQueueCommand(PlaybackSession Session, Guid SenderDeviceId) : IRequest<bool>;
 
-public sealed class ClearQueueCommandHandler(IPlaybackSessionStore store) : IRequestHandler<ClearQueueCommand>
+public sealed class ClearQueueCommandHandler : IRequestHandler<ClearQueueCommand, bool>
 {
-    public Task Handle(ClearQueueCommand request, CancellationToken cancellationToken)
+    public Task<bool> Handle(ClearQueueCommand request, CancellationToken cancellationToken)
     {
-        var session = store.GetOrCreate(request.UserId);
-        session.ClaimActiveIfNone(request.SenderDeviceId);
-        session.ClearQueue();
-        return Task.CompletedTask;
+        request.Session.ClaimActiveIfNone(request.SenderDeviceId);
+        request.Session.ClearQueue();
+        return Task.FromResult(true);
     }
 }

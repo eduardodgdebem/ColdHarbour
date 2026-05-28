@@ -31,7 +31,7 @@ public sealed class PlaybackHubDisconnectTests
         session.ClaimActiveIfNone(device);
         session.SetQueue([firstTrack, Guid.NewGuid()], startIndex: 0);
 
-        PlaybackSessionHub.ApplyDisconnectPolicy(session, device);
+        PlaybackSessionHub.ApplyDisconnectPolicy(userId, device);
 
         session.TrackId.Should().Be(firstTrack, because: "a refresh must not wipe what was playing");
         session.Queue.Should().HaveCount(2, because: "the queue is durable across reconnects");

@@ -5,26 +5,28 @@ using MediatR;
 namespace ColdHarbour.Application.Playback.Commands;
 
 public sealed record SetQueueCommand(
-    Guid UserId,
+    PlaybackSession Session,
     IReadOnlyList<Guid> TrackIds,
     int StartIndex,
-    Guid SenderDeviceId) : IRequest;
+    Guid SenderDeviceId) : IRequest<bool>;
 
-public sealed class SetQueueCommandHandler(
-    IPlaybackSessionStore store,
-    IPlayEventRepository events) : IRequestHandler<SetQueueCommand>
+public sealed class SetQueueCommandHandler(IPlayEventRepository events) : IRequestHandler<SetQueueCommand, bool>
 {
-    public async Task Handle(SetQueueCommand request, CancellationToken cancellationToken)
+    public async Task<bool> Handle(SetQueueCommand request, CancellationToken cancellationToken)
     {
-        var session = store.GetOrCreate(request.UserId);
+        if (request.TrackIds.Count == 0) return false;
+
+        var session = request.Session;
         session.SetQueue(request.TrackIds, request.StartIndex);
         session.ClaimActiveIfNone(request.SenderDeviceId);
 
         if (session.TrackId is { } trackId && session.ActiveDeviceId is { } activeDeviceId)
         {
-            var playEvent = PlayEvent.Begin(request.UserId, activeDeviceId, trackId);
+            var playEvent = PlayEvent.Begin(session.UserId, activeDeviceId, trackId);
             await events.AddAsync(playEvent, cancellationToken);
             await events.SaveChangesAsync(cancellationToken);
         }
+
+        return true;
     }
 }

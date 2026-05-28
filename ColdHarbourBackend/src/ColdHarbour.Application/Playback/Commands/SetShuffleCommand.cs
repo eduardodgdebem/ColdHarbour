@@ -1,16 +1,15 @@
-using ColdHarbour.Application.Playback.Ports;
+using ColdHarbour.Domain.Playback;
 using MediatR;
 
 namespace ColdHarbour.Application.Playback.Commands;
 
-public sealed record SetShuffleCommand(Guid UserId, bool Enabled) : IRequest;
+public sealed record SetShuffleCommand(PlaybackSession Session, bool Enabled) : IRequest<bool>;
 
-public sealed class SetShuffleCommandHandler(IPlaybackSessionStore store) : IRequestHandler<SetShuffleCommand>
+public sealed class SetShuffleCommandHandler : IRequestHandler<SetShuffleCommand, bool>
 {
-    public Task Handle(SetShuffleCommand request, CancellationToken cancellationToken)
+    public Task<bool> Handle(SetShuffleCommand request, CancellationToken cancellationToken)
     {
-        var session = store.GetOrCreate(request.UserId);
-        session.SetShuffle(request.Enabled);
-        return Task.CompletedTask;
+        request.Session.SetShuffle(request.Enabled);
+        return Task.FromResult(true);
     }
 }

@@ -5,32 +5,30 @@ using MediatR;
 namespace ColdHarbour.Application.Playback.Commands;
 
 public sealed record AddToQueueCommand(
-    Guid UserId,
+    PlaybackSession Session,
     Guid SenderDeviceId,
     Guid TrackId,
-    int? Position) : IRequest;
+    int? Position) : IRequest<bool>;
 
-public sealed class AddToQueueCommandHandler(
-    IPlaybackSessionStore store,
-    IPlayEventRepository events) : IRequestHandler<AddToQueueCommand>
+public sealed class AddToQueueCommandHandler(IPlayEventRepository events) : IRequestHandler<AddToQueueCommand, bool>
 {
-    public async Task Handle(AddToQueueCommand request, CancellationToken cancellationToken)
+    public async Task<bool> Handle(AddToQueueCommand request, CancellationToken cancellationToken)
     {
-        var session = store.GetOrCreate(request.UserId);
+        var session = request.Session;
         var wasEmpty = session.Queue.Count == 0;
 
         session.AddToQueue(request.TrackId, request.Position);
         session.ClaimActiveIfNone(request.SenderDeviceId);
 
-        // Adding to an empty queue also starts playback — open a PlayEvent
-        // for the new (and only) track.
         if (wasEmpty &&
             session.TrackId is { } trackId &&
             session.ActiveDeviceId is { } activeDeviceId)
         {
-            var begin = PlayEvent.Begin(request.UserId, activeDeviceId, trackId);
+            var begin = PlayEvent.Begin(session.UserId, activeDeviceId, trackId);
             await events.AddAsync(begin, cancellationToken);
             await events.SaveChangesAsync(cancellationToken);
         }
+
+        return true;
     }
 }

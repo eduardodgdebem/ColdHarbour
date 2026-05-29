@@ -203,6 +203,106 @@ public sealed class PlaybackUserActorTests
         result.Should().BeNull("malformed JSON must be silently dropped, never thrown into the actor");
     }
 
+    // ── Phase 4: revision monotonicity ───────────────────────────────────────
+
+    [Fact]
+    public async Task Actor_Increments_Revision_On_Each_Material_Change()
+    {
+        var sp = BuildServices();
+        var userId = Guid.NewGuid();
+        var device = Guid.NewGuid();
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
+
+        await using var actor = BuildActor(sp, userId);
+        await actor.EnqueueAsync(new SetQueueCmd(device, tracks, 0), CancellationToken.None);
+        await actor.DisposeAsync();
+
+        var store = sp.GetRequiredService<IPlaybackSessionStore>();
+        var session = await store.LoadAsync(userId) ?? PlaybackSession.Create(userId);
+        session.Revision.Should().Be(1, "one material command must produce revision 1");
+    }
+
+    [Fact]
+    public async Task Revision_Is_Strictly_Monotonic_Under_1000_Concurrent_Commands()
+    {
+        var sp = BuildServices();
+        var userId = Guid.NewGuid();
+        var device = Guid.NewGuid();
+        var tracks = Enumerable.Range(0, 5).Select(_ => Guid.NewGuid()).ToList();
+
+        await using var actor = BuildActor(sp, userId);
+
+        var tasks = Enumerable.Range(0, 1000)
+            .Select(_ => actor.EnqueueAsync(new SetQueueCmd(device, tracks, 0), CancellationToken.None).AsTask());
+        await Task.WhenAll(tasks);
+        await actor.DisposeAsync();
+
+        var store = sp.GetRequiredService<IPlaybackSessionStore>();
+        var session = await store.LoadAsync(userId) ?? PlaybackSession.Create(userId);
+        session.Revision.Should().Be(1000,
+            "each of the 1000 material commands must increment revision exactly once");
+    }
+
+    // ── Phase 4: command-ack unicast ──────────────────────────────────────────
+
+    [Fact]
+    public async Task CommandId_Applied_Ack_Is_Unicast_To_Source_Socket()
+    {
+        var sp = BuildServices();
+        var userId = Guid.NewGuid();
+        var device = Guid.NewGuid();
+        var tracks = new[] { Guid.NewGuid() };
+
+        using var fakeWs = new FakeWebSocket();
+        await using var actor = BuildActor(sp, userId);
+
+        await actor.EnqueueAsync(
+            new SetQueueCmd(device, tracks, 0),
+            commandId: "cmd-abc-123",
+            source: fakeWs,
+            CancellationToken.None);
+
+        await actor.DisposeAsync();
+
+        fakeWs.ReceivedMessages.Should().ContainSingle();
+        var ack = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.Nodes.JsonObject>(
+            fakeWs.ReceivedMessages[0]);
+        ack!["type"]!.GetValue<string>().Should().Be("command-ack");
+        ack["commandId"]!.GetValue<string>().Should().Be("cmd-abc-123");
+        ack["status"]!.GetValue<string>().Should().Be("applied");
+        ack["revision"]!.GetValue<long>().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task CommandId_Duplicate_Produces_Noop_Ack_Not_Applied()
+    {
+        var sp = BuildServices();
+        var userId = Guid.NewGuid();
+        var device = Guid.NewGuid();
+        var tracks = new[] { Guid.NewGuid() };
+        const string cmdId = "dedup-cmd-999";
+
+        using var fakeWs = new FakeWebSocket();
+        await using var actor = BuildActor(sp, userId);
+
+        // First send — must be applied.
+        await actor.EnqueueAsync(new SetQueueCmd(device, tracks, 0), cmdId, fakeWs, CancellationToken.None);
+        // Second send with same commandId — must be noop.
+        await actor.EnqueueAsync(new SetQueueCmd(device, tracks, 0), cmdId, fakeWs, CancellationToken.None);
+        await actor.DisposeAsync();
+
+        var acks = fakeWs.ReceivedMessages
+            .Select(m => System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.Nodes.JsonObject>(m)!)
+            .Where(j => j["type"]?.GetValue<string>() == "command-ack")
+            .ToList();
+
+        acks.Should().HaveCount(2);
+        acks.Count(a => a["status"]!.GetValue<string>() == "applied").Should().Be(1,
+            "a duplicate commandId must produce exactly one applied ack");
+        acks.Count(a => a["status"]!.GetValue<string>() == "noop").Should().Be(1,
+            "the duplicate must produce exactly one noop ack");
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private static IConfiguration BuildFakeConfig()
@@ -243,5 +343,36 @@ public sealed class PlaybackUserActorTests
         public void Add(Guid deviceId) { }
         public void Remove(Guid deviceId) { }
         public IReadOnlySet<Guid> GetConnected() => new HashSet<Guid>();
+    }
+
+    /// <summary>
+    /// Open fake WebSocket that captures every text frame sent to it.
+    /// Used to assert command-ack unicast payloads.
+    /// </summary>
+    private sealed class FakeWebSocket : System.Net.WebSockets.WebSocket
+    {
+        private bool _closed;
+        public List<string> ReceivedMessages { get; } = [];
+
+        public override System.Net.WebSockets.WebSocketCloseStatus? CloseStatus => null;
+        public override string? CloseStatusDescription => null;
+        public override System.Net.WebSockets.WebSocketState State =>
+            _closed ? System.Net.WebSockets.WebSocketState.Closed : System.Net.WebSockets.WebSocketState.Open;
+        public override string? SubProtocol => null;
+
+        public override void Abort() => _closed = true;
+        public override Task CloseAsync(System.Net.WebSockets.WebSocketCloseStatus closeStatus, string? statusDescription, CancellationToken ct) { _closed = true; return Task.CompletedTask; }
+        public override Task CloseOutputAsync(System.Net.WebSockets.WebSocketCloseStatus closeStatus, string? statusDescription, CancellationToken ct) { _closed = true; return Task.CompletedTask; }
+        public override void Dispose() => _closed = true;
+
+        public override Task<System.Net.WebSockets.WebSocketReceiveResult> ReceiveAsync(ArraySegment<byte> buffer, CancellationToken ct)
+            => Task.FromResult(new System.Net.WebSockets.WebSocketReceiveResult(0, System.Net.WebSockets.WebSocketMessageType.Close, true));
+
+        public override Task SendAsync(ArraySegment<byte> buffer, System.Net.WebSockets.WebSocketMessageType messageType, bool endOfMessage, CancellationToken ct)
+        {
+            if (messageType == System.Net.WebSockets.WebSocketMessageType.Text)
+                ReceivedMessages.Add(System.Text.Encoding.UTF8.GetString(buffer.Array!, buffer.Offset, buffer.Count));
+            return Task.CompletedTask;
+        }
     }
 }

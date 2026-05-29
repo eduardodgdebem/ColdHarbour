@@ -178,6 +178,24 @@ public sealed class PostgresPlaybackSessionStoreTests : IAsyncLifetime
         restored.Shuffle.Should().BeTrue();
     }
 
+    // ── Phase 4: Revision round-trip ─────────────────────────────────────────
+
+    [Fact]
+    public async Task Revision_Survives_Round_Trip_Via_Postgres()
+    {
+        var store = CreateStore();
+        var userId = Guid.NewGuid();
+
+        var session = PlaybackSession.Create(userId);
+        session.IncrementRevision();
+        session.IncrementRevision(); // revision == 2
+
+        await store.SaveAsync(session, SaveReason.MaterialChange, CancellationToken.None);
+
+        var restored = await store.LoadAsync(userId, CancellationToken.None);
+        restored!.Revision.Should().Be(2, "revision must survive a Postgres save/load round-trip");
+    }
+
     // ── Clone semantics: each LoadAsync returns an independent snapshot ───────
 
     [Fact]

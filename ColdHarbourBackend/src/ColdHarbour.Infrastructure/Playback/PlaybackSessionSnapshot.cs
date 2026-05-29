@@ -27,4 +27,5 @@ public sealed class PlaybackSessionSnapshot
 
     public bool Shuffle { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
+    public long Revision { get; set; }
 }

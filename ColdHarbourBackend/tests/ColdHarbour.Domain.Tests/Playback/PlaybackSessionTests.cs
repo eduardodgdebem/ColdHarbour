@@ -963,4 +963,43 @@ public sealed class PlaybackSessionTests
         session.QueueIndex.Should().Be(1);
         session.TrackId.Should().Be(tracks[1]);
     }
+
+    // ── Phase 4: Revision ─────────────────────────────────────────────────────
+
+    [Fact]
+    public void Create_HasRevision_Zero()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.Revision.Should().Be(0);
+    }
+
+    [Fact]
+    public void Restore_PreservesRevision()
+    {
+        var session = PlaybackSession.Restore(
+            userId: UserId,
+            activeDeviceId: null,
+            trackId: null,
+            positionMs: 0,
+            isPlaying: false,
+            queue: [],
+            queueIndex: 0,
+            repeatMode: RepeatMode.Off,
+            shuffle: false,
+            updatedAt: DateTimeOffset.UtcNow,
+            revision: 42);
+
+        session.Revision.Should().Be(42);
+    }
+
+    [Fact]
+    public void IncrementRevision_IncreasesByOne_EachCall()
+    {
+        var session = PlaybackSession.Create(UserId);
+
+        session.IncrementRevision();
+        session.IncrementRevision();
+
+        session.Revision.Should().Be(2);
+    }
 }

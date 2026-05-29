@@ -25,6 +25,7 @@ export type PlaybackSessionDto = {
   repeatMode: RepeatMode;
   shuffle: boolean;
   updatedAt: string;
+  revision: number;
 };
 
 export type DeviceDto = {
@@ -45,6 +46,12 @@ export class PlaybackSessionService {
   private ws?: WebSocket;
   private heartbeatTimer?: ReturnType<typeof setInterval>;
   private reconnectTimer?: ReturnType<typeof setTimeout>;
+
+  // Phase 4: monotonic revision guard — discard stale state broadcasts.
+  private localRevision = 0;
+
+  // Phase 4: outbound command tracking for ack correlation.
+  private readonly pendingCommands = new Map<string, { sentAt: number; type: string }>();
 
   // Track the last trackId we sent setQueue for, to avoid duplicate sends.
   private lastTrackId: string | null = null;
@@ -322,7 +329,7 @@ export class PlaybackSessionService {
       trackId,
     };
     if (position !== undefined) msg['position'] = position;
-    this.send(msg);
+    this.send(msg as Record<string, unknown>);
   }
 
   removeFromQueue(index: number): void {
@@ -372,8 +379,20 @@ export class PlaybackSessionService {
 
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data as string);
-      if (msg.type === 'session') this.session.set(msg.session);
+      if (msg.type === 'state' || msg.type === 'session') {
+        const incoming: PlaybackSessionDto = msg.session;
+        const rev: number | undefined = incoming.revision;
+        // Backwards-compat: messages without revision are always accepted (legacy clients).
+        // Messages with revision are accepted only if they advance localRevision.
+        if (rev == null || rev > this.localRevision) {
+          if (rev != null) this.localRevision = rev;
+          this.session.set(incoming);
+        }
+      }
       if (msg.type === 'devices') this.devices.set(msg.devices);
+      if (msg.type === 'command-ack') {
+        this.pendingCommands.delete(msg.commandId as string);
+      }
     };
 
     ws.onclose = (e) => {
@@ -429,9 +448,25 @@ export class PlaybackSessionService {
     }
   }
 
-  private send(msg: object): void {
+  private send(msg: Record<string, unknown>): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(msg));
+      const commandId = this.generateUUID();
+      const payload = { ...msg, commandId };
+      this.pendingCommands.set(commandId, {
+        sentAt: Date.now(),
+        type: String(msg['type'] ?? 'unknown'),
+      });
+      this.ws.send(JSON.stringify(payload));
     }
+  }
+
+  private generateUUID(): string {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+    });
   }
 }

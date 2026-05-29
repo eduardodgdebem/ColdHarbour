@@ -90,9 +90,9 @@ public sealed class PlaybackSessionHub(
                     continue;
 
                 var json = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                var cmd = ParseCommand(json);
+                var (cmd, commandId) = ParseCommandWithId(json);
                 if (cmd is not null)
-                    await actor.EnqueueAsync(cmd, ct);
+                    await actor.EnqueueAsync(cmd, commandId, ws, ct);
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
@@ -101,6 +101,24 @@ public sealed class PlaybackSessionHub(
             if (ws.State == WebSocketState.Open)
                 await ws.CloseAsync(PickCloseStatus(ct), "bye", CancellationToken.None);
         }
+    }
+
+    /// <summary>
+    /// Parses a raw JSON WS frame into a typed InboundCommand plus the optional
+    /// <c>commandId</c> field (client-generated UUID for ack correlation).
+    /// Returns <c>(null, null)</c> for unrecognised or malformed messages.
+    /// </summary>
+    internal (InboundCommand? Command, string? CommandId) ParseCommandWithId(string json)
+    {
+        var cmd = ParseCommand(json);
+        if (cmd is null) return (null, null);
+        try
+        {
+            var node = JsonNode.Parse(json);
+            var commandId = node?["commandId"]?.GetValue<string>();
+            return (cmd, commandId);
+        }
+        catch { return (cmd, null); }
     }
 
     /// <summary>

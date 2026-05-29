@@ -37,5 +37,6 @@ public sealed class InMemoryPlaybackSessionStore : IPlaybackSessionStore
             queueIndex: s.QueueIndex,
             repeatMode: s.RepeatMode,
             shuffle: s.Shuffle,
-            updatedAt: s.UpdatedAt);
+            updatedAt: s.UpdatedAt,
+            revision: s.Revision);
 }

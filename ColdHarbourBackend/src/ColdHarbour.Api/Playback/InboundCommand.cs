@@ -20,3 +20,4 @@ public sealed record AddToQueueCmd(Guid DeviceId, Guid TrackId, int? Position) :
 public sealed record RemoveFromQueueCmd(Guid DeviceId, int Index) : InboundCommand;
 public sealed record ReorderQueueCmd(Guid DeviceId, int From, int To) : InboundCommand;
 public sealed record ClearQueueCmd(Guid DeviceId) : InboundCommand;
+public sealed record ResyncCmd(Guid DeviceId, long LastSeenRevision) : InboundCommand;

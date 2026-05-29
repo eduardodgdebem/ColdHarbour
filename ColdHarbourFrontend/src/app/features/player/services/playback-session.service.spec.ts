@@ -151,7 +151,7 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
       updatedAt: '2026-05-23T00:00:00Z',
     };
     ws().onmessage?.({
-      data: JSON.stringify({ type: 'session', session: { ...base, ...overrides } }),
+      data: JSON.stringify({ type: 'state', session: { ...base, ...overrides } }),
     });
     TestBed.flushEffects();
     await flushMicrotasks();
@@ -314,11 +314,11 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
 
   // ── Session DTO carries queue + queueIndex (regression for Phase 1) ──────
 
-  it('absorbs session messages with queue + queueIndex', async () => {
+  it('absorbs state messages with queue + queueIndex', async () => {
     const service = await setupAndConnect();
     ws().onmessage?.({
       data: JSON.stringify({
-        type: 'session',
+        type: 'state',
         session: {
           userId: 'u',
           activeDeviceId: 'd',
@@ -454,7 +454,7 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
 
   // ── Phase 4: protocol revisioning ────────────────────────────────────────
 
-  it('accepts state message type in addition to session', async () => {
+  it('accepts state message type', async () => {
     const service = await setupAndConnect();
     ws().onmessage?.({
       data: JSON.stringify({
@@ -562,5 +562,90 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     await flushMicrotasks();
 
     expect(musicSpy.selectMusic).toHaveBeenCalledWith(t);
+  });
+
+  // ── Phase 5: tick handler + session alias retired ─────────────────────────
+
+  it('ignores a message with type session (alias retired in Phase 5)', async () => {
+    const service = await setupAndConnect();
+    ws().onmessage?.({
+      data: JSON.stringify({
+        type: 'session',
+        session: {
+          userId: 'u', activeDeviceId: null, trackId: null, positionMs: 0,
+          isPlaying: false, queue: [], queueIndex: 0, repeatMode: 'off',
+          shuffle: false, updatedAt: '2026-05-28T00:00:00Z', revision: 99,
+        },
+      }),
+    });
+    TestBed.flushEffects();
+    expect(service.session()).toBeNull('retired session type must not update the session signal');
+  });
+
+  it('tick handler updates positionMs and isPlaying in the session signal', async () => {
+    const service = await setupAndConnect();
+    const t = track('11111111-0000-0000-0000-000000000001');
+    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
+    await pushSession({ trackId: t.trackId, positionMs: 0, isPlaying: false, revision: 1 });
+
+    ws().onmessage?.({
+      data: JSON.stringify({ type: 'tick', positionMs: 30_000, isPlaying: true, revision: 1 }),
+    });
+    TestBed.flushEffects();
+
+    expect(service.session()?.positionMs).toBe(30_000);
+    expect(service.session()?.isPlaying).toBeTrue();
+    expect(service.session()?.queue).toEqual([t.trackId]);
+  });
+
+  it('sends resync when tick.revision is higher than localRevision', async () => {
+    const service = await setupAndConnect();
+    const t = track('11111111-0000-0000-0000-000000000001');
+    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
+    await pushSession({ revision: 2 });
+
+    ws().onmessage?.({
+      data: JSON.stringify({ type: 'tick', positionMs: 5_000, isPlaying: true, revision: 5 }),
+    });
+    TestBed.flushEffects();
+
+    const resyncs = sent('resync');
+    expect(resyncs.length).toBeGreaterThanOrEqual(1, 'a tick with higher revision must trigger resync');
+    expect((resyncs[resyncs.length - 1] as Record<string, unknown>)['lastSeenRevision']).toBe(2,
+      'resync must report the last accepted state revision');
+  });
+
+  it('tick applies drift correction on the active device when drift exceeds 1 s', async () => {
+    const t = track('11111111-0000-0000-0000-000000000001');
+    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
+    await setupAndConnect();
+    await pushSession({ trackId: t.trackId, positionMs: 0, isPlaying: true, revision: 1 });
+    audioSpy.seekTo.calls.reset();
+
+    currentTime.set(10); // local audio at 10s
+    ws().onmessage?.({
+      data: JSON.stringify({ type: 'tick', positionMs: 60_000, isPlaying: true, revision: 1 }),
+    });
+    TestBed.flushEffects();
+    await flushMicrotasks();
+
+    expect(audioSpy.seekTo).toHaveBeenCalledWith(60);
+  });
+
+  it('tick does not seek on the active device when drift is within 1 s tolerance', async () => {
+    const t = track('11111111-0000-0000-0000-000000000001');
+    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
+    await setupAndConnect();
+    await pushSession({ trackId: t.trackId, positionMs: 0, isPlaying: true, revision: 1 });
+    audioSpy.seekTo.calls.reset();
+
+    currentTime.set(30); // local audio at 30s
+    ws().onmessage?.({
+      data: JSON.stringify({ type: 'tick', positionMs: 30_500, isPlaying: true, revision: 1 }),
+    });
+    TestBed.flushEffects();
+    await flushMicrotasks();
+
+    expect(audioSpy.seekTo).not.toHaveBeenCalled();
   });
 });

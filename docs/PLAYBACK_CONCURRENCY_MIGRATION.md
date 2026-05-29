@@ -20,7 +20,7 @@
 | 2 | Connection-set primitive fix | ✅ Done — landed on playback-concurrency-phase-2-connection-set 2026-05-28 |
 | 3 | `IPlaybackSessionStore` reshape (`LoadAsync` + `SaveAsync(snapshot, reason)`) | ✅ Done — landed on playback-concurrency-phase-3-store-reshape 2026-05-28 |
 | 4 | Protocol revisioning + command acks | ✅ Done — landed on playback-concurrency-phase-4-protocol-revision 2026-05-28 |
-| 5 | Broadcast split (`tick` vs `state`) | ⏳ Not started |
+| 5 | Broadcast split (`tick` vs `state`) | ✅ Done — landed on playback-concurrency-phase-5-broadcast-split 2026-05-29 |
 
 ---
 

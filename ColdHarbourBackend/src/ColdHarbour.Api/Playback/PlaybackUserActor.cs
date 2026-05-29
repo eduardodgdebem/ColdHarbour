@@ -235,6 +235,11 @@ public sealed class PlaybackUserActor : IAsyncDisposable
             case ClearQueueCmd c:
                 changed = await mediator.Send(new ClearQueueCommand(session, c.DeviceId), ct);
                 break;
+
+            case ResyncCmd:
+                // Unicast the current full state to the requesting socket only.
+                await UnicastSessionAsync(envelope.Source, session, ct);
+                return;
         }
 
         if (!changed)
@@ -252,6 +257,8 @@ public sealed class PlaybackUserActor : IAsyncDisposable
                 await _store.SaveAsync(session, SaveReason.HeartbeatThrottled, ct);
                 _lastHeartbeatWrite = now;
             }
+            // Heartbeat → tiny tick broadcast (positionMs + isPlaying + revision only).
+            await BroadcastTickAsync(session, ct);
         }
         else
         {
@@ -260,9 +267,10 @@ public sealed class PlaybackUserActor : IAsyncDisposable
 
             if (envelope.CommandId is not null)
                 await SendAckAsync(envelope.Source, envelope.CommandId, "applied", session.Revision, ct);
-        }
 
-        await BroadcastSessionAsync(session, ct);
+            // Material change → full state broadcast.
+            await BroadcastSessionAsync(session, ct);
+        }
 
         if (broadcastDevices)
             await BroadcastDevicesAsync(mediator, ct);
@@ -296,26 +304,52 @@ public sealed class PlaybackUserActor : IAsyncDisposable
     private static bool IsActiveDevice(PlaybackSession session, Guid deviceId)
         => !session.ActiveDeviceId.HasValue || session.ActiveDeviceId.Value == deviceId;
 
+    private static PlaybackSessionDto ToDto(PlaybackSession session) => new(
+        session.UserId,
+        session.ActiveDeviceId,
+        session.TrackId,
+        session.PositionMs,
+        session.IsPlaying,
+        session.Queue,
+        session.QueueIndex,
+        session.RepeatMode,
+        session.Shuffle,
+        session.UpdatedAt,
+        session.Revision);
+
     private async Task BroadcastSessionAsync(PlaybackSession session, CancellationToken ct)
     {
-        var dto = new PlaybackSessionDto(
-            session.UserId,
-            session.ActiveDeviceId,
-            session.TrackId,
-            session.PositionMs,
-            session.IsPlaying,
-            session.Queue,
-            session.QueueIndex,
-            session.RepeatMode,
-            session.Shuffle,
-            session.UpdatedAt,
-            session.Revision);
-        // "state" is the Phase 4 canonical type; "session" is kept as a one-phase alias
-        // so existing clients continue to work until Phase 5 removes it.
-        var payload = JsonSerializer.Serialize(new { type = "state", session = dto }, _jsonOpts);
+        var payload = JsonSerializer.Serialize(new { type = "state", session = ToDto(session) }, _jsonOpts);
         await _connectionStore.BroadcastAsync(_userId, payload);
-        var aliasPayload = JsonSerializer.Serialize(new { type = "session", session = dto }, _jsonOpts);
-        await _connectionStore.BroadcastAsync(_userId, aliasPayload);
+    }
+
+    private async Task BroadcastTickAsync(PlaybackSession session, CancellationToken ct)
+    {
+        var payload = JsonSerializer.Serialize(
+            new { type = "tick", positionMs = session.PositionMs, isPlaying = session.IsPlaying, revision = session.Revision },
+            _jsonOpts);
+        await _connectionStore.BroadcastAsync(_userId, payload);
+    }
+
+    private static async Task UnicastSessionAsync(
+        System.Net.WebSockets.WebSocket? socket,
+        PlaybackSession session,
+        CancellationToken ct)
+    {
+        if (socket is null || socket.State != System.Net.WebSockets.WebSocketState.Open)
+            return;
+
+        var payload = System.Text.Encoding.UTF8.GetBytes(
+            JsonSerializer.Serialize(new { type = "state", session = ToDto(session) }, _jsonOpts));
+        try
+        {
+            await socket.SendAsync(
+                new ArraySegment<byte>(payload),
+                System.Net.WebSockets.WebSocketMessageType.Text,
+                endOfMessage: true,
+                ct);
+        }
+        catch { }
     }
 
     private async Task BroadcastDevicesAsync(IMediator mediator, CancellationToken ct)

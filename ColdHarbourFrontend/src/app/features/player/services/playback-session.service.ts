@@ -379,14 +379,32 @@ export class PlaybackSessionService {
 
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data as string);
-      if (msg.type === 'state' || msg.type === 'session') {
+      if (msg.type === 'state') {
         const incoming: PlaybackSessionDto = msg.session;
         const rev: number | undefined = incoming.revision;
-        // Backwards-compat: messages without revision are always accepted (legacy clients).
-        // Messages with revision are accepted only if they advance localRevision.
         if (rev == null || rev > this.localRevision) {
           if (rev != null) this.localRevision = rev;
           this.session.set(incoming);
+        }
+      }
+      if (msg.type === 'tick') {
+        const tick = msg as { positionMs: number; isPlaying: boolean; revision: number };
+        if (tick.revision > this.localRevision) {
+          this.send({ type: 'resync', lastSeenRevision: this.localRevision, deviceId: this.deviceService.getOrCreateDeviceId() });
+        }
+        const currentSess = this.session();
+        if (currentSess) {
+          this.session.set({ ...currentSess, positionMs: tick.positionMs, isPlaying: tick.isPlaying });
+        }
+        const myId = this.deviceService.getOrCreateDeviceId();
+        if (currentSess?.activeDeviceId === myId) {
+          const localMs = this.audioService.currentTime() * 1000;
+          if (Math.abs(localMs - tick.positionMs) > DRIFT_TOLERANCE_MS) {
+            this.audioService.seekTo(tick.positionMs / 1000);
+          }
+          const localPlaying = this.audioService.isPlaying();
+          if (tick.isPlaying && !localPlaying) this.audioService.play();
+          else if (!tick.isPlaying && localPlaying) this.audioService.pause();
         }
       }
       if (msg.type === 'devices') this.devices.set(msg.devices);

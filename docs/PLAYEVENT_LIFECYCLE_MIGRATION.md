@@ -14,7 +14,7 @@
 
 | Phase | Title | Status |
 |---|---|---|
-| 1 | Invariant tests (red contract) | Pending |
+| 1 | Invariant tests (red contract) | ✅ Done — landed on playevent-phase-1-invariants (631c845) 2026-05-29 |
 | 2 | `PlaySessionTimeline` centralization | Pending |
 | 3 | Pause-aware listened-time accumulation | Pending |
 | 4 | Server-trusted duration on `trackEnded` | Pending |

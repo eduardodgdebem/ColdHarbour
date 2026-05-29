@@ -31,5 +31,6 @@ public sealed class PlaybackSessionSnapshotConfiguration : IEntityTypeConfigurat
 
         b.Property(s => s.Shuffle).IsRequired();
         b.Property(s => s.UpdatedAt).IsRequired();
+        b.Property(s => s.Revision).IsRequired().HasDefaultValue(0L);
     }
 }

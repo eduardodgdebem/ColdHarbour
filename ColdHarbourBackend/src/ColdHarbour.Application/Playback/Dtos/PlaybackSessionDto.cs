@@ -12,4 +12,5 @@ public sealed record PlaybackSessionDto(
     int QueueIndex,
     RepeatMode RepeatMode,
     bool Shuffle,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    long Revision = 0);

@@ -28,12 +28,18 @@ public sealed class PlaybackUserActor : IAsyncDisposable
 
     private static readonly TimeSpan HeartbeatThrottle = TimeSpan.FromSeconds(5);
 
+    // Bounded LRU set for command-id deduplication. The actor is single-threaded
+    // on the pump side so no synchronisation is needed.
+    private const int CommandIdCacheCapacity = 256;
+    private readonly Queue<string> _seenCommandIdOrder = new(CommandIdCacheCapacity);
+    private readonly HashSet<string> _seenCommandIds = new(CommandIdCacheCapacity);
+
     private readonly Guid _userId;
     private readonly IPlaybackSessionStore _store;
     private readonly PlaybackConnectionStore _connectionStore;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<PlaybackUserActor> _logger;
-    private readonly Channel<InboundCommand> _channel;
+    private readonly Channel<CommandEnvelope> _channel;
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _pumpTask;
 
@@ -55,7 +61,7 @@ public sealed class PlaybackUserActor : IAsyncDisposable
         _connectionStore = connectionStore;
         _scopeFactory = scopeFactory;
         _logger = logger;
-        _channel = Channel.CreateBounded<InboundCommand>(new BoundedChannelOptions(1000)
+        _channel = Channel.CreateBounded<CommandEnvelope>(new BoundedChannelOptions(1000)
         {
             FullMode = BoundedChannelFullMode.Wait,
             SingleWriter = false,
@@ -73,10 +79,19 @@ public sealed class PlaybackUserActor : IAsyncDisposable
     public void NotifyConnected() => Interlocked.Increment(ref _connectionCount);
     public void NotifyDisconnected() => Interlocked.Decrement(ref _connectionCount);
 
+    /// <summary>Fire-and-forget overload used by tests and internal callers.</summary>
     public ValueTask EnqueueAsync(InboundCommand cmd, CancellationToken ct)
+        => EnqueueAsync(cmd, commandId: null, source: null, ct);
+
+    /// <summary>
+    /// Hub-facing overload. Wraps the command in a <see cref="CommandEnvelope"/>
+    /// so the actor can unicast a <c>command-ack</c> back to the originating socket.
+    /// </summary>
+    public ValueTask EnqueueAsync(
+        InboundCommand cmd, string? commandId, System.Net.WebSockets.WebSocket? source, CancellationToken ct)
     {
         _lastCommandTime = DateTimeOffset.UtcNow;
-        return _channel.Writer.WriteAsync(cmd, ct);
+        return _channel.Writer.WriteAsync(new CommandEnvelope(cmd, commandId, source), ct);
     }
 
     /// <summary>
@@ -110,10 +125,10 @@ public sealed class PlaybackUserActor : IAsyncDisposable
     {
         try
         {
-            await foreach (var cmd in _channel.Reader.ReadAllAsync(ct))
+            await foreach (var envelope in _channel.Reader.ReadAllAsync(ct))
             {
                 _lastCommandTime = DateTimeOffset.UtcNow;
-                try { await ProcessCommandAsync(cmd, ct); }
+                try { await ProcessEnvelopeAsync(envelope, ct); }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Playback command error for user {UserId}", _userId);
@@ -123,8 +138,34 @@ public sealed class PlaybackUserActor : IAsyncDisposable
         catch (OperationCanceledException) { }
     }
 
-    private async Task ProcessCommandAsync(InboundCommand cmd, CancellationToken ct)
+    private async Task ProcessEnvelopeAsync(CommandEnvelope envelope, CancellationToken ct)
     {
+        // Deduplicate: if we've already processed this commandId, emit noop ack and return.
+        if (envelope.CommandId is { } cid && _seenCommandIds.Contains(cid))
+        {
+            await SendAckAsync(envelope.Source, cid, "noop", revision: null, ct);
+            return;
+        }
+
+        await ProcessCommandAsync(envelope, ct);
+
+        // Track seen commandId (bounded LRU eviction).
+        if (envelope.CommandId is { } newCid)
+        {
+            if (_seenCommandIds.Count >= CommandIdCacheCapacity)
+            {
+                var oldest = _seenCommandIdOrder.Dequeue();
+                _seenCommandIds.Remove(oldest);
+            }
+            _seenCommandIds.Add(newCid);
+            _seenCommandIdOrder.Enqueue(newCid);
+        }
+    }
+
+    private async Task ProcessCommandAsync(CommandEnvelope envelope, CancellationToken ct)
+    {
+        var cmd = envelope.Command;
+
         // Hydrate from store on first command; actor owns the reference from here on.
         _session ??= await _store.LoadAsync(_userId, ct) ?? PlaybackSession.Create(_userId);
         var session = _session;
@@ -196,7 +237,12 @@ public sealed class PlaybackUserActor : IAsyncDisposable
                 break;
         }
 
-        if (!changed) return;
+        if (!changed)
+        {
+            if (envelope.CommandId is not null)
+                await SendAckAsync(envelope.Source, envelope.CommandId, "noop", revision: null, ct);
+            return;
+        }
 
         if (isHeartbeat)
         {
@@ -209,13 +255,42 @@ public sealed class PlaybackUserActor : IAsyncDisposable
         }
         else
         {
+            session.IncrementRevision();
             await _store.SaveAsync(session, SaveReason.MaterialChange, ct);
+
+            if (envelope.CommandId is not null)
+                await SendAckAsync(envelope.Source, envelope.CommandId, "applied", session.Revision, ct);
         }
 
         await BroadcastSessionAsync(session, ct);
 
         if (broadcastDevices)
             await BroadcastDevicesAsync(mediator, ct);
+    }
+
+    private static async Task SendAckAsync(
+        System.Net.WebSockets.WebSocket? socket,
+        string commandId,
+        string status,
+        long? revision,
+        CancellationToken ct)
+    {
+        if (socket is null || socket.State != System.Net.WebSockets.WebSocketState.Open)
+            return;
+
+        var payload = JsonSerializer.Serialize(
+            new { type = "command-ack", commandId, status, revision },
+            _jsonOpts);
+        var bytes = System.Text.Encoding.UTF8.GetBytes(payload);
+        try
+        {
+            await socket.SendAsync(
+                new ArraySegment<byte>(bytes),
+                System.Net.WebSockets.WebSocketMessageType.Text,
+                endOfMessage: true,
+                ct);
+        }
+        catch { /* socket may have closed mid-send; ignore */ }
     }
 
     private static bool IsActiveDevice(PlaybackSession session, Guid deviceId)
@@ -233,9 +308,14 @@ public sealed class PlaybackUserActor : IAsyncDisposable
             session.QueueIndex,
             session.RepeatMode,
             session.Shuffle,
-            session.UpdatedAt);
-        var payload = JsonSerializer.Serialize(new { type = "session", session = dto }, _jsonOpts);
+            session.UpdatedAt,
+            session.Revision);
+        // "state" is the Phase 4 canonical type; "session" is kept as a one-phase alias
+        // so existing clients continue to work until Phase 5 removes it.
+        var payload = JsonSerializer.Serialize(new { type = "state", session = dto }, _jsonOpts);
         await _connectionStore.BroadcastAsync(_userId, payload);
+        var aliasPayload = JsonSerializer.Serialize(new { type = "session", session = dto }, _jsonOpts);
+        await _connectionStore.BroadcastAsync(_userId, aliasPayload);
     }
 
     private async Task BroadcastDevicesAsync(IMediator mediator, CancellationToken ct)

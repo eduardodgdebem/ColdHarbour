@@ -16,6 +16,12 @@ public sealed class PlaybackSession
     public RepeatMode RepeatMode { get; private set; } = RepeatMode.Off;
     public bool Shuffle { get; private set; }
 
+    /// <summary>
+    /// Monotonic counter incremented by the actor after every material mutation.
+    /// Never touched by the aggregate itself — the actor is the sole increment site.
+    /// </summary>
+    public long Revision { get; private set; }
+
     // Stable shuffled visit order — indices into _queue. Re-seeded on
     // SetQueue or SetShuffle(true). _shuffleCursor advances through this
     // list during AdvanceAfterEnd; reaching the end ends the cycle.
@@ -43,7 +49,8 @@ public sealed class PlaybackSession
         int queueIndex,
         RepeatMode repeatMode,
         bool shuffle,
-        DateTimeOffset updatedAt)
+        DateTimeOffset updatedAt,
+        long revision = 0)
     {
         var s = new PlaybackSession
         {
@@ -56,12 +63,19 @@ public sealed class PlaybackSession
             RepeatMode = repeatMode,
             Shuffle = shuffle,
             UpdatedAt = updatedAt,
+            Revision = revision,
         };
         s._queue.AddRange(queue);
         if (shuffle && s._queue.Count > 0)
             s.RebuildShuffleOrder(null);
         return s;
     }
+
+    /// <summary>
+    /// Called exclusively by <see cref="ColdHarbour.Api.Playback.PlaybackUserActor"/>
+    /// after every material mutation, keeping the increment site singular.
+    /// </summary>
+    public void IncrementRevision() => Revision++;
 
     public void Start(Guid deviceId, Guid trackId)
     {

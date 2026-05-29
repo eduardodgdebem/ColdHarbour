@@ -78,6 +78,7 @@ public sealed class PostgresPlaybackSessionStore : IPlaybackSessionStore
         snap.RepeatMode = session.RepeatMode.ToString().ToLowerInvariant();
         snap.Shuffle = session.Shuffle;
         snap.UpdatedAt = session.UpdatedAt;
+        snap.Revision = session.Revision;
     }
 
     private static PlaybackSession FromSnapshot(PlaybackSessionSnapshot snap)
@@ -97,6 +98,7 @@ public sealed class PostgresPlaybackSessionStore : IPlaybackSessionStore
             queueIndex: snap.QueueIndex,
             repeatMode: mode,
             shuffle: snap.Shuffle,
-            updatedAt: snap.UpdatedAt);
+            updatedAt: snap.UpdatedAt,
+            revision: snap.Revision);
     }
 }

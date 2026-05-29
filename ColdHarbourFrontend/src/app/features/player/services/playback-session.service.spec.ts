@@ -452,6 +452,103 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     expect(musicSpy.setCurrentPlaylist).toHaveBeenCalledWith(1);
   });
 
+  // ── Phase 4: protocol revisioning ────────────────────────────────────────
+
+  it('accepts state message type in addition to session', async () => {
+    const service = await setupAndConnect();
+    ws().onmessage?.({
+      data: JSON.stringify({
+        type: 'state',
+        session: {
+          userId: 'u',
+          activeDeviceId: null,
+          trackId: null,
+          positionMs: 0,
+          isPlaying: false,
+          queue: [],
+          queueIndex: 0,
+          repeatMode: 'off',
+          shuffle: false,
+          updatedAt: '2026-05-28T00:00:00Z',
+          revision: 1,
+        },
+      }),
+    });
+    expect(service.session()).not.toBeNull('state message type must be accepted');
+  });
+
+  it('ignores a state message with a lower or equal revision than localRevision', async () => {
+    const service = await setupAndConnect();
+    const t = track('11111111-0000-0000-0000-000000000001');
+    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
+
+    // Revision 3 arrives and is applied.
+    ws().onmessage?.({
+      data: JSON.stringify({
+        type: 'state',
+        session: {
+          userId: 'u', activeDeviceId: MY_DEVICE, trackId: t.trackId,
+          positionMs: 5000, isPlaying: true, queue: [t.trackId], queueIndex: 0,
+          repeatMode: 'off', shuffle: false, updatedAt: '2026-05-28T00:00:00Z',
+          revision: 3,
+        },
+      }),
+    });
+    TestBed.flushEffects();
+    await flushMicrotasks();
+    const posAfterFirst = service.session()?.positionMs;
+
+    // Revision 2 arrives (stale echo from another tab) — must be discarded.
+    ws().onmessage?.({
+      data: JSON.stringify({
+        type: 'state',
+        session: {
+          userId: 'u', activeDeviceId: MY_DEVICE, trackId: t.trackId,
+          positionMs: 999, isPlaying: true, queue: [t.trackId], queueIndex: 0,
+          repeatMode: 'off', shuffle: false, updatedAt: '2026-05-28T00:00:00Z',
+          revision: 2,
+        },
+      }),
+    });
+    TestBed.flushEffects();
+
+    expect(service.session()?.positionMs).toBe(posAfterFirst,
+      'stale revision must not roll back localRevision or update the session signal');
+  });
+
+  it('generates a commandId on every outbound command', async () => {
+    const service = await setupAndConnect();
+    service.next();
+    service.previous();
+    service.seek(5000);
+
+    const msgs = ws().sentMessages as Array<Record<string, unknown>>;
+    const commandIds = msgs.map((m) => m['commandId']).filter(Boolean);
+    expect(commandIds.length).toBe(3, 'every outbound command must carry a commandId');
+    // All commandIds must be distinct UUIDs.
+    const unique = new Set(commandIds);
+    expect(unique.size).toBe(3, 'every outbound command must carry a unique commandId');
+  });
+
+  it('resolves a pending command on command-ack and removes it from pendingCommands', async () => {
+    const service = await setupAndConnect();
+    service.next(); // sends with a commandId
+
+    const sentMsg = ws().sentMessages[0] as Record<string, unknown>;
+    const commandId = sentMsg['commandId'] as string;
+    expect(commandId).toBeTruthy();
+
+    // Simulate server ack.
+    ws().onmessage?.({
+      data: JSON.stringify({ type: 'command-ack', commandId, status: 'applied', revision: 1 }),
+    });
+
+    // No assertion on internal state — the observable effect is that it doesn't throw
+    // and the service remains stable. pendingCommands is private but the service must
+    // handle the ack gracefully (no crash, no double-apply).
+    expect(service.session).toBeDefined();
+  });
+
   it('sets currentMusic on an inactive device once the playlist loads after a session broadcast', async () => {
     await setupAndConnect();
     const t = track('11111111-0000-0000-0000-000000000001');

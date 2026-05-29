@@ -94,6 +94,25 @@ public sealed class PlaybackSessionStoreContractTests
             "each LoadAsync must return an independent clone");
     }
 
+    // ── invariant 4b: revision survives round-trip ────────────────────────────
+
+    [Fact]
+    public async Task SaveAsync_ThenLoadAsync_PreservesRevision()
+    {
+        var store = new InMemoryPlaybackSessionStore();
+        var userId = Guid.NewGuid();
+
+        var session = PlaybackSession.Create(userId);
+        session.IncrementRevision();
+        session.IncrementRevision();
+        session.IncrementRevision(); // revision == 3
+
+        await store.SaveAsync(session, SaveReason.MaterialChange, CancellationToken.None);
+
+        var loaded = await store.LoadAsync(userId, CancellationToken.None);
+        loaded!.Revision.Should().Be(3, "revision must survive a save/load round-trip");
+    }
+
     // ── invariant 5: last-writer-wins (documented known limitation) ──────────
 
     [Fact]

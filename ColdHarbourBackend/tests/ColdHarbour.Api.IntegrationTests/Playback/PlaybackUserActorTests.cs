@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using ColdHarbour.Api.Playback;
 using ColdHarbour.Application.Playback.Commands;
 using ColdHarbour.Application.Playback.Ports;
@@ -301,6 +303,152 @@ public sealed class PlaybackUserActorTests
             "a duplicate commandId must produce exactly one applied ack");
         acks.Count(a => a["status"]!.GetValue<string>() == "noop").Should().Be(1,
             "the duplicate must produce exactly one noop ack");
+    }
+
+    // ── Phase 5: tick vs state broadcast split ────────────────────────────────
+
+    [Fact]
+    public async Task Heartbeat_Broadcasts_Tick_Not_State()
+    {
+        var sp = BuildServices();
+        var userId = Guid.NewGuid();
+        var deviceId = Guid.NewGuid();
+
+        // Pre-seed store with an active session so the heartbeat guard passes
+        // without needing a SetQueueCmd (which would broadcast state and race with Clear).
+        var store = sp.GetRequiredService<ColdHarbour.Infrastructure.Playback.InMemoryPlaybackSessionStore>();
+        var seeded = PlaybackSession.Create(userId);
+        await store.SaveAsync(seeded, SaveReason.MaterialChange);
+
+        using var fakeWs = new FakeWebSocket();
+        var connStore = sp.GetRequiredService<PlaybackConnectionStore>();
+        connStore.Add(userId, fakeWs);
+
+        await using var actor = BuildActor(sp, userId);
+        // HeartbeatCmd passes the active-device guard when activeDeviceId is null.
+        await actor.EnqueueAsync(new HeartbeatCmd(deviceId, 5_000), CancellationToken.None);
+        await actor.DisposeAsync();
+
+        var types = fakeWs.ReceivedMessages
+            .Select(m => JsonSerializer.Deserialize<JsonObject>(m)?["type"]?.GetValue<string>())
+            .ToList();
+
+        types.Should().Contain("tick", "heartbeat must broadcast a tick");
+        types.Should().NotContain("state", "heartbeat must NOT broadcast a full state");
+        types.Should().NotContain("session", "the session alias must be retired in Phase 5");
+    }
+
+    [Fact]
+    public async Task Tick_Payload_Contains_PositionMs_IsPlaying_Revision_And_No_Queue()
+    {
+        var sp = BuildServices();
+        var userId = Guid.NewGuid();
+        var deviceId = Guid.NewGuid();
+        var tracks = new[] { Guid.NewGuid() };
+
+        using var fakeWs = new FakeWebSocket();
+        var connStore = sp.GetRequiredService<PlaybackConnectionStore>();
+        connStore.Add(userId, fakeWs);
+
+        await using var actor = BuildActor(sp, userId);
+        await actor.EnqueueAsync(new SetQueueCmd(deviceId, tracks, 0), CancellationToken.None);
+        fakeWs.ReceivedMessages.Clear();
+
+        await actor.EnqueueAsync(new HeartbeatCmd(deviceId, 10_000), CancellationToken.None);
+        await actor.DisposeAsync();
+
+        var tick = fakeWs.ReceivedMessages
+            .Select(m => JsonSerializer.Deserialize<JsonObject>(m)!)
+            .First(j => j["type"]?.GetValue<string>() == "tick");
+
+        tick["positionMs"].Should().NotBeNull();
+        tick["isPlaying"].Should().NotBeNull();
+        tick["revision"].Should().NotBeNull();
+        tick["trackId"].Should().NotBeNull("tick must include trackId so the frontend can reject stale ticks for a previous track");
+        tick["queue"].Should().BeNull("tick must not contain queue");
+        tick["session"].Should().BeNull("tick must not wrap a session DTO");
+    }
+
+    [Fact]
+    public async Task Material_Command_Broadcasts_State_Only_No_Session_Alias_No_Tick()
+    {
+        var sp = BuildServices();
+        var userId = Guid.NewGuid();
+        var deviceId = Guid.NewGuid();
+        var tracks = new[] { Guid.NewGuid() };
+
+        using var fakeWs = new FakeWebSocket();
+        var connStore = sp.GetRequiredService<PlaybackConnectionStore>();
+        connStore.Add(userId, fakeWs);
+
+        await using var actor = BuildActor(sp, userId);
+        await actor.EnqueueAsync(new SetQueueCmd(deviceId, tracks, 0), CancellationToken.None);
+        await actor.DisposeAsync();
+
+        var types = fakeWs.ReceivedMessages
+            .Select(m => JsonSerializer.Deserialize<JsonObject>(m)?["type"]?.GetValue<string>())
+            .ToList();
+
+        types.Should().Contain("state", "material command must broadcast 'state'");
+        types.Should().NotContain("session", "'session' alias must be retired");
+        types.Should().NotContain("tick", "material command must not broadcast a tick");
+    }
+
+    [Fact]
+    public async Task Resync_Unicasts_Full_State_To_Source_Socket_Only()
+    {
+        var sp = BuildServices();
+        var userId = Guid.NewGuid();
+        var deviceId = Guid.NewGuid();
+
+        // Pre-seed store so the actor has state to unicast without needing a material
+        // command (which would broadcast to bystanderWs and complicate the assertion).
+        var store = sp.GetRequiredService<ColdHarbour.Infrastructure.Playback.InMemoryPlaybackSessionStore>();
+        var seeded = PlaybackSession.Create(userId);
+        await store.SaveAsync(seeded, SaveReason.MaterialChange);
+
+        using var sourceWs = new FakeWebSocket();
+        using var bystanderWs = new FakeWebSocket();
+        var connStore = sp.GetRequiredService<PlaybackConnectionStore>();
+        connStore.Add(userId, bystanderWs);
+
+        await using var actor = BuildActor(sp, userId);
+        // sourceWs is NOT in the connection store — only receives the unicast reply.
+        await actor.EnqueueAsync(new ResyncCmd(deviceId, 0L), null, sourceWs, CancellationToken.None);
+        await actor.DisposeAsync();
+
+        var sourceTypes = sourceWs.ReceivedMessages
+            .Select(m => JsonSerializer.Deserialize<JsonObject>(m)?["type"]?.GetValue<string>())
+            .ToList();
+        sourceTypes.Should().Contain("state", "resync must unicast a full state to the requesting socket");
+
+        bystanderWs.ReceivedMessages.Should().BeEmpty(
+            "resync must not broadcast to other connected sockets");
+    }
+
+    [Fact]
+    public async Task Hub_Parses_Resync_Message_Into_ResyncCmd()
+    {
+        var sp = BuildServices();
+        using var scope = sp.CreateScope();
+
+        var hub = new PlaybackSessionHub(
+            scope.ServiceProvider.GetRequiredService<IMediator>(),
+            sp.GetRequiredService<IConnectedDeviceStore>(),
+            sp.GetRequiredService<PlaybackConnectionStore>(),
+            new PlaybackUserActorRegistry(
+                sp.GetRequiredService<IServiceScopeFactory>(),
+                sp.GetRequiredService<IPlaybackSessionStore>(),
+                sp.GetRequiredService<PlaybackConnectionStore>(),
+                sp.GetRequiredService<ILoggerFactory>()),
+            BuildFakeConfig(),
+            NullLogger<PlaybackSessionHub>.Instance);
+
+        var json = $$$"""{"type":"resync","deviceId":"{{{Guid.NewGuid()}}}","lastSeenRevision":7}""";
+        var result = hub.ParseCommand(json);
+
+        result.Should().BeOfType<ResyncCmd>();
+        ((ResyncCmd)result!).LastSeenRevision.Should().Be(7L);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

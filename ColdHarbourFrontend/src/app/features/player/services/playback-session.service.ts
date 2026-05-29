@@ -379,14 +379,39 @@ export class PlaybackSessionService {
 
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data as string);
-      if (msg.type === 'state' || msg.type === 'session') {
+      if (msg.type === 'state') {
         const incoming: PlaybackSessionDto = msg.session;
         const rev: number | undefined = incoming.revision;
-        // Backwards-compat: messages without revision are always accepted (legacy clients).
-        // Messages with revision are accepted only if they advance localRevision.
         if (rev == null || rev > this.localRevision) {
           if (rev != null) this.localRevision = rev;
           this.session.set(incoming);
+        }
+      }
+      if (msg.type === 'tick') {
+        const tick = msg as { positionMs: number; isPlaying: boolean; revision: number; trackId?: string | null };
+        if (tick.revision > this.localRevision) {
+          // Session is behind — request a full resync and do not apply drift
+          // correction based on stale revision context.
+          this.send({ type: 'resync', lastSeenRevision: this.localRevision, deviceId: this.deviceService.getOrCreateDeviceId() });
+          return;
+        }
+        // Do NOT write to session() here. Writing the tick's positionMs into the
+        // session signal re-triggers the full session effect on every 2-second
+        // heartbeat, causing unintended loadMusic / seek calls on material-change logic.
+        const myId = this.deviceService.getOrCreateDeviceId();
+        const currentSess = this.session();
+        // Drop stale ticks: a heartbeat for the previous track can arrive after
+        // "next"/"transfer" sets the session to a new track. Its positionMs (e.g.
+        // 30 000 ms from the old track) would wrongly seek the new track.
+        if (tick.trackId !== undefined && tick.trackId !== currentSess?.trackId) return;
+        if (currentSess?.activeDeviceId === myId) {
+          const localMs = this.audioService.currentTime() * 1000;
+          if (Math.abs(localMs - tick.positionMs) > DRIFT_TOLERANCE_MS) {
+            this.audioService.seekTo(tick.positionMs / 1000);
+          }
+          const localPlaying = this.audioService.isPlaying();
+          if (tick.isPlaying && !localPlaying) this.audioService.play();
+          else if (!tick.isPlaying && localPlaying) this.audioService.pause();
         }
       }
       if (msg.type === 'devices') this.devices.set(msg.devices);

@@ -186,6 +186,10 @@ public sealed class PlaybackSessionHub(
 
                 "clearQueue" => new ClearQueueCmd(node!["deviceId"]!.GetValue<Guid>()),
 
+                "resync" => new ResyncCmd(
+                    node!["deviceId"]!.GetValue<Guid>(),
+                    node["lastSeenRevision"]?.GetValue<long>() ?? 0L),
+
                 _ => null
             };
         }

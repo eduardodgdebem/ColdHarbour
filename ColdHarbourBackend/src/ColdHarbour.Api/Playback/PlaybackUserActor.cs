@@ -325,8 +325,10 @@ public sealed class PlaybackUserActor : IAsyncDisposable
 
     private async Task BroadcastTickAsync(PlaybackSession session, CancellationToken ct)
     {
+        // trackId is included so the frontend can reject stale ticks (heartbeats
+        // echoed for the previous track after a "next"/"transfer" command).
         var payload = JsonSerializer.Serialize(
-            new { type = "tick", positionMs = session.PositionMs, isPlaying = session.IsPlaying, revision = session.Revision },
+            new { type = "tick", positionMs = session.PositionMs, isPlaying = session.IsPlaying, revision = session.Revision, trackId = session.TrackId },
             _jsonOpts);
         await _connectionStore.BroadcastAsync(_userId, payload);
     }

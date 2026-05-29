@@ -582,7 +582,13 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     expect(service.session()).toBeNull('retired session type must not update the session signal');
   });
 
-  it('tick handler updates positionMs and isPlaying in the session signal', async () => {
+  it('tick handler does NOT update the session signal (session is for material state only)', async () => {
+    // Ticks are heartbeat echoes. Writing to session() from a tick re-triggers
+    // the full session effect every 2 s. When a "next" or "transfer" arrives,
+    // the new trackId is in session() but a stale tick's positionMs (from the
+    // old track) gets spread in — causing the session effect to seek the new
+    // track to the old track's position. The fix: ticks apply drift correction
+    // directly on the audio element and must never touch session().
     const service = await setupAndConnect();
     const t = track('11111111-0000-0000-0000-000000000001');
     currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
@@ -593,9 +599,41 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     });
     TestBed.flushEffects();
 
-    expect(service.session()?.positionMs).toBe(30_000);
-    expect(service.session()?.isPlaying).toBeTrue();
+    expect(service.session()?.positionMs).toBe(0);
+    expect(service.session()?.isPlaying).toBeFalse();
     expect(service.session()?.queue).toEqual([t.trackId]);
+  });
+
+  it('stale tick after track change does not seek the new track to the old track position', async () => {
+    // Regression: state arrives with track2 at positionMs=0, then a stale tick
+    // arrives with the old track1 positionMs (e.g. 30 000 ms). Without the fix,
+    // the tick would spread positionMs=30 000 into session() which has trackId=track2,
+    // causing the session effect to seek track2 to 30 s.
+    const t1 = track('11111111-0000-0000-0000-000000000001', 'Track 1');
+    const t2 = track('22222222-0000-0000-0000-000000000002', 'Track 2');
+    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t1, t2] });
+    await setupAndConnect();
+
+    // Track 1 is playing at 30 s on this (active) device.
+    currentTime.set(30);
+    await pushSession({ trackId: t1.trackId, positionMs: 30_000, isPlaying: true, revision: 1 });
+    audioSpy.seekTo.calls.reset();
+
+    // Server advances to track 2 (state: positionMs=0, revision=2).
+    await pushSession({ trackId: t2.trackId, positionMs: 0, isPlaying: true, revision: 2 });
+    currentTime.set(0); // new track just started
+    audioSpy.seekTo.calls.reset();
+
+    // A stale tick arrives (heartbeat of track 1 echoed by the server with positionMs=30 000).
+    // The tick carries t1.trackId so the frontend can detect the mismatch.
+    ws().onmessage?.({
+      data: JSON.stringify({ type: 'tick', positionMs: 30_000, isPlaying: true, revision: 2, trackId: t1.trackId }),
+    });
+    TestBed.flushEffects();
+    await flushMicrotasks();
+
+    // The tick must NOT cause the new track to be seeked to 30 s.
+    expect(audioSpy.seekTo).not.toHaveBeenCalled();
   });
 
   it('sends resync when tick.revision is higher than localRevision', async () => {
@@ -624,7 +662,7 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
 
     currentTime.set(10); // local audio at 10s
     ws().onmessage?.({
-      data: JSON.stringify({ type: 'tick', positionMs: 60_000, isPlaying: true, revision: 1 }),
+      data: JSON.stringify({ type: 'tick', positionMs: 60_000, isPlaying: true, revision: 1, trackId: t.trackId }),
     });
     TestBed.flushEffects();
     await flushMicrotasks();
@@ -641,7 +679,7 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
 
     currentTime.set(30); // local audio at 30s
     ws().onmessage?.({
-      data: JSON.stringify({ type: 'tick', positionMs: 30_500, isPlaying: true, revision: 1 }),
+      data: JSON.stringify({ type: 'tick', positionMs: 30_500, isPlaying: true, revision: 1, trackId: t.trackId }),
     });
     TestBed.flushEffects();
     await flushMicrotasks();

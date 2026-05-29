@@ -364,8 +364,8 @@ public sealed class PlaybackUserActorTests
         tick["positionMs"].Should().NotBeNull();
         tick["isPlaying"].Should().NotBeNull();
         tick["revision"].Should().NotBeNull();
+        tick["trackId"].Should().NotBeNull("tick must include trackId so the frontend can reject stale ticks for a previous track");
         tick["queue"].Should().BeNull("tick must not contain queue");
-        tick["trackId"].Should().BeNull("tick must not contain trackId");
         tick["session"].Should().BeNull("tick must not wrap a session DTO");
     }
 

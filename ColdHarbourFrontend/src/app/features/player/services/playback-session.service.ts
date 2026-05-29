@@ -388,15 +388,22 @@ export class PlaybackSessionService {
         }
       }
       if (msg.type === 'tick') {
-        const tick = msg as { positionMs: number; isPlaying: boolean; revision: number };
+        const tick = msg as { positionMs: number; isPlaying: boolean; revision: number; trackId?: string | null };
         if (tick.revision > this.localRevision) {
+          // Session is behind — request a full resync and do not apply drift
+          // correction based on stale revision context.
           this.send({ type: 'resync', lastSeenRevision: this.localRevision, deviceId: this.deviceService.getOrCreateDeviceId() });
+          return;
         }
-        const currentSess = this.session();
-        if (currentSess) {
-          this.session.set({ ...currentSess, positionMs: tick.positionMs, isPlaying: tick.isPlaying });
-        }
+        // Do NOT write to session() here. Writing the tick's positionMs into the
+        // session signal re-triggers the full session effect on every 2-second
+        // heartbeat, causing unintended loadMusic / seek calls on material-change logic.
         const myId = this.deviceService.getOrCreateDeviceId();
+        const currentSess = this.session();
+        // Drop stale ticks: a heartbeat for the previous track can arrive after
+        // "next"/"transfer" sets the session to a new track. Its positionMs (e.g.
+        // 30 000 ms from the old track) would wrongly seek the new track.
+        if (tick.trackId !== undefined && tick.trackId !== currentSess?.trackId) return;
         if (currentSess?.activeDeviceId === myId) {
           const localMs = this.audioService.currentTime() * 1000;
           if (Math.abs(localMs - tick.positionMs) > DRIFT_TOLERANCE_MS) {

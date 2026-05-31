@@ -464,6 +464,9 @@ All times `America/Sao_Paulo`. Library sync is user-triggered, not scheduled.
 16. **Trying to proxy Apple Music audio — DRM kills it.**
     Don't. The backend stores the catalog ID only. The client plays via MusicKit. Post-MVP.
 
+17. **Orphaned `PlayEvent` rows from pre-Phase-2 code.**
+    Before `PlaySessionTimeline` was introduced (Phase 2 of `docs/PLAYEVENT_LIFECYCLE_MIGRATION.md`), every `Next`/`Previous`/`SetQueue` command opened a new `PlayEvent` without closing the prior one. These leaked rows have `EndedAt IS NULL` indefinitely. The one-shot `close-orphans` admin command (`dotnet run --project ColdHarbour.Api -- close-orphans`) cleans them up using a heuristic: `EndedAt = StartedAt + min(Track.Duration, 1 day)`, `ListenedMs = EndedAt − StartedAt`. Rows closed this way carry a non-null `BackfilledAt` so the heuristic is auditable and re-running is a no-op. Do not delete these rows — they are real listen events, just poorly bounded by the old code.
+
 ---
 
 ## Shared component kit

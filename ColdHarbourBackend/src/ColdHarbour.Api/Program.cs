@@ -166,6 +166,19 @@ try
         await hub.HandleAsync(ctx, ws);
     });
 
+    // ── admin maintenance mode ───────────────────────────────────────────────
+    // Invocation: dotnet run --project ColdHarbour.Api -- close-orphans
+    // Requires shell access to the host — not exposed as a public HTTP endpoint.
+    if (args.Contains("close-orphans"))
+    {
+        using var scope = app.Services.CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<MediatR.IMediator>();
+        var count = await mediator.Send(
+            new ColdHarbour.Application.Playback.Commands.CloseOrphanedPlayEventsCommand());
+        Console.WriteLine($"Closed {count} orphaned PlayEvent(s).");
+        return;
+    }
+
     app.Run();
 }
 catch (Exception ex)

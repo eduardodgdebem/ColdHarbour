@@ -20,6 +20,8 @@ public sealed class PlayEventConfiguration : IEntityTypeConfiguration<PlayEvent>
         b.Property(e => e.ListenedMs).IsRequired().HasDefaultValue(0L);
         b.Property(e => e.PausedAtUtc);
         b.Property(e => e.SegmentStartedAt).IsRequired();
+        // Phase 5: orphan-backfill sentinel
+        b.Property(e => e.BackfilledAt);
         b.HasIndex(e => e.UserId);
         b.HasIndex(e => new { e.UserId, e.EndedAt });
     }

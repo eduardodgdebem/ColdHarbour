@@ -376,8 +376,7 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
         trackId: t.trackId,
       }),
     );
-    expect(sent('trackEnded')[0]).not.toHaveProperty('durationMs',
-      'durationMs must not be sent — server resolves duration from Track.Duration');
+    expect((sent('trackEnded')[0] as Record<string, unknown>)['durationMs']).toBeUndefined();
 
     // Inactive device: ended is ignored.
     ended.set(false);

@@ -33,13 +33,16 @@ public sealed class PlaybackStatsJobTests : IAsyncLifetime
 
     private static PlayEvent MakeEvent(Guid trackId, DateTimeOffset startedAt, double durationSeconds = 120)
     {
+        var durationMs = (long)(durationSeconds * 1000);
+        var endedAt = startedAt.AddSeconds(durationSeconds);
+
         var e = PlayEvent.Begin(Guid.NewGuid(), Guid.NewGuid(), trackId);
-        e.Complete((long)(durationSeconds * 1000), (long)(durationSeconds * 1000));
-        // Adjust StartedAt via reflection since it's private-set
-        typeof(PlayEvent).GetProperty("StartedAt")!
-            .SetValue(e, startedAt);
-        typeof(PlayEvent).GetProperty("EndedAt")!
-            .SetValue(e, startedAt.AddSeconds(durationSeconds));
+
+        // Use explicit nowUtc so ListenedMs is computed correctly relative to startedAt.
+        typeof(PlayEvent).GetProperty("SegmentStartedAt")!.SetValue(e, startedAt);
+        typeof(PlayEvent).GetProperty("StartedAt")!.SetValue(e, startedAt);
+
+        e.Complete(durationMs, durationMs, endedAt);
         return e;
     }
 
@@ -66,6 +69,48 @@ public sealed class PlaybackStatsJobTests : IAsyncLifetime
             var stats = await ctx.PlayStats.Where(s => s.TrackId == trackId).ToListAsync();
             stats.Should().ContainSingle();
             stats[0].PlayCount.Should().Be(3);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_IsIdempotent_TwoRunsYieldIdenticalAggregates()
+    {
+        var trackId = Guid.NewGuid();
+        var startedAt = DateTimeOffset.UtcNow.AddHours(-1); // inside current week
+
+        await using (var ctx = CreateContext())
+        {
+            ctx.PlayEvents.Add(MakeEvent(trackId, startedAt, durationSeconds: 180));
+            ctx.PlayEvents.Add(MakeEvent(trackId, startedAt.AddMinutes(5), durationSeconds: 120));
+            await ctx.SaveChangesAsync();
+        }
+
+        // First run
+        await using (var ctx = CreateContext())
+            await PlaybackStatsJob.RunAsync(ctx, CancellationToken.None);
+
+        long totalMsAfterFirst;
+        int playCountAfterFirst;
+        await using (var ctx = CreateContext())
+        {
+            var stats = await ctx.PlayStats.Where(s => s.TrackId == trackId).ToListAsync();
+            stats.Should().ContainSingle();
+            playCountAfterFirst = stats[0].PlayCount;
+            totalMsAfterFirst = stats[0].TotalMs;
+        }
+
+        // Second run — same data, no changes
+        await using (var ctx = CreateContext())
+            await PlaybackStatsJob.RunAsync(ctx, CancellationToken.None);
+
+        await using (var ctx = CreateContext())
+        {
+            var stats = await ctx.PlayStats.Where(s => s.TrackId == trackId).ToListAsync();
+            stats.Should().ContainSingle();
+            stats[0].PlayCount.Should().Be(playCountAfterFirst,
+                "play count must be identical after a second consecutive run");
+            stats[0].TotalMs.Should().Be(totalMsAfterFirst,
+                "TotalMs must be identical after a second consecutive run");
         }
     }
 

@@ -1,17 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Location } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { MusicService } from '../../services/music.service';
 import { AudioService } from '../../services/audio.service';
 import { PlaybackSessionService } from '../../services/playback-session.service';
+import { DeviceService } from '../../../devices/device.service';
 import { PlayIconComponent } from '../../../../shared/icons/play-icon.component';
 import { PauseIconComponent } from '../../../../shared/icons/pause-icon.component';
 import { QueuePanelComponent } from '../../components/queue-panel/queue-panel.component';
+import { DevicesPanelComponent } from '../../components/devices-panel/devices-panel.component';
 
 @Component({
   selector: 'app-player-page',
   standalone: true,
-  imports: [RouterLink, PlayIconComponent, PauseIconComponent, QueuePanelComponent],
+  imports: [PlayIconComponent, PauseIconComponent, QueuePanelComponent, DevicesPanelComponent],
   templateUrl: './player-page.component.html',
   styleUrl: './player-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -20,6 +21,8 @@ export class PlayerPageComponent {
   protected readonly musicService = inject(MusicService);
   protected readonly audioService = inject(AudioService);
   protected readonly playbackSession = inject(PlaybackSessionService);
+  protected readonly deviceService = inject(DeviceService);
+  readonly myDeviceId = this.deviceService.getOrCreateDeviceId();
   private readonly location = inject(Location);
 
   readonly currentMusic = this.musicService.currentMusic;
@@ -98,11 +101,20 @@ export class PlayerPageComponent {
     });
   });
 
-  /** Whether the left column is showing the queue panel instead of album art. */
+  /** Which panel is open in the right column (null = sleeve / track info). */
   readonly showQueue = signal(false);
+  readonly showDevices = signal(false);
 
   toggleQueue(): void {
-    this.showQueue.update((v) => !v);
+    const next = !this.showQueue();
+    this.showQueue.set(next);
+    if (next) this.showDevices.set(false);
+  }
+
+  toggleDevices(): void {
+    const next = !this.showDevices();
+    this.showDevices.set(next);
+    if (next) this.showQueue.set(false);
   }
 
   close(): void {

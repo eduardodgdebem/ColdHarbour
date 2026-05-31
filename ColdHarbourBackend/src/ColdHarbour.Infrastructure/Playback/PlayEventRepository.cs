@@ -16,6 +16,12 @@ public sealed class PlayEventRepository(ColdHarbourDbContext db) : IPlayEventRep
           .OrderByDescending(e => e.StartedAt)
           .FirstOrDefaultAsync(ct);
 
+    public async Task<IReadOnlyList<PlayEvent>> FindOrphanedAsync(
+        DateTimeOffset before, CancellationToken ct = default) =>
+        await db.PlayEvents
+            .Where(e => e.EndedAt == null && e.StartedAt < before)
+            .ToListAsync(ct);
+
     public Task SaveChangesAsync(CancellationToken ct = default) =>
         db.SaveChangesAsync(ct);
 }

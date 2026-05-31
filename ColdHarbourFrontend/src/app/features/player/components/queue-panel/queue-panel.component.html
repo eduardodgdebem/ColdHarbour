@@ -1,0 +1,77 @@
+<header class="stage__queue-header">
+  <span class="stage__queue-title">// QUEUE</span>
+  @if (items().length > 0) {
+    <span class="stage__queue-track-count">{{ items().length }} TRACKS</span>
+  }
+  <button
+    type="button"
+    class="stage__queue-clear"
+    [disabled]="items().length === 0"
+    (click)="clear.emit()"
+    aria-label="Clear queue"
+  >
+    CLEAR
+  </button>
+  <button
+    type="button"
+    class="stage__queue-close"
+    (click)="close.emit()"
+    aria-label="Close queue"
+    title="Close queue"
+  >
+    ✕
+  </button>
+</header>
+
+@if (items().length === 0) {
+  <div class="stage__queue-empty">
+    <span class="stage__queue-empty-tag">// EMPTY MANIFEST</span>
+    <p>No tracks in the queue.</p>
+  </div>
+} @else {
+  <ol class="stage__queue-list">
+    @for (item of items(); track item.index) {
+      <li
+        class="stage__queue-row"
+        [class.stage__queue-row--current]="item.isCurrent"
+      >
+        <span class="stage__queue-idx">{{ item.index + 1 }}.</span>
+        <div class="stage__queue-info">
+          <span class="stage__queue-name">{{ item.name }}</span>
+          <span class="stage__queue-author">{{ item.author }}</span>
+        </div>
+        <div class="stage__queue-actions">
+          <button
+            type="button"
+            class="stage__queue-btn"
+            [disabled]="item.index === 0"
+            (click)="moveUp.emit(item.index)"
+            aria-label="Move up"
+            title="Move up"
+          >
+            ▲
+          </button>
+          <button
+            type="button"
+            class="stage__queue-btn"
+            [disabled]="item.index === items().length - 1"
+            (click)="moveDown.emit(item.index)"
+            aria-label="Move down"
+            title="Move down"
+          >
+            ▼
+          </button>
+          <button
+            type="button"
+            class="stage__queue-btn stage__queue-btn--remove"
+            (click)="remove.emit(item.index)"
+            aria-label="Remove from queue"
+            title="Remove"
+          >
+            ✕
+          </button>
+        </div>
+      </li>
+    }
+  </ol>
+}

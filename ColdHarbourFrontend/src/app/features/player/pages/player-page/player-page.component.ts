@@ -6,11 +6,12 @@ import { AudioService } from '../../services/audio.service';
 import { PlaybackSessionService } from '../../services/playback-session.service';
 import { PlayIconComponent } from '../../../../shared/icons/play-icon.component';
 import { PauseIconComponent } from '../../../../shared/icons/pause-icon.component';
+import { QueuePanelComponent } from '../../components/queue-panel/queue-panel.component';
 
 @Component({
   selector: 'app-player-page',
   standalone: true,
-  imports: [RouterLink, PlayIconComponent, PauseIconComponent],
+  imports: [RouterLink, PlayIconComponent, PauseIconComponent, QueuePanelComponent],
   templateUrl: './player-page.component.html',
   styleUrl: './player-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

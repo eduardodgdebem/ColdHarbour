@@ -15,17 +15,28 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       - COLDHARBOUR_CONTENT_ROOT=/content
+      - COLDHARBOUR_BOOTSTRAP_EMAIL=${COLDHARBOUR_BOOTSTRAP_EMAIL}
+      - COLDHARBOUR_BOOTSTRAP_PASSWORD=${COLDHARBOUR_BOOTSTRAP_PASSWORD}
+      - COLDHARBOUR_JWT_SIGNING_KEY=${COLDHARBOUR_JWT_SIGNING_KEY:-changeme-dev-key-at-least-32-chars!!}
     volumes:
       - coldharbour_content:/content
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:latest
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   coldharbour_content:

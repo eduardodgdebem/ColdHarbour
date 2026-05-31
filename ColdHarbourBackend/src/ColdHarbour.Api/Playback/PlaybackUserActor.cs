@@ -218,7 +218,8 @@ public sealed class PlaybackUserActor : IAsyncDisposable
                 changed = await mediator.Send(new SetShuffleCommand(session, c.Enabled), ct);
                 break;
             case TrackEndedCmd c:
-                changed = await mediator.Send(new TrackEndedCommand(session, c.DeviceId, c.TrackId, c.DurationMs), ct);
+                // c.DurationMs is silently discarded — duration is resolved server-side from Track.Duration.
+                changed = await mediator.Send(new TrackEndedCommand(session, c.DeviceId, c.TrackId), ct);
                 break;
             case AddToQueueCmd c:
                 changed = await mediator.Send(new AddToQueueCommand(session, c.DeviceId, c.TrackId, c.Position), ct);

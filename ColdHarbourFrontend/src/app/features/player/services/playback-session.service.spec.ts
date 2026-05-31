@@ -374,9 +374,10 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
       jasmine.objectContaining({
         type: 'trackEnded',
         trackId: t.trackId,
-        durationMs: 180_000,
       }),
     );
+    expect(sent('trackEnded')[0]).not.toHaveProperty('durationMs',
+      'durationMs must not be sent — server resolves duration from Track.Duration');
 
     // Inactive device: ended is ignored.
     ended.set(false);

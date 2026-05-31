@@ -1,4 +1,6 @@
 using ColdHarbour.Application.Pipeline;
+using ColdHarbour.Application.Playback.Ports;
+using ColdHarbour.Application.Playback.Services;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +17,8 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
 
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+        services.AddScoped<IPlaySessionTimeline, PlaySessionTimeline>();
 
         return services;
     }

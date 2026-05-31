@@ -1,3 +1,4 @@
+using ColdHarbour.Application.Playback.Ports;
 using ColdHarbour.Domain.Playback;
 using MediatR;
 
@@ -5,12 +6,15 @@ namespace ColdHarbour.Application.Playback.Commands;
 
 public sealed record ClearQueueCommand(PlaybackSession Session, Guid SenderDeviceId) : IRequest<bool>;
 
-public sealed class ClearQueueCommandHandler : IRequestHandler<ClearQueueCommand, bool>
+public sealed class ClearQueueCommandHandler(IPlaySessionTimeline timeline) : IRequestHandler<ClearQueueCommand, bool>
 {
-    public Task<bool> Handle(ClearQueueCommand request, CancellationToken cancellationToken)
+    public async Task<bool> Handle(ClearQueueCommand request, CancellationToken cancellationToken)
     {
-        request.Session.ClaimActiveIfNone(request.SenderDeviceId);
-        request.Session.ClearQueue();
-        return Task.FromResult(true);
+        var session = request.Session;
+        var oldPositionMs = (int)session.PositionMs;
+        session.ClaimActiveIfNone(request.SenderDeviceId);
+        session.ClearQueue();
+        await timeline.SessionClearedAsync(session.UserId, oldPositionMs, cancellationToken);
+        return true;
     }
 }

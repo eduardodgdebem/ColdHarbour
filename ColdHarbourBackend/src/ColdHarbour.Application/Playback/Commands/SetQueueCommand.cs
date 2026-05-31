@@ -10,22 +10,24 @@ public sealed record SetQueueCommand(
     int StartIndex,
     Guid SenderDeviceId) : IRequest<bool>;
 
-public sealed class SetQueueCommandHandler(IPlayEventRepository events) : IRequestHandler<SetQueueCommand, bool>
+public sealed class SetQueueCommandHandler(IPlaySessionTimeline timeline) : IRequestHandler<SetQueueCommand, bool>
 {
     public async Task<bool> Handle(SetQueueCommand request, CancellationToken cancellationToken)
     {
         if (request.TrackIds.Count == 0) return false;
 
         var session = request.Session;
+        var oldTrackId = session.TrackId;
+        var oldPositionMs = (int)session.PositionMs;
+
         session.SetQueue(request.TrackIds, request.StartIndex);
         session.ClaimActiveIfNone(request.SenderDeviceId);
 
-        if (session.TrackId is { } trackId && session.ActiveDeviceId is { } activeDeviceId)
-        {
-            var playEvent = PlayEvent.Begin(session.UserId, activeDeviceId, trackId);
-            await events.AddAsync(playEvent, cancellationToken);
-            await events.SaveChangesAsync(cancellationToken);
-        }
+        if (session.ActiveDeviceId is { } activeDeviceId)
+            await timeline.TrackChangedAsync(
+                session.UserId, activeDeviceId,
+                oldTrackId, oldPositionMs,
+                session.TrackId, cancellationToken);
 
         return true;
     }

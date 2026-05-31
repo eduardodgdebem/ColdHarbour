@@ -6,7 +6,7 @@ namespace ColdHarbour.Application.Playback.Commands;
 
 public sealed record PreviousTrackCommand(PlaybackSession Session, Guid SenderDeviceId) : IRequest<bool>;
 
-public sealed class PreviousTrackCommandHandler(IPlayEventRepository events) : IRequestHandler<PreviousTrackCommand, bool>
+public sealed class PreviousTrackCommandHandler(IPlaySessionTimeline timeline) : IRequestHandler<PreviousTrackCommand, bool>
 {
     public async Task<bool> Handle(PreviousTrackCommand request, CancellationToken cancellationToken)
     {
@@ -14,14 +14,15 @@ public sealed class PreviousTrackCommandHandler(IPlayEventRepository events) : I
         if (session.Queue.Count == 0) return false;
 
         session.ClaimActiveIfNone(request.SenderDeviceId);
+        var oldTrackId = session.TrackId;
+        var oldPositionMs = (int)session.PositionMs;
         session.AdvancePrevious();
 
-        if (session.TrackId is { } trackId && session.ActiveDeviceId is { } activeDeviceId)
-        {
-            var playEvent = PlayEvent.Begin(session.UserId, activeDeviceId, trackId);
-            await events.AddAsync(playEvent, cancellationToken);
-            await events.SaveChangesAsync(cancellationToken);
-        }
+        if (session.ActiveDeviceId is { } activeDeviceId)
+            await timeline.TrackChangedAsync(
+                session.UserId, activeDeviceId,
+                oldTrackId, oldPositionMs,
+                session.TrackId, cancellationToken);
 
         return true;
     }

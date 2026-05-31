@@ -6,8 +6,9 @@ using NSubstitute;
 
 namespace ColdHarbour.Application.Tests.Playback;
 
-// Session is now passed directly into commands — store is no longer injected into handlers.
-// Each test creates the session, passes it into the command, and asserts on its state.
+// Session is passed directly into commands — store is no longer injected into handlers.
+// Event lifecycle is delegated to IPlaySessionTimeline (verified by PlaySessionTimelineTests and
+// PlayEventLifecycleTests). These tests verify session-state mutations and timeline call contracts.
 
 public sealed class UpdatePlaybackPositionCommandHandlerTests
 {
@@ -27,8 +28,10 @@ public sealed class UpdatePlaybackPositionCommandHandlerTests
 
 public sealed class TransferPlaybackCommandHandlerTests
 {
+    private readonly IPlaySessionTimeline _timeline = Substitute.For<IPlaySessionTimeline>();
+
     [Fact]
-    public async Task Handle_TransfersActiveDevice()
+    public async Task Handle_TransfersActiveDeviceAndCallsTimeline()
     {
         var deviceId = Guid.NewGuid();
         var newDeviceId = Guid.NewGuid();
@@ -37,24 +40,27 @@ public sealed class TransferPlaybackCommandHandlerTests
         session.ClaimActiveIfNone(deviceId);
         session.UpdatePosition(30_000);
 
-        var changed = await new TransferPlaybackCommandHandler()
+        var changed = await new TransferPlaybackCommandHandler(_timeline)
             .Handle(new TransferPlaybackCommand(session, newDeviceId, 30_000), CancellationToken.None);
 
         session.ActiveDeviceId.Should().Be(newDeviceId);
         session.PositionMs.Should().Be(30_000);
         session.IsPlaying.Should().BeTrue();
         changed.Should().BeTrue();
+
+        await _timeline.Received(1).ActiveDeviceChangedAsync(
+            session.UserId, deviceId, 30_000, newDeviceId, Arg.Any<CancellationToken>());
     }
 }
 
 public sealed class SetQueueCommandHandlerTests
 {
-    private readonly IPlayEventRepository _events = Substitute.For<IPlayEventRepository>();
+    private readonly IPlaySessionTimeline _timeline = Substitute.For<IPlaySessionTimeline>();
 
-    private SetQueueCommandHandler CreateHandler() => new(_events);
+    private SetQueueCommandHandler CreateHandler() => new(_timeline);
 
     [Fact]
-    public async Task Handle_SetsQueueStartsPlaybackAndRecordsPlayEvent()
+    public async Task Handle_SetsQueueStartsPlaybackAndCallsTimeline()
     {
         var sender = Guid.NewGuid();
         var session = PlaybackSession.Create(Guid.NewGuid());
@@ -69,10 +75,8 @@ public sealed class SetQueueCommandHandlerTests
         session.ActiveDeviceId.Should().Be(sender);
         changed.Should().BeTrue();
 
-        await _events.Received(1).AddAsync(
-            Arg.Is<PlayEvent>(e => e.UserId == session.UserId && e.DeviceId == sender && e.TrackId == tracks[2]),
-            Arg.Any<CancellationToken>());
-        await _events.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _timeline.Received(1).TrackChangedAsync(
+            session.UserId, sender, null, 0, tracks[2], Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -81,36 +85,41 @@ public sealed class SetQueueCommandHandlerTests
         var existingActive = Guid.NewGuid();
         var sender = Guid.NewGuid();
         var session = PlaybackSession.Create(Guid.NewGuid());
-        session.SetQueue(new[] { Guid.NewGuid() }, 0);
+        var initialTrack = Guid.NewGuid();
+        session.SetQueue(new[] { initialTrack }, 0);
         session.ClaimActiveIfNone(existingActive);
         var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
 
         await CreateHandler().Handle(new SetQueueCommand(session, tracks, 0, sender), CancellationToken.None);
 
         session.ActiveDeviceId.Should().Be(existingActive);
+        await _timeline.Received(1).TrackChangedAsync(
+            session.UserId, existingActive, initialTrack, 0, tracks[0], Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_EmptyTracks_DoesNotRecordPlayEvent()
+    public async Task Handle_EmptyTracks_DoesNotCallTimeline()
     {
         var session = PlaybackSession.Create(Guid.NewGuid());
 
-        var changed = await CreateHandler().Handle(new SetQueueCommand(session, Array.Empty<Guid>(), 0, Guid.NewGuid()), CancellationToken.None);
+        var changed = await CreateHandler().Handle(
+            new SetQueueCommand(session, Array.Empty<Guid>(), 0, Guid.NewGuid()), CancellationToken.None);
 
         session.Queue.Should().BeEmpty();
         changed.Should().BeFalse();
-        await _events.DidNotReceive().AddAsync(Arg.Any<PlayEvent>(), Arg.Any<CancellationToken>());
+        await _timeline.DidNotReceive().TrackChangedAsync(
+            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
     }
 }
 
 public sealed class NextTrackCommandHandlerTests
 {
-    private readonly IPlayEventRepository _events = Substitute.For<IPlayEventRepository>();
+    private readonly IPlaySessionTimeline _timeline = Substitute.For<IPlaySessionTimeline>();
 
-    private NextTrackCommandHandler CreateHandler() => new(_events);
+    private NextTrackCommandHandler CreateHandler() => new(_timeline);
 
     [Fact]
-    public async Task Handle_AdvancesQueueAndRecordsPlayEvent()
+    public async Task Handle_AdvancesQueueAndCallsTimeline()
     {
         var active = Guid.NewGuid();
         var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
@@ -123,9 +132,8 @@ public sealed class NextTrackCommandHandlerTests
         session.QueueIndex.Should().Be(1);
         session.TrackId.Should().Be(tracks[1]);
         changed.Should().BeTrue();
-        await _events.Received(1).AddAsync(
-            Arg.Is<PlayEvent>(e => e.TrackId == tracks[1] && e.DeviceId == active),
-            Arg.Any<CancellationToken>());
+        await _timeline.Received(1).TrackChangedAsync(
+            session.UserId, active, tracks[0], 0, tracks[1], Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -149,18 +157,19 @@ public sealed class NextTrackCommandHandlerTests
 
         session.TrackId.Should().BeNull();
         changed.Should().BeFalse();
-        await _events.DidNotReceive().AddAsync(Arg.Any<PlayEvent>(), Arg.Any<CancellationToken>());
+        await _timeline.DidNotReceive().TrackChangedAsync(
+            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
     }
 }
 
 public sealed class PreviousTrackCommandHandlerTests
 {
-    private readonly IPlayEventRepository _events = Substitute.For<IPlayEventRepository>();
+    private readonly IPlaySessionTimeline _timeline = Substitute.For<IPlaySessionTimeline>();
 
-    private PreviousTrackCommandHandler CreateHandler() => new(_events);
+    private PreviousTrackCommandHandler CreateHandler() => new(_timeline);
 
     [Fact]
-    public async Task Handle_MovesIndexBackAndRecordsPlayEvent()
+    public async Task Handle_MovesIndexBackAndCallsTimeline()
     {
         var active = Guid.NewGuid();
         var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
@@ -173,9 +182,8 @@ public sealed class PreviousTrackCommandHandlerTests
         session.QueueIndex.Should().Be(0);
         session.TrackId.Should().Be(tracks[0]);
         changed.Should().BeTrue();
-        await _events.Received(1).AddAsync(
-            Arg.Is<PlayEvent>(e => e.TrackId == tracks[0] && e.DeviceId == active),
-            Arg.Any<CancellationToken>());
+        await _timeline.Received(1).TrackChangedAsync(
+            session.UserId, active, tracks[1], 0, tracks[0], Arg.Any<CancellationToken>());
     }
 }
 
@@ -242,12 +250,12 @@ public sealed class SetShuffleCommandHandlerTests
 
 public sealed class TrackEndedCommandHandlerTests
 {
-    private readonly IPlayEventRepository _events = Substitute.For<IPlayEventRepository>();
+    private readonly IPlaySessionTimeline _timeline = Substitute.For<IPlaySessionTimeline>();
 
-    private TrackEndedCommandHandler CreateHandler() => new(_events);
+    private TrackEndedCommandHandler CreateHandler() => new(_timeline);
 
     [Fact]
-    public async Task Handle_ClosesActivePlayEventAndAdvancesQueue()
+    public async Task Handle_AdvancesQueueAndCallsTimeline()
     {
         var device = Guid.NewGuid();
         var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
@@ -255,24 +263,18 @@ public sealed class TrackEndedCommandHandlerTests
         session.SetQueue(tracks, 0);
         session.ClaimActiveIfNone(device);
 
-        var openEvent = PlayEvent.Begin(session.UserId, device, tracks[0]);
-        _events.FindActiveByUserAsync(session.UserId, Arg.Any<CancellationToken>()).Returns(openEvent);
-
         var changed = await CreateHandler().Handle(
             new TrackEndedCommand(session, device, tracks[0], 180_000),
             CancellationToken.None);
 
-        openEvent.EndedAt.Should().NotBeNull();
-        openEvent.CompletedRatio.Should().Be(1.0);
         session.TrackId.Should().Be(tracks[1]);
         changed.Should().BeTrue();
-        await _events.Received(1).AddAsync(
-            Arg.Is<PlayEvent>(e => e.TrackId == tracks[1] && e.DeviceId == device),
-            Arg.Any<CancellationToken>());
+        await _timeline.Received(1).TrackChangedAsync(
+            session.UserId, device, tracks[0], 180_000, tracks[1], Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_RepeatOne_RestartsSameTrack_NoNewPlayEvent()
+    public async Task Handle_RepeatOne_RestartsSameTrack()
     {
         var device = Guid.NewGuid();
         var track = Guid.NewGuid();
@@ -281,33 +283,25 @@ public sealed class TrackEndedCommandHandlerTests
         session.ClaimActiveIfNone(device);
         session.SetRepeatMode(RepeatMode.One);
 
-        var openEvent = PlayEvent.Begin(session.UserId, device, track);
-        _events.FindActiveByUserAsync(session.UserId, Arg.Any<CancellationToken>()).Returns(openEvent);
-
         var changed = await CreateHandler().Handle(
             new TrackEndedCommand(session, device, track, 180_000),
             CancellationToken.None);
 
-        openEvent.EndedAt.Should().NotBeNull();
         session.TrackId.Should().Be(track);
         session.PositionMs.Should().Be(0);
         changed.Should().BeTrue();
-        await _events.Received(1).AddAsync(
-            Arg.Is<PlayEvent>(e => e.TrackId == track),
-            Arg.Any<CancellationToken>());
+        await _timeline.Received(1).TrackChangedAsync(
+            session.UserId, device, track, 180_000, track, Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_RepeatOff_LastTrack_StopsAndNoNewPlayEvent()
+    public async Task Handle_RepeatOff_LastTrack_Stops()
     {
         var device = Guid.NewGuid();
         var track = Guid.NewGuid();
         var session = PlaybackSession.Create(Guid.NewGuid());
         session.SetQueue(new[] { track }, 0);
         session.ClaimActiveIfNone(device);
-
-        var openEvent = PlayEvent.Begin(session.UserId, device, track);
-        _events.FindActiveByUserAsync(session.UserId, Arg.Any<CancellationToken>()).Returns(openEvent);
 
         var changed = await CreateHandler().Handle(
             new TrackEndedCommand(session, device, track, 180_000),
@@ -316,7 +310,8 @@ public sealed class TrackEndedCommandHandlerTests
         session.TrackId.Should().BeNull();
         session.IsPlaying.Should().BeFalse();
         changed.Should().BeTrue();
-        await _events.DidNotReceive().AddAsync(Arg.Any<PlayEvent>(), Arg.Any<CancellationToken>());
+        await _timeline.Received(1).TrackChangedAsync(
+            session.UserId, device, track, 180_000, null, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -336,18 +331,19 @@ public sealed class TrackEndedCommandHandlerTests
         session.QueueIndex.Should().Be(0);
         session.TrackId.Should().Be(tracks[0]);
         changed.Should().BeFalse();
-        await _events.DidNotReceive().AddAsync(Arg.Any<PlayEvent>(), Arg.Any<CancellationToken>());
+        await _timeline.DidNotReceive().TrackChangedAsync(
+            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
     }
 }
 
 public sealed class AddToQueueCommandHandlerTests
 {
-    private readonly IPlayEventRepository _events = Substitute.For<IPlayEventRepository>();
+    private readonly IPlaySessionTimeline _timeline = Substitute.For<IPlaySessionTimeline>();
 
-    private AddToQueueCommandHandler CreateHandler() => new(_events);
+    private AddToQueueCommandHandler CreateHandler() => new(_timeline);
 
     [Fact]
-    public async Task Handle_AppendsAndClaimsActiveIfNone()
+    public async Task Handle_AppendsToExistingQueue_DoesNotCallTimeline()
     {
         var sender = Guid.NewGuid();
         var existing = new[] { Guid.NewGuid() };
@@ -362,11 +358,12 @@ public sealed class AddToQueueCommandHandlerTests
         session.Queue.Should().Equal(existing[0], newTrack);
         session.ActiveDeviceId.Should().Be(sender);
         changed.Should().BeTrue();
-        await _events.DidNotReceive().AddAsync(Arg.Any<PlayEvent>(), Arg.Any<CancellationToken>());
+        await _timeline.DidNotReceive().TrackChangedAsync(
+            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_FirstAddToEmptyQueue_RecordsPlayEvent()
+    public async Task Handle_FirstAddToEmptyQueue_CallsTimeline()
     {
         var sender = Guid.NewGuid();
         var session = PlaybackSession.Create(Guid.NewGuid());
@@ -379,20 +376,19 @@ public sealed class AddToQueueCommandHandlerTests
         session.TrackId.Should().Be(t);
         session.IsPlaying.Should().BeTrue();
         changed.Should().BeTrue();
-        await _events.Received(1).AddAsync(
-            Arg.Is<PlayEvent>(e => e.TrackId == t && e.DeviceId == sender),
-            Arg.Any<CancellationToken>());
+        await _timeline.Received(1).TrackChangedAsync(
+            session.UserId, sender, null, 0, t, Arg.Any<CancellationToken>());
     }
 }
 
 public sealed class RemoveFromQueueCommandHandlerTests
 {
-    private readonly IPlayEventRepository _events = Substitute.For<IPlayEventRepository>();
+    private readonly IPlaySessionTimeline _timeline = Substitute.For<IPlaySessionTimeline>();
 
-    private RemoveFromQueueCommandHandler CreateHandler() => new(_events);
+    private RemoveFromQueueCommandHandler CreateHandler() => new(_timeline);
 
     [Fact]
-    public async Task Handle_RemovingCurrentTrack_ClosesOldEventAndOpensNew()
+    public async Task Handle_RemovingCurrentTrack_CallsTimeline()
     {
         var device = Guid.NewGuid();
         var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
@@ -400,24 +396,19 @@ public sealed class RemoveFromQueueCommandHandlerTests
         session.SetQueue(tracks, 0);
         session.ClaimActiveIfNone(device);
 
-        var openEvent = PlayEvent.Begin(session.UserId, device, tracks[0]);
-        _events.FindActiveByUserAsync(session.UserId, Arg.Any<CancellationToken>()).Returns(openEvent);
-
         var changed = await CreateHandler().Handle(
             new RemoveFromQueueCommand(session, device, 0),
             CancellationToken.None);
 
         session.Queue.Should().ContainSingle().Which.Should().Be(tracks[1]);
         session.TrackId.Should().Be(tracks[1]);
-        openEvent.EndedAt.Should().NotBeNull();
         changed.Should().BeTrue();
-        await _events.Received(1).AddAsync(
-            Arg.Is<PlayEvent>(e => e.TrackId == tracks[1] && e.DeviceId == device),
-            Arg.Any<CancellationToken>());
+        await _timeline.Received(1).TrackChangedAsync(
+            session.UserId, device, tracks[0], 0, tracks[1], Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_RemovingNonCurrentTrack_DoesNotTouchPlayEvents()
+    public async Task Handle_RemovingNonCurrentTrack_DoesNotCallTimeline()
     {
         var device = Guid.NewGuid();
         var tracks = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
@@ -432,7 +423,8 @@ public sealed class RemoveFromQueueCommandHandlerTests
         session.Queue.Count.Should().Be(2);
         session.TrackId.Should().Be(tracks[0]);
         changed.Should().BeTrue();
-        await _events.DidNotReceive().AddAsync(Arg.Any<PlayEvent>(), Arg.Any<CancellationToken>());
+        await _timeline.DidNotReceive().TrackChangedAsync(
+            Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -471,19 +463,25 @@ public sealed class ReorderQueueCommandHandlerTests
 
 public sealed class ClearQueueCommandHandlerTests
 {
+    private readonly IPlaySessionTimeline _timeline = Substitute.For<IPlaySessionTimeline>();
+
     [Fact]
-    public async Task Handle_ClearsQueueAndStopsPlayback()
+    public async Task Handle_ClearsQueueStopsPlaybackAndCallsTimeline()
     {
         var session = PlaybackSession.Create(Guid.NewGuid());
+        var device = Guid.NewGuid();
         session.SetQueue(new[] { Guid.NewGuid(), Guid.NewGuid() }, 1);
+        session.ClaimActiveIfNone(device);
 
-        var changed = await new ClearQueueCommandHandler().Handle(
-            new ClearQueueCommand(session, Guid.NewGuid()),
+        var changed = await new ClearQueueCommandHandler(_timeline).Handle(
+            new ClearQueueCommand(session, device),
             CancellationToken.None);
 
         session.Queue.Should().BeEmpty();
         session.IsPlaying.Should().BeFalse();
         changed.Should().BeTrue();
+        await _timeline.Received(1).SessionClearedAsync(
+            session.UserId, 0, Arg.Any<CancellationToken>());
     }
 }
 

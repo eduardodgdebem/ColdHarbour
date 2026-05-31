@@ -26,6 +26,14 @@ internal sealed class InMemoryPlayEventRepository : IPlayEventRepository
         return Task.FromResult(active);
     }
 
+    public Task<IReadOnlyList<PlayEvent>> FindOrphanedAsync(DateTimeOffset before, CancellationToken ct = default)
+    {
+        IReadOnlyList<PlayEvent> result = _events
+            .Where(e => e.EndedAt is null && e.StartedAt < before)
+            .ToList();
+        return Task.FromResult(result);
+    }
+
     public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
 
     public IReadOnlyList<PlayEvent> GetAll() => _events.AsReadOnly();

@@ -17,6 +17,8 @@ public sealed class PlayEvent
     public long ListenedMs { get; private set; }
     /// <summary>Start of the current listening segment; reset on each ResumeListening.</summary>
     public DateTimeOffset SegmentStartedAt { get; private set; }
+    /// <summary>Set by the orphan-backfill command; null for normally-closed events.</summary>
+    public DateTimeOffset? BackfilledAt { get; private set; }
 
     private PlayEvent() { }
 
@@ -56,6 +58,18 @@ public sealed class PlayEvent
         if (!PausedAtUtc.HasValue) return;
         PausedAtUtc = null;
         SegmentStartedAt = nowUtc;
+    }
+
+    /// <summary>
+    /// Heuristic close applied by the orphan-backfill command to events that were
+    /// never closed normally (e.g. leaked before Phase 2 was deployed).
+    /// Sets EndedAt, ListenedMs, and BackfilledAt directly — bypasses segment tracking.
+    /// </summary>
+    public void CloseAsOrphan(DateTimeOffset endedAt, long listenedMs, DateTimeOffset backfilledAt)
+    {
+        EndedAt = endedAt;
+        ListenedMs = listenedMs;
+        BackfilledAt = backfilledAt;
     }
 
     /// <summary>

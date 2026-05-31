@@ -18,7 +18,7 @@
 | 2 | `PlaySessionTimeline` centralization | ✅ Done — landed on playevent-phase-2-timeline 2026-05-31 |
 | 3 | Pause-aware listened-time accumulation | ✅ Done — landed on playevent-phase-3-pause-aware 2026-05-31 |
 | 4 | Server-trusted duration on `trackEnded` | ✅ Done — landed on playevent-phase-4-server-duration 2026-05-31 |
-| 5 | Orphan backfill + stats re-runnability | Pending |
+| 5 | Orphan backfill + stats re-runnability | ✅ Done — landed on playevent-phase-5-backfill 2026-05-31 |
 
 ---
 

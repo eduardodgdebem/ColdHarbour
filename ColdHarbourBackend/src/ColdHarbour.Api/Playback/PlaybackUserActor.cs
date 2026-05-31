@@ -192,13 +192,10 @@ public sealed class PlaybackUserActor : IAsyncDisposable
                 changed = await mediator.Send(new SeekCommand(session, c.DeviceId, c.PositionMs), ct);
                 break;
             case PauseCmd c:
-                if (c.DeviceId.HasValue) session.ClaimActiveIfNone(c.DeviceId.Value);
-                session.Pause();
-                changed = true;
+                changed = await mediator.Send(new PauseCommand(session, c.DeviceId), ct);
                 break;
             case ResumeCmd c:
-                if (c.DeviceId.HasValue) session.ClaimActiveIfNone(c.DeviceId.Value);
-                if (session.TrackId is not null) { session.Resume(); changed = true; }
+                changed = await mediator.Send(new ResumeCommand(session, c.DeviceId), ct);
                 break;
             case HeartbeatCmd c:
                 if (!IsActiveDevice(session, c.DeviceId)) return;

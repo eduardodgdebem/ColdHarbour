@@ -43,10 +43,10 @@ public sealed class PlaybackStatsJob(
         var weekStart = GetWeekStart(DateTimeOffset.UtcNow);
         var weekStartOffset = new DateTimeOffset(weekStart.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
 
-        // Pull into memory to avoid complex LINQ-to-SQL date arithmetic
+        // Use ListenedMs (pause-aware) instead of wall-clock (EndedAt - StartedAt).
         var events = await db.PlayEvents
             .Where(e => e.StartedAt >= weekStartOffset)
-            .Select(e => new { e.TrackId, e.StartedAt, e.EndedAt })
+            .Select(e => new { e.TrackId, e.ListenedMs, hasEnded = e.EndedAt != null })
             .ToListAsync(ct);
 
         var grouped = events
@@ -55,9 +55,7 @@ public sealed class PlaybackStatsJob(
             {
                 TrackId = g.Key,
                 PlayCount = g.Count(),
-                TotalMs = g.Sum(e => e.EndedAt.HasValue
-                    ? (long)(e.EndedAt.Value - e.StartedAt).TotalMilliseconds
-                    : 0L)
+                TotalMs = g.Sum(e => e.hasEnded ? e.ListenedMs : 0L)
             });
 
         foreach (var s in grouped)

@@ -3,12 +3,6 @@ using FluentAssertions;
 
 namespace ColdHarbour.Domain.Tests.Playback;
 
-/// <summary>
-/// Red-contract tests for the PlayEvent domain methods that Phase 3 will add.
-/// All tests in this file are skipped because the methods they reference do not yet
-/// exist on <see cref="PlayEvent"/>. Phase 3 will add PauseListening, ResumeListening,
-/// ListenedMs, and update Complete to accumulate listened time.
-/// </summary>
 public sealed class PlayEventTests
 {
     // ── existing behaviour (green, regression guard) ──────────────────────────
@@ -30,6 +24,8 @@ public sealed class PlayEventTests
         ev.StartedAt.Should().BeOnOrAfter(before).And.BeOnOrBefore(after);
         ev.EndedAt.Should().BeNull();
         ev.CompletedRatio.Should().BeNull();
+        ev.ListenedMs.Should().Be(0);
+        ev.PausedAtUtc.Should().BeNull();
     }
 
     [Fact]
@@ -60,63 +56,128 @@ public sealed class PlayEventTests
         ev.CompletedRatio.Should().Be(1.0);
     }
 
-    // ── Phase-3 methods: PauseListening / ResumeListening / ListenedMs ─────────
+    // ── Phase-3: PauseListening / ResumeListening / ListenedMs ───────────────
 
-    [Fact(Skip = "Phase 3 — PlayEvent.PauseListening not yet added")]
+    [Fact]
     public void PauseListening_OnActiveEvent_AccumulatesSegmentIntoListenedMs()
     {
-        // ARRANGE — event that has been playing for ~10 s.
-        // PauseListening must close the current listening segment:
-        //   ListenedMs += (now - segmentStart).TotalMilliseconds
-        // and set PausedAtUtc = nowUtc.
-        // Requires: PlayEvent.PauseListening(DateTime nowUtc) and PlayEvent.ListenedMs.
-        Assert.Fail("Phase 3 — PlayEvent.PauseListening not implemented");
+        var ev = PlayEvent.Begin(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var segmentStart = ev.SegmentStartedAt;
+        var pauseAt = segmentStart.AddSeconds(10);
+
+        ev.PauseListening(pauseAt);
+
+        ev.ListenedMs.Should().BeGreaterThanOrEqualTo(9_000)
+            .And.BeLessThanOrEqualTo(11_000,
+                because: "listened for ~10 s before pausing");
+        ev.PausedAtUtc.Should().Be(pauseAt);
     }
 
-    [Fact(Skip = "Phase 3 — PlayEvent.ResumeListening not yet added")]
+    [Fact]
     public void ResumeListening_OnPausedEvent_StartsNewSegment()
     {
-        // ResumeListening must clear PausedAtUtc and start a new listening segment.
-        // Requires: PlayEvent.ResumeListening(DateTime nowUtc).
-        Assert.Fail("Phase 3 — PlayEvent.ResumeListening not implemented");
+        var ev = PlayEvent.Begin(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var pauseAt = ev.SegmentStartedAt.AddSeconds(5);
+        var resumeAt = pauseAt.AddHours(1);
+
+        ev.PauseListening(pauseAt);
+        ev.ResumeListening(resumeAt);
+
+        ev.PausedAtUtc.Should().BeNull("event is now active again");
+        ev.SegmentStartedAt.Should().Be(resumeAt, "new segment begins at resumeAt");
     }
 
-    [Fact(Skip = "Phase 3 — PlayEvent.PauseListening idempotency not yet added")]
+    [Fact]
     public void PauseListening_CalledTwice_IsIdempotent()
     {
-        // Calling PauseListening on an already-paused event must be a no-op:
-        // ListenedMs must not grow and PausedAtUtc must not change.
-        Assert.Fail("Phase 3 — PlayEvent.PauseListening not implemented");
+        var ev = PlayEvent.Begin(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var pauseAt = ev.SegmentStartedAt.AddSeconds(5);
+
+        ev.PauseListening(pauseAt);
+        var listenedAfterFirstPause = ev.ListenedMs;
+
+        // Second call at a later time — must be a no-op
+        ev.PauseListening(pauseAt.AddMinutes(30));
+
+        ev.ListenedMs.Should().Be(listenedAfterFirstPause,
+            "ListenedMs must not grow on a double-pause");
+        ev.PausedAtUtc.Should().Be(pauseAt, "PausedAtUtc must not change on a double-pause");
     }
 
-    [Fact(Skip = "Phase 3 — PlayEvent.ResumeListening idempotency not yet added")]
+    [Fact]
     public void ResumeListening_CalledTwice_IsIdempotent()
     {
-        // Calling ResumeListening on an already-active (non-paused) event must be a no-op.
-        Assert.Fail("Phase 3 — PlayEvent.ResumeListening not implemented");
+        var ev = PlayEvent.Begin(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var pauseAt = ev.SegmentStartedAt.AddSeconds(3);
+        var resumeAt = pauseAt.AddMinutes(10);
+
+        ev.PauseListening(pauseAt);
+        ev.ResumeListening(resumeAt);
+        var segmentAfterResume = ev.SegmentStartedAt;
+
+        // Second call — must be a no-op
+        ev.ResumeListening(resumeAt.AddMinutes(5));
+
+        ev.SegmentStartedAt.Should().Be(segmentAfterResume, "SegmentStartedAt must not change on double-resume");
+        ev.PausedAtUtc.Should().BeNull();
     }
 
-    [Fact(Skip = "Phase 3 — PlayEvent.Complete with ListenedMs not yet added")]
+    [Fact]
     public void Complete_AfterPause_AccumulatesOnlyActiveSegments()
     {
-        // Sequence: Begin → play 10 s → Pause → idle 1 hour → Complete
-        // ListenedMs must reflect only the 10 s of active listening.
-        // Invariant: ListenedMs ≤ (EndedAt - StartedAt).TotalMilliseconds
-        Assert.Fail("Phase 3 — PlayEvent.ListenedMs not implemented");
+        var ev = PlayEvent.Begin(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var t0 = ev.SegmentStartedAt;
+
+        // Listen for 10 s, then pause for 1 hour
+        ev.PauseListening(t0.AddSeconds(10));
+
+        // Complete 1 hour after the pause (still paused — not resumed)
+        var endAt = t0.AddSeconds(10).AddHours(1);
+        ev.Complete(durationMs: 3_600_000, positionMs: 3_600_000, nowUtc: endAt);
+
+        ev.ListenedMs.Should().BeGreaterThanOrEqualTo(9_000)
+            .And.BeLessThanOrEqualTo(11_000,
+                because: "only the 10-s active segment counts; the 1-h pause does not");
+        ev.ListenedMs.Should().BeLessThanOrEqualTo(
+            (long)(ev.EndedAt!.Value - ev.StartedAt).TotalMilliseconds,
+            because: "ListenedMs ≤ wall-clock duration invariant must hold");
     }
 
-    [Fact(Skip = "Phase 3 — PlayEvent.Complete with ListenedMs not yet added")]
-    public void Complete_WithoutPause_ListenedMsEqualsDuration()
+    [Fact]
+    public void Complete_WithoutPause_ListenedMsEqualsActiveSegment()
     {
-        // If the event was never paused, ListenedMs should equal
-        // approximately (EndedAt - StartedAt) in milliseconds.
-        Assert.Fail("Phase 3 — PlayEvent.ListenedMs not implemented");
+        var ev = PlayEvent.Begin(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var t0 = ev.SegmentStartedAt;
+        var endAt = t0.AddSeconds(30);
+
+        ev.Complete(durationMs: 30_000, positionMs: 30_000, nowUtc: endAt);
+
+        ev.ListenedMs.Should().BeGreaterThanOrEqualTo(29_000)
+            .And.BeLessThanOrEqualTo(31_000,
+                because: "no pause — listened for the full ~30 s");
+        ev.ListenedMs.Should().BeLessThanOrEqualTo(
+            (long)(ev.EndedAt!.Value - ev.StartedAt).TotalMilliseconds,
+            because: "ListenedMs ≤ wall-clock duration invariant must hold");
     }
 
-    [Fact(Skip = "Phase 3 — ListenedMs invariant not yet enforced")]
+    [Fact]
     public void ListenedMs_NeverExceedsWallClockDuration()
     {
-        // Invariant: ListenedMs ≤ (EndedAt - StartedAt).TotalMilliseconds whenever EndedAt is set.
-        Assert.Fail("Phase 3 — PlayEvent.ListenedMs not implemented");
+        var ev = PlayEvent.Begin(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var t0 = ev.SegmentStartedAt;
+
+        // Pause and resume multiple times
+        ev.PauseListening(t0.AddSeconds(5));
+        ev.ResumeListening(t0.AddSeconds(5).AddMinutes(10));
+        ev.PauseListening(t0.AddSeconds(5).AddMinutes(10).AddSeconds(3));
+        ev.ResumeListening(t0.AddSeconds(5).AddMinutes(10).AddSeconds(3).AddMinutes(5));
+        var endAt = t0.AddSeconds(5).AddMinutes(10).AddSeconds(3).AddMinutes(5).AddSeconds(7);
+
+        ev.Complete(durationMs: 60_000, positionMs: 60_000, nowUtc: endAt);
+
+        var wallClockMs = (long)(ev.EndedAt!.Value - ev.StartedAt).TotalMilliseconds;
+        ev.ListenedMs.Should().BeLessThanOrEqualTo(wallClockMs,
+            "ListenedMs ≤ (EndedAt - StartedAt).TotalMilliseconds invariant must hold");
+        ev.ListenedMs.Should().BeGreaterThan(0, "some listening happened");
     }
 }

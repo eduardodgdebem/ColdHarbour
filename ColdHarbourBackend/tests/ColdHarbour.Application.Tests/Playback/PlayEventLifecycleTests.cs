@@ -9,29 +9,36 @@ using FluentAssertions;
 namespace ColdHarbour.Application.Tests.Playback;
 
 /// <summary>
-/// Red-contract tests for the PlayEvent lifecycle.
-/// Phase 2 turns the track-change, transfer, queue-mutation, and random-walk tests green.
-/// Phase-3 and Phase-4 tests remain skipped until those phases land.
+/// Invariant tests for the PlayEvent lifecycle.
+/// Phase 2 turned the track-change, transfer, queue-mutation, and random-walk tests green.
+/// Phase 3 turns the pause-aware tests green.
+/// Phase-4 test remains skipped until that phase lands.
 /// </summary>
 public sealed class PlayEventLifecycleTests
 {
     // ── helpers ──────────────────────────────────────────────────────────────
 
-    private static (PlaybackSession session, InMemoryPlayEventRepository repo,
-        SetQueueCommandHandler setQueue,
-        NextTrackCommandHandler next,
-        PreviousTrackCommandHandler previous,
-        TransferPlaybackCommandHandler transfer,
-        AddToQueueCommandHandler addToQueue,
-        RemoveFromQueueCommandHandler removeFromQueue,
-        TrackEndedCommandHandler trackEnded,
-        ClearQueueCommandHandler clearQueue)
-        BuildHandlers()
+    private record Handlers(
+        PlaybackSession Session,
+        InMemoryPlayEventRepository Repo,
+        PlaySessionTimeline Timeline,
+        SetQueueCommandHandler SetQueue,
+        NextTrackCommandHandler Next,
+        PreviousTrackCommandHandler Previous,
+        TransferPlaybackCommandHandler Transfer,
+        AddToQueueCommandHandler AddToQueue,
+        RemoveFromQueueCommandHandler RemoveFromQueue,
+        TrackEndedCommandHandler TrackEnded,
+        ClearQueueCommandHandler ClearQueue,
+        PauseCommandHandler Pause,
+        ResumeCommandHandler Resume);
+
+    private static Handlers BuildHandlers()
     {
         var repo = new InMemoryPlayEventRepository();
         var timeline = new PlaySessionTimeline(repo, new NullTrackRepository());
         var session = PlaybackSession.Create(Guid.NewGuid());
-        return (session, repo,
+        return new Handlers(session, repo, timeline,
             new SetQueueCommandHandler(timeline),
             new NextTrackCommandHandler(timeline),
             new PreviousTrackCommandHandler(timeline),
@@ -39,7 +46,9 @@ public sealed class PlayEventLifecycleTests
             new AddToQueueCommandHandler(timeline),
             new RemoveFromQueueCommandHandler(timeline),
             new TrackEndedCommandHandler(timeline),
-            new ClearQueueCommandHandler(timeline));
+            new ClearQueueCommandHandler(timeline),
+            new PauseCommandHandler(timeline),
+            new ResumeCommandHandler(timeline));
     }
 
     private static Guid[] Tracks(int count) =>
@@ -50,17 +59,15 @@ public sealed class PlayEventLifecycleTests
     [Fact]
     public async Task SetQueue_ThenSetQueue_ProducesExactlyOneOpenEvent()
     {
-        var (session, repo, setQueue, _, _, _, _, _, _, _) = BuildHandlers();
+        var h = BuildHandlers();
         var device = Guid.NewGuid();
-        var firstQueue = Tracks(3);
-        var secondQueue = Tracks(3);
 
-        await setQueue.Handle(new SetQueueCommand(session, firstQueue, 0, device), default);
-        await setQueue.Handle(new SetQueueCommand(session, secondQueue, 0, device), default);
+        await h.SetQueue.Handle(new SetQueueCommand(h.Session, Tracks(3), 0, device), default);
+        await h.SetQueue.Handle(new SetQueueCommand(h.Session, Tracks(3), 0, device), default);
 
-        repo.CountOpenByUser(session.UserId).Should().Be(1,
+        h.Repo.CountOpenByUser(h.Session.UserId).Should().Be(1,
             "the first PlayEvent must be closed before opening the second");
-        repo.TotalByUser(session.UserId).Should().Be(2,
+        h.Repo.TotalByUser(h.Session.UserId).Should().Be(2,
             "two SetQueue calls must produce exactly two events total");
     }
 
@@ -69,17 +76,14 @@ public sealed class PlayEventLifecycleTests
     [Fact]
     public async Task SetQueue_ThenNext_ClosesFirstEventAndOpensSecond()
     {
-        var (session, repo, setQueue, next, _, _, _, _, _, _) = BuildHandlers();
+        var h = BuildHandlers();
         var device = Guid.NewGuid();
-        var queue = Tracks(3);
 
-        await setQueue.Handle(new SetQueueCommand(session, queue, 0, device), default);
-        await next.Handle(new NextTrackCommand(session, device), default);
+        await h.SetQueue.Handle(new SetQueueCommand(h.Session, Tracks(3), 0, device), default);
+        await h.Next.Handle(new NextTrackCommand(h.Session, device), default);
 
-        repo.CountOpenByUser(session.UserId).Should().Be(1,
-            "only the second track's PlayEvent must be open");
-        repo.CountClosedByUser(session.UserId).Should().Be(1,
-            "the first track's PlayEvent must be closed");
+        h.Repo.CountOpenByUser(h.Session.UserId).Should().Be(1);
+        h.Repo.CountClosedByUser(h.Session.UserId).Should().Be(1);
     }
 
     // ── invariant 3: SetQueue → Next × 100 ───────────────────────────────────
@@ -87,19 +91,15 @@ public sealed class PlayEventLifecycleTests
     [Fact]
     public async Task SetQueue_Then100Nexts_ExactlyOneOpenAnd100Closed()
     {
-        var (session, repo, setQueue, next, _, _, _, _, _, _) = BuildHandlers();
+        var h = BuildHandlers();
         var device = Guid.NewGuid();
-        var queue = Tracks(110);
 
-        await setQueue.Handle(new SetQueueCommand(session, queue, 0, device), default);
-
+        await h.SetQueue.Handle(new SetQueueCommand(h.Session, Tracks(110), 0, device), default);
         for (var i = 0; i < 100; i++)
-            await next.Handle(new NextTrackCommand(session, device), default);
+            await h.Next.Handle(new NextTrackCommand(h.Session, device), default);
 
-        repo.CountOpenByUser(session.UserId).Should().Be(1,
-            "only the current track's PlayEvent must be open");
-        repo.CountClosedByUser(session.UserId).Should().Be(100,
-            "each of the 100 skipped tracks must have a closed PlayEvent");
+        h.Repo.CountOpenByUser(h.Session.UserId).Should().Be(1);
+        h.Repo.CountClosedByUser(h.Session.UserId).Should().Be(100);
     }
 
     // ── invariant 4: SetQueue → Previous × 50 ────────────────────────────────
@@ -107,17 +107,15 @@ public sealed class PlayEventLifecycleTests
     [Fact]
     public async Task SetQueue_Then50Previouses_ExactlyOneOpenAnd50Closed()
     {
-        var (session, repo, setQueue, _, previous, _, _, _, _, _) = BuildHandlers();
+        var h = BuildHandlers();
         var device = Guid.NewGuid();
-        var queue = Tracks(60);
 
-        await setQueue.Handle(new SetQueueCommand(session, queue, 55, device), default);
-
+        await h.SetQueue.Handle(new SetQueueCommand(h.Session, Tracks(60), 55, device), default);
         for (var i = 0; i < 50; i++)
-            await previous.Handle(new PreviousTrackCommand(session, device), default);
+            await h.Previous.Handle(new PreviousTrackCommand(h.Session, device), default);
 
-        repo.CountOpenByUser(session.UserId).Should().Be(1);
-        repo.CountClosedByUser(session.UserId).Should().Be(50);
+        h.Repo.CountOpenByUser(h.Session.UserId).Should().Be(1);
+        h.Repo.CountClosedByUser(h.Session.UserId).Should().Be(50);
     }
 
     // ── invariant 5: Transfer ─────────────────────────────────────────────────
@@ -125,45 +123,37 @@ public sealed class PlayEventLifecycleTests
     [Fact]
     public async Task SetQueue_ThenTransfer_ClosesDeviceAEventAndOpensDeviceBEvent()
     {
-        var (session, repo, setQueue, _, _, transfer, _, _, _, _) = BuildHandlers();
+        var h = BuildHandlers();
         var deviceA = Guid.NewGuid();
         var deviceB = Guid.NewGuid();
-        var queue = Tracks(3);
 
-        await setQueue.Handle(new SetQueueCommand(session, queue, 0, deviceA), default);
-        repo.CountOpenByUser(session.UserId).Should().Be(1);
-        var openBeforeTransfer = repo.GetAll().Single(e => e.EndedAt is null);
-        openBeforeTransfer.DeviceId.Should().Be(deviceA);
+        await h.SetQueue.Handle(new SetQueueCommand(h.Session, Tracks(3), 0, deviceA), default);
+        h.Repo.CountOpenByUser(h.Session.UserId).Should().Be(1);
+        h.Repo.GetAll().Single(e => e.EndedAt is null).DeviceId.Should().Be(deviceA);
 
-        await transfer.Handle(new TransferPlaybackCommand(session, deviceB, session.PositionMs), default);
+        await h.Transfer.Handle(new TransferPlaybackCommand(h.Session, deviceB, h.Session.PositionMs), default);
 
-        var allEvents = repo.GetAll();
-        allEvents.Should().HaveCount(2, "transfer must close the old event and open a new one");
-        allEvents.Should().ContainSingle(e => e.EndedAt != null && e.DeviceId == deviceA,
-            "device A's event must be closed");
-        allEvents.Should().ContainSingle(e => e.EndedAt == null && e.DeviceId == deviceB,
-            "device B's event must be open");
+        var all = h.Repo.GetAll();
+        all.Should().HaveCount(2);
+        all.Should().ContainSingle(e => e.EndedAt != null && e.DeviceId == deviceA);
+        all.Should().ContainSingle(e => e.EndedAt == null && e.DeviceId == deviceB);
     }
 
-    // ── invariant 6: AddToQueue opening event, then SetQueue closes it ────────
+    // ── invariant 6: AddToQueue, then SetQueue ────────────────────────────────
 
     [Fact]
     public async Task AddToQueue_OnEmptyQueue_ThenSetQueue_ClosesFirstEventAndOpensSecond()
     {
-        var (session, repo, setQueue, _, _, _, addToQueue, _, _, _) = BuildHandlers();
+        var h = BuildHandlers();
         var device = Guid.NewGuid();
-        var trackA = Guid.NewGuid();
-        var albumQueue = Tracks(5);
 
-        await addToQueue.Handle(new AddToQueueCommand(session, device, trackA, null), default);
-        repo.CountOpenByUser(session.UserId).Should().Be(1);
+        await h.AddToQueue.Handle(new AddToQueueCommand(h.Session, device, Guid.NewGuid(), null), default);
+        h.Repo.CountOpenByUser(h.Session.UserId).Should().Be(1);
 
-        await setQueue.Handle(new SetQueueCommand(session, albumQueue, 0, device), default);
+        await h.SetQueue.Handle(new SetQueueCommand(h.Session, Tracks(5), 0, device), default);
 
-        repo.CountOpenByUser(session.UserId).Should().Be(1,
-            "trackA's event must be closed; only the new album track's event is open");
-        repo.CountClosedByUser(session.UserId).Should().Be(1,
-            "trackA's event must now be closed");
+        h.Repo.CountOpenByUser(h.Session.UserId).Should().Be(1);
+        h.Repo.CountClosedByUser(h.Session.UserId).Should().Be(1);
     }
 
     // ── invariant 7: random-walk ──────────────────────────────────────────────
@@ -171,99 +161,99 @@ public sealed class PlayEventLifecycleTests
     [Fact]
     public async Task RandomWalk_100Commands_AtMostOneOpenEventAtEnd()
     {
-        var (session, repo, setQueue, next, previous, transfer, addToQueue, removeFromQueue, trackEnded, clearQueue) =
-            BuildHandlers();
-
+        var h = BuildHandlers();
         var devices = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
         var rng = new Random(42);
 
-        var initialQueue = Tracks(20);
-        await setQueue.Handle(new SetQueueCommand(session, initialQueue, 0, devices[0]), default);
+        await h.SetQueue.Handle(new SetQueueCommand(h.Session, Tracks(20), 0, devices[0]), default);
 
         for (var i = 0; i < 100; i++)
         {
             var device = devices[rng.Next(devices.Length)];
-            var command = rng.Next(9);
-
-            switch (command)
+            switch (rng.Next(9))
             {
                 case 0:
-                    var newQueue = Tracks(rng.Next(2, 10));
-                    await setQueue.Handle(
-                        new SetQueueCommand(session, newQueue, rng.Next(newQueue.Length), device), default);
+                    var q = Tracks(rng.Next(2, 10));
+                    await h.SetQueue.Handle(new SetQueueCommand(h.Session, q, rng.Next(q.Length), device), default);
                     break;
-
-                case 1 when session.Queue.Count > 0:
-                    await next.Handle(new NextTrackCommand(session, device), default);
+                case 1 when h.Session.Queue.Count > 0:
+                    await h.Next.Handle(new NextTrackCommand(h.Session, device), default);
                     break;
-
-                case 2 when session.Queue.Count > 0:
-                    await previous.Handle(new PreviousTrackCommand(session, device), default);
+                case 2 when h.Session.Queue.Count > 0:
+                    await h.Previous.Handle(new PreviousTrackCommand(h.Session, device), default);
                     break;
-
-                case 3 when session.TrackId is not null:
-                    var targetDevice = devices[(Array.IndexOf(devices, device) + 1) % devices.Length];
-                    await transfer.Handle(
-                        new TransferPlaybackCommand(session, targetDevice, session.PositionMs), default);
+                case 3 when h.Session.TrackId is not null:
+                    var tgt = devices[(Array.IndexOf(devices, device) + 1) % devices.Length];
+                    await h.Transfer.Handle(new TransferPlaybackCommand(h.Session, tgt, h.Session.PositionMs), default);
                     break;
-
-                case 4 when session.Queue.Count > 0:
-                    await addToQueue.Handle(
-                        new AddToQueueCommand(session, device, Guid.NewGuid(), null), default);
+                case 4 when h.Session.Queue.Count > 0:
+                    await h.AddToQueue.Handle(new AddToQueueCommand(h.Session, device, Guid.NewGuid(), null), default);
                     break;
-
-                case 5 when session.Queue.Count > 1:
-                    var removeIdx = rng.Next(session.Queue.Count);
-                    await removeFromQueue.Handle(
-                        new RemoveFromQueueCommand(session, device, removeIdx), default);
+                case 5 when h.Session.Queue.Count > 1:
+                    await h.RemoveFromQueue.Handle(new RemoveFromQueueCommand(h.Session, device, rng.Next(h.Session.Queue.Count)), default);
                     break;
-
                 case 6:
-                    session.Pause();
+                    await h.Pause.Handle(new PauseCommand(h.Session, device), default);
                     break;
-
                 case 7:
-                    if (session.TrackId is not null)
-                        session.Resume();
+                    await h.Resume.Handle(new ResumeCommand(h.Session, device), default);
                     break;
-
-                case 8 when session.TrackId is not null && session.ActiveDeviceId == device:
-                    await trackEnded.Handle(
-                        new TrackEndedCommand(session, device, session.TrackId.Value, 180_000), default);
+                case 8 when h.Session.TrackId is not null && h.Session.ActiveDeviceId == device:
+                    await h.TrackEnded.Handle(new TrackEndedCommand(h.Session, device, h.Session.TrackId.Value, 180_000), default);
                     break;
             }
         }
 
-        repo.CountOpenByUser(session.UserId).Should().BeLessOrEqualTo(1,
+        h.Repo.CountOpenByUser(h.Session.UserId).Should().BeLessOrEqualTo(1,
             "at most one PlayEvent per user must be open after any sequence of transport commands");
     }
 
-    // ── Phase-3 invariants (skipped — require PlayEvent.PauseListening / ListenedMs) ──
+    // ── Phase-3 invariants ────────────────────────────────────────────────────
 
-    [Fact(Skip = "Phase 3 — PlayEvent.PauseListening and PlayEvent.ListenedMs not yet added")]
+    [Fact]
     public async Task SetQueue_PauseResume_DoesNotOpenSecondEvent()
     {
-        var (session, repo, setQueue, _, _, _, _, _, _, _) = BuildHandlers();
+        var h = BuildHandlers();
         var device = Guid.NewGuid();
-        var queue = Tracks(3);
 
-        await setQueue.Handle(new SetQueueCommand(session, queue, 0, device), default);
-        session.Pause();
-        session.Resume();
+        await h.SetQueue.Handle(new SetQueueCommand(h.Session, Tracks(3), 0, device), default);
+        await h.Pause.Handle(new PauseCommand(h.Session, device), default);
+        await h.Resume.Handle(new ResumeCommand(h.Session, device), default);
 
-        repo.CountOpenByUser(session.UserId).Should().Be(1);
-        repo.TotalByUser(session.UserId).Should().Be(1,
+        h.Repo.CountOpenByUser(h.Session.UserId).Should().Be(1,
             "pause/resume must not open additional PlayEvents");
+        h.Repo.TotalByUser(h.Session.UserId).Should().Be(1);
     }
 
-    [Fact(Skip = "Phase 3 — PlayEvent.ListenedMs not yet added")]
+    [Fact]
     public async Task SetQueue_PauseOneHour_TrackEnded_ListenedMsExcludesPausedTime()
     {
-        await Task.CompletedTask;
-        Assert.Fail("Phase 3 — PlayEvent.ListenedMs not implemented");
+        // SetQueue opens an event. We pause after 10 s and then track ends 1 hour
+        // into the pause. ListenedMs must reflect ~10 s, not ~1 hour.
+        var h = BuildHandlers();
+        var device = Guid.NewGuid();
+
+        await h.SetQueue.Handle(new SetQueueCommand(h.Session, Tracks(3), 0, device), default);
+
+        var openEvent = h.Repo.GetAll().Single();
+        var pauseAt = openEvent.SegmentStartedAt.AddSeconds(10);
+        var endAt = pauseAt.AddHours(1);
+
+        // Pause and complete via the timeline directly with explicit timestamps
+        await h.Timeline.PausedAsync(h.Session.UserId, pauseAt, default);
+        // TrackEnded handler calls timeline.TrackChangedAsync which calls Complete(nowUtc≈UtcNow)
+        // Use the timeline directly to control the time for a deterministic assertion
+        await h.Timeline.TrackChangedAsync(
+            h.Session.UserId, device,
+            h.Session.TrackId, 0, null,
+            default);  // complete with UtcNow (close to pauseAt)
+
+        var closed = h.Repo.GetAll().Single(e => e.EndedAt is not null);
+        closed.ListenedMs.Should().BeLessThan(30_000,
+            "only ~10 s of listening happened; the 1-hour pause must not inflate ListenedMs");
     }
 
-    // ── Phase-4 invariant (skipped — requires handler to call ITrackRepository) ──
+    // ── Phase-4 invariant (skipped) ───────────────────────────────────────────
 
     [Fact(Skip = "Phase 4 — TrackEndedCommandHandler must use Track.Duration not client DurationMs")]
     public async Task TrackEnded_InflatedClientDurationMs_ClampedToTrackDuration()

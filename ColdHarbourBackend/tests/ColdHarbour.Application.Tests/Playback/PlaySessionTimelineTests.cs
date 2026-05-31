@@ -194,6 +194,59 @@ public sealed class PlaySessionTimelineTests
         repo.TotalByUser(userId).Should().Be(0);
     }
 
+    // ── PausedAsync ─────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Paused_WithOpenEvent_CallsPauseListeningAndSaves()
+    {
+        var (tl, repo) = Build();
+        var userId = UserId();
+        var t0 = DateTimeOffset.UtcNow;
+
+        await repo.AddAsync(PlayEvent.Begin(userId, Device(), TrackId()));
+        await tl.PausedAsync(userId, t0, default);
+
+        var ev = repo.GetAll().Single();
+        ev.PausedAtUtc.Should().Be(t0, "event must be marked paused at the given time");
+        ev.EndedAt.Should().BeNull("pausing does not close the event");
+    }
+
+    [Fact]
+    public async Task Paused_NoOpenEvent_DoesNothing()
+    {
+        var (tl, repo) = Build();
+        await tl.PausedAsync(UserId(), DateTimeOffset.UtcNow, default);
+        repo.TotalByUser(Guid.NewGuid()).Should().Be(0);
+    }
+
+    // ── ResumedAsync ────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Resumed_WithPausedEvent_ClearsPausedAtUtcAndSaves()
+    {
+        var (tl, repo) = Build();
+        var userId = UserId();
+        var t0 = DateTimeOffset.UtcNow;
+        var resumeAt = t0.AddMinutes(10);
+
+        var ev = PlayEvent.Begin(userId, Device(), TrackId());
+        await repo.AddAsync(ev);
+        ev.PauseListening(t0);
+
+        await tl.ResumedAsync(userId, resumeAt, default);
+
+        ev.PausedAtUtc.Should().BeNull("event must be active again after resume");
+        ev.SegmentStartedAt.Should().Be(resumeAt);
+    }
+
+    [Fact]
+    public async Task Resumed_NoOpenEvent_DoesNothing()
+    {
+        var (tl, repo) = Build();
+        await tl.ResumedAsync(UserId(), DateTimeOffset.UtcNow, default);
+        // nothing to assert — just must not throw
+    }
+
     // ── stubs ────────────────────────────────────────────────────────────────
 
     private sealed class NullTrackRepository : ITrackRepository

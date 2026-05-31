@@ -23,10 +23,17 @@
           <span class="bar__queue-count">{{ queueItems().length }}</span>
         }
       </button>
-      <a class="bar__devices" routerLink="/devices">
+      <button
+        type="button"
+        class="bar__devices"
+        [class.bar__devices--active]="showDevices()"
+        [attr.aria-pressed]="showDevices()"
+        aria-label="Toggle devices panel"
+        (click)="toggleDevices()"
+      >
         <span class="bar__devices-label">DEVICES</span>
-        <span class="bar__devices-arrow">→</span>
-      </a>
+        <span class="bar__devices-count">{{ playbackSession.devices().length }}</span>
+      </button>
     </div>
   </header>
 
@@ -35,7 +42,7 @@
       Stage: desktop = 2-col grid always visible.
       Mobile with queue open = hidden (queue replaces it as a flex sibling).
     -->
-    <div class="stage">
+    <div class="stage" [class.stage--panel-open]="showQueue() || showDevices()">
       <div class="stage__plate">
         <span class="stage__side">// SIDE A</span>
         <div class="stage__art">
@@ -48,7 +55,7 @@
         <span class="stage__catno">CH-{{ music.id ?? '—' }}</span>
       </div>
 
-      @if (!showQueue()) {
+      @if (!showQueue() && !showDevices()) {
         <div class="stage__sleeve">
           <span class="stage__sleeve-tag">// TRACK</span>
           <h1 class="stage__title">{{ music.name }}</h1>
@@ -69,7 +76,7 @@
             </div>
           </dl>
         </div>
-      } @else {
+      } @else if (showQueue()) {
         <!-- Desktop queue panel (CSS hides it on mobile) -->
         <app-queue-panel
           [items]="queueItems()"
@@ -79,13 +86,23 @@
           (moveDown)="moveQueueItemDown($event)"
           (remove)="removeFromQueueAt($event)"
         />
+      } @else {
+        <!-- Desktop devices panel (CSS hides it on mobile) -->
+        <app-devices-panel
+          [devices]="playbackSession.devices()"
+          [myDeviceId]="myDeviceId"
+          [activeDeviceId]="playbackSession.session()?.activeDeviceId ?? null"
+          [trackId]="playbackSession.session()?.trackId ?? null"
+          (close)="toggleDevices()"
+          (transfer)="playbackSession.transferPlayback($event)"
+        />
       }
     </div>
 
     <!--
-      Mobile-only full-page queue.
-      Shown as a flex:1 sibling replacing the stage on mobile.
-      CSS keeps it hidden on desktop (≥768px).
+      Mobile-only full-page panels.
+      Shown as flex:1 siblings replacing the stage on mobile.
+      CSS keeps them hidden on desktop (≥768px).
     -->
     @if (showQueue()) {
       <app-queue-panel
@@ -97,6 +114,18 @@
         (moveDown)="moveQueueItemDown($event)"
         (remove)="removeFromQueueAt($event)"
         aria-label="Playback queue"
+      />
+    }
+    @if (showDevices()) {
+      <app-devices-panel
+        [devices]="playbackSession.devices()"
+        [myDeviceId]="myDeviceId"
+        [activeDeviceId]="playbackSession.session()?.activeDeviceId ?? null"
+        [trackId]="playbackSession.session()?.trackId ?? null"
+        [mobilePage]="true"
+        (close)="toggleDevices()"
+        (transfer)="playbackSession.transferPlayback($event)"
+        aria-label="Connected devices"
       />
     }
 

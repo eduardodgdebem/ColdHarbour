@@ -185,14 +185,39 @@ $mobile: 768px;
   text-transform: inherit;
   color: var(--black);
   padding: 4px 12px;
-  text-decoration: none;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  transition: background 60ms steps(1), color 60ms steps(1);
 
   &:hover {
     background: var(--black);
     color: var(--accent);
+
+    .bar__devices-count {
+      background: var(--accent);
+      color: var(--black);
+    }
+  }
+
+  &--active {
+    background: var(--black);
+    color: var(--accent);
+
+    .bar__devices-count {
+      background: var(--accent);
+      color: var(--black);
+    }
+
+    &:hover {
+      background: var(--off-white);
+      color: var(--black);
+
+      .bar__devices-count {
+        background: var(--black);
+        color: var(--accent);
+      }
+    }
   }
 
   &-label {
@@ -201,19 +226,30 @@ $mobile: 768px;
     }
   }
 
-  &-arrow {
-    font-family: var(--font-headline);
-    font-size: 14px;
-    transition: transform 60ms steps(1);
-  }
-
-  &:hover .bar__devices-arrow {
-    transform: translateX(4px);
-  }
-
   @media (max-width: $mobile - 1px) {
     padding: 0 14px;
     border-left: 2px solid var(--black);
+  }
+}
+
+.bar__devices-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 4px;
+  background: var(--black);
+  color: var(--accent);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0;
+
+  @media (max-width: $mobile - 1px) {
+    min-width: 22px;
+    height: 20px;
+    font-size: 11px;
   }
 }
 
@@ -232,6 +268,13 @@ $mobile: 768px;
     overflow-y: auto;
   }
 
+}
+
+/* On mobile, hide the stage when a full-page panel is open */
+.stage--panel-open {
+  @media (max-width: $mobile - 1px) {
+    display: none;
+  }
 }
 
 /* ──────────── Left plate — art mode (default) ──────────── */

@@ -246,6 +246,9 @@ namespace ColdHarbour.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("BackfilledAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<double?>("CompletedRatio")
                         .HasColumnType("double precision");
 

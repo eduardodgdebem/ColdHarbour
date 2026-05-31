@@ -1,0 +1,52 @@
+<header class="devices-panel__header">
+  <span class="devices-panel__title">// DEVICES</span>
+  <span class="devices-panel__count">{{ devices().length }} ONLINE</span>
+  <button
+    type="button"
+    class="devices-panel__close"
+    (click)="close.emit()"
+    aria-label="Close devices panel"
+    title="Close"
+  >
+    ✕
+  </button>
+</header>
+
+@if (devices().length === 0) {
+  <div class="devices-panel__empty">
+    <span class="devices-panel__empty-tag">// NO SIGNAL</span>
+    <p>No devices registered.</p>
+  </div>
+} @else {
+  <ul class="devices-panel__list">
+    @for (device of devices(); track device.id) {
+      <li
+        class="devices-panel__device"
+        [class.devices-panel__device--active]="activeDeviceId() === device.id"
+        [class.devices-panel__device--mine]="myDeviceId() === device.id"
+      >
+        <div class="devices-panel__device-info">
+          <span class="devices-panel__device-name">{{ device.name }}</span>
+          <span class="devices-panel__device-seen">{{ device.lastSeenAt | date: 'short' }}</span>
+        </div>
+        <div class="devices-panel__device-actions">
+          @if (activeDeviceId() === device.id) {
+            <span class="devices-panel__badge devices-panel__badge--playing">PLAYING</span>
+          }
+          @if (myDeviceId() === device.id) {
+            <span class="devices-panel__badge">THIS DEVICE</span>
+          }
+          @if (trackId() && activeDeviceId() !== device.id) {
+            <button
+              type="button"
+              class="devices-panel__play-here"
+              (click)="transfer.emit(device.id)"
+            >
+              PLAY HERE
+            </button>
+          }
+        </div>
+      </li>
+    }
+  </ul>
+}

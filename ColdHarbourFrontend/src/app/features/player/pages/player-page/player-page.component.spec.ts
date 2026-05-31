@@ -121,11 +121,52 @@ describe('PlayerPageComponent', () => {
     expect(fixture.debugElement.query(By.css('.stage'))).toBeNull();
   });
 
-  it('renders a DEVICES link in the top status bar', () => {
+  it('renders a DEVICES toggle button in the top status bar', () => {
     setUp();
-    const link = fixture.debugElement.query(By.css('.bar__devices'));
-    expect(link).toBeTruthy();
-    expect(link.nativeElement.getAttribute('href')).toBe('/devices');
+    const btn = fixture.debugElement.query(By.css('.bar__devices'));
+    expect(btn).toBeTruthy();
+    expect(btn.nativeElement.tagName).toBe('BUTTON');
+  });
+
+  describe('devices panel toggle', () => {
+    it('showDevices is false by default', () => {
+      setUp();
+      expect(component.showDevices()).toBe(false);
+    });
+
+    it('toggleDevices flips showDevices', () => {
+      setUp();
+      component.toggleDevices();
+      expect(component.showDevices()).toBe(true);
+      component.toggleDevices();
+      expect(component.showDevices()).toBe(false);
+    });
+
+    it('toggleDevices closes queue when opening devices', () => {
+      setUp();
+      component.toggleQueue();
+      expect(component.showQueue()).toBe(true);
+      component.toggleDevices();
+      expect(component.showDevices()).toBe(true);
+      expect(component.showQueue()).toBe(false);
+    });
+
+    it('toggleQueue closes devices when opening queue', () => {
+      setUp();
+      component.toggleDevices();
+      expect(component.showDevices()).toBe(true);
+      component.toggleQueue();
+      expect(component.showQueue()).toBe(true);
+      expect(component.showDevices()).toBe(false);
+    });
+
+    it('devices toggle button gets --active class when showDevices is true', () => {
+      setUp();
+      component.toggleDevices();
+      fixture.detectChanges();
+      const btn = fixture.debugElement.query(By.css('.bar__devices'));
+      expect(btn.nativeElement.classList).toContain('bar__devices--active');
+    });
   });
 
   it('shows PLAY when paused and PAUSE when playing', () => {

@@ -16,7 +16,7 @@
 |---|---|---|
 | 1 | Invariant tests (red contract) | ✅ Done — landed on playevent-phase-1-invariants (631c845) 2026-05-29 |
 | 2 | `PlaySessionTimeline` centralization | ✅ Done — landed on playevent-phase-2-timeline 2026-05-31 |
-| 3 | Pause-aware listened-time accumulation | Pending |
+| 3 | Pause-aware listened-time accumulation | ✅ Done — landed on playevent-phase-3-pause-aware 2026-05-31 |
 | 4 | Server-trusted duration on `trackEnded` | Pending |
 | 5 | Orphan backfill + stats re-runnability | Pending |
 

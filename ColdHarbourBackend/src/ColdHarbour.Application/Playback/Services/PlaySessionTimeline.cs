@@ -5,7 +5,7 @@ using ColdHarbour.Domain.Playback;
 namespace ColdHarbour.Application.Playback.Services;
 
 /// <summary>
-/// Centralises all PlayEvent open/close decisions.
+/// Centralises all PlayEvent open/close/pause/resume decisions.
 /// The only class in Application that calls IPlayEventRepository directly;
 /// command handlers depend on IPlaySessionTimeline instead.
 /// </summary>
@@ -19,9 +19,10 @@ public sealed class PlaySessionTimeline(IPlayEventRepository events, ITrackRepos
         Guid? newTrackId,
         CancellationToken ct)
     {
+        var now = DateTimeOffset.UtcNow;
         var active = await events.FindActiveByUserAsync(userId, ct);
         if (active is not null)
-            active.Complete(await ResolveTrackDurationMs(oldTrackId, oldPositionMs, ct), oldPositionMs);
+            active.Complete(await ResolveTrackDurationMs(oldTrackId, oldPositionMs, ct), oldPositionMs, now);
 
         if (newTrackId.HasValue)
             await events.AddAsync(PlayEvent.Begin(userId, deviceId, newTrackId.Value), ct);
@@ -36,11 +37,12 @@ public sealed class PlaySessionTimeline(IPlayEventRepository events, ITrackRepos
         Guid? newDeviceId,
         CancellationToken ct)
     {
+        var now = DateTimeOffset.UtcNow;
         var active = await events.FindActiveByUserAsync(userId, ct);
         if (active is null) return;
 
         var trackId = active.TrackId;
-        active.Complete(await ResolveTrackDurationMs(trackId, oldPositionMs, ct), oldPositionMs);
+        active.Complete(await ResolveTrackDurationMs(trackId, oldPositionMs, ct), oldPositionMs, now);
 
         if (newDeviceId.HasValue)
             await events.AddAsync(PlayEvent.Begin(userId, newDeviceId.Value, trackId), ct);
@@ -50,10 +52,27 @@ public sealed class PlaySessionTimeline(IPlayEventRepository events, ITrackRepos
 
     public async Task SessionClearedAsync(Guid userId, int oldPositionMs, CancellationToken ct)
     {
+        var now = DateTimeOffset.UtcNow;
         var active = await events.FindActiveByUserAsync(userId, ct);
         if (active is null) return;
 
-        active.Complete(await ResolveTrackDurationMs(active.TrackId, oldPositionMs, ct), oldPositionMs);
+        active.Complete(await ResolveTrackDurationMs(active.TrackId, oldPositionMs, ct), oldPositionMs, now);
+        await events.SaveChangesAsync(ct);
+    }
+
+    public async Task PausedAsync(Guid userId, DateTimeOffset nowUtc, CancellationToken ct)
+    {
+        var active = await events.FindActiveByUserAsync(userId, ct);
+        if (active is null) return;
+        active.PauseListening(nowUtc);
+        await events.SaveChangesAsync(ct);
+    }
+
+    public async Task ResumedAsync(Guid userId, DateTimeOffset nowUtc, CancellationToken ct)
+    {
+        var active = await events.FindActiveByUserAsync(userId, ct);
+        if (active is null) return;
+        active.ResumeListening(nowUtc);
         await events.SaveChangesAsync(ct);
     }
 

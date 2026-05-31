@@ -36,4 +36,16 @@ public interface IPlaySessionTimeline
     /// Closes any open event. No new event is opened.
     /// </summary>
     Task SessionClearedAsync(Guid userId, int oldPositionMs, CancellationToken ct);
+
+    /// <summary>
+    /// Called when the active device pauses playback.
+    /// Calls <see cref="Domain.Playback.PlayEvent.PauseListening"/> on the open event (if any).
+    /// </summary>
+    Task PausedAsync(Guid userId, DateTimeOffset nowUtc, CancellationToken ct);
+
+    /// <summary>
+    /// Called when the active device resumes playback.
+    /// Calls <see cref="Domain.Playback.PlayEvent.ResumeListening"/> on the open event (if any).
+    /// </summary>
+    Task ResumedAsync(Guid userId, DateTimeOffset nowUtc, CancellationToken ct);
 }

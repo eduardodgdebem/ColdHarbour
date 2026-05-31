@@ -33,10 +33,11 @@ public sealed class PlayEventLifecycleTests
         PauseCommandHandler Pause,
         ResumeCommandHandler Resume);
 
-    private static Handlers BuildHandlers()
+    private static Handlers BuildHandlers(ITrackRepository? trackRepo = null)
     {
         var repo = new InMemoryPlayEventRepository();
-        var timeline = new PlaySessionTimeline(repo, new NullTrackRepository());
+        var tracks = trackRepo ?? new NullTrackRepository();
+        var timeline = new PlaySessionTimeline(repo, tracks);
         var session = PlaybackSession.Create(Guid.NewGuid());
         return new Handlers(session, repo, timeline,
             new SetQueueCommandHandler(timeline),
@@ -45,7 +46,7 @@ public sealed class PlayEventLifecycleTests
             new TransferPlaybackCommandHandler(timeline),
             new AddToQueueCommandHandler(timeline),
             new RemoveFromQueueCommandHandler(timeline),
-            new TrackEndedCommandHandler(timeline),
+            new TrackEndedCommandHandler(timeline, tracks),
             new ClearQueueCommandHandler(timeline),
             new PauseCommandHandler(timeline),
             new ResumeCommandHandler(timeline));
@@ -199,7 +200,7 @@ public sealed class PlayEventLifecycleTests
                     await h.Resume.Handle(new ResumeCommand(h.Session, device), default);
                     break;
                 case 8 when h.Session.TrackId is not null && h.Session.ActiveDeviceId == device:
-                    await h.TrackEnded.Handle(new TrackEndedCommand(h.Session, device, h.Session.TrackId.Value, 180_000), default);
+                    await h.TrackEnded.Handle(new TrackEndedCommand(h.Session, device, h.Session.TrackId.Value), default);
                     break;
             }
         }
@@ -253,16 +254,55 @@ public sealed class PlayEventLifecycleTests
             "only ~10 s of listening happened; the 1-hour pause must not inflate ListenedMs");
     }
 
-    // ── Phase-4 invariant (skipped) ───────────────────────────────────────────
+    // ── Phase-4 invariant ────────────────────────────────────────────────────
 
-    [Fact(Skip = "Phase 4 — TrackEndedCommandHandler must use Track.Duration not client DurationMs")]
-    public async Task TrackEnded_InflatedClientDurationMs_ClampedToTrackDuration()
+    [Fact]
+    public async Task TrackEnded_UsesServerTrackDuration_CompletedRatioReflectsServerKnowledge()
     {
-        await Task.CompletedTask;
-        Assert.Fail("Phase 4 — handler does not yet validate against Track.Duration");
+        // The 30-s track is known to the server. The client no longer sends durationMs.
+        // The handler resolves Track.Duration from ITrackRepository and uses it as the
+        // end position, so CompletedRatio = 1.0 (track.Duration / track.Duration).
+        var trackId = Guid.NewGuid();
+        var trackRepo = new SingleTrackRepository(trackId, durationMs: 30_000);
+        var h = BuildHandlers(trackRepo);
+        var device = Guid.NewGuid();
+
+        await h.SetQueue.Handle(new SetQueueCommand(h.Session, [trackId], 0, device), default);
+        await h.TrackEnded.Handle(new TrackEndedCommand(h.Session, device, trackId), default);
+
+        var closed = h.Repo.GetAll().Single(e => e.EndedAt is not null);
+        closed.CompletedRatio.Should().BeApproximately(1.0, 0.001,
+            "server resolves track duration = 30s; ended at duration → ratio 1.0");
     }
 
     // ── stub ─────────────────────────────────────────────────────────────────
+
+    private sealed class SingleTrackRepository(Guid trackId, int durationMs) : ITrackRepository
+    {
+        private readonly Track _track = Track.Create(
+            title: "test", albumId: Guid.NewGuid(),
+            duration: TimeSpan.FromMilliseconds(durationMs),
+            provider: "local", format: "flac", bitrate: 1000,
+            audioSha1: "a".PadRight(40, 'a'));
+
+        public Task<Track?> FindByIdAsync(Guid id, CancellationToken ct = default) =>
+            Task.FromResult<Track?>(id == trackId ? _track : null);
+        public Task<Track?> FindByAudioSha1Async(string a, CancellationToken ct = default) => Task.FromResult<Track?>(null);
+        public Task<Artist?> FindArtistByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<Artist?>(null);
+        public Task<Artist?> FindArtistByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<Artist?>(null);
+        public Task<Album?> FindAlbumByArtistAndTitleAsync(Guid id, string t, CancellationToken ct = default) => Task.FromResult<Album?>(null);
+        public Task<Album?> FindAlbumByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<Album?>(null);
+        public Task<int> CountTracksByAlbumIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult(0);
+        public Task<int> CountAlbumsByArtistIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult(0);
+        public Task AddArtistAsync(Artist a, CancellationToken ct = default) => Task.CompletedTask;
+        public Task AddAlbumAsync(Album a, CancellationToken ct = default) => Task.CompletedTask;
+        public Task AddTrackAsync(Track t, CancellationToken ct = default) => Task.CompletedTask;
+        public void RemoveTrack(Track t) { }
+        public void RemoveAlbum(Album a) { }
+        public void RemoveArtist(Artist a) { }
+        public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task<List<Track>> GetLocalTrackSampleAsync(int maxCount, CancellationToken ct = default) => Task.FromResult(new List<Track>());
+    }
 
     private sealed class NullTrackRepository : ITrackRepository
     {

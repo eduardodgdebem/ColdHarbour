@@ -220,10 +220,7 @@ export class PlaybackSessionService {
       const sess = untracked(() => this.session());
       const myId = deviceService.getOrCreateDeviceId();
       if (sess && sess.activeDeviceId === myId && sess.trackId) {
-        const durationMs = Math.floor(
-          untracked(() => audioService.duration()) * 1000,
-        );
-        this.trackEnded(sess.trackId, durationMs);
+        this.trackEnded(sess.trackId);
       }
       audioService.ended.set(false);
     });
@@ -311,12 +308,11 @@ export class PlaybackSessionService {
    * event. The server then runs AdvanceAfterEnd (honoring repeat + shuffle)
    * and broadcasts the new session.
    */
-  trackEnded(trackId: string, durationMs: number): void {
+  trackEnded(trackId: string): void {
     this.send({
       type: 'trackEnded',
       deviceId: this.deviceService.getOrCreateDeviceId(),
       trackId,
-      durationMs: Math.max(0, Math.floor(durationMs)),
     });
   }
 

@@ -1,5 +1,7 @@
+using ColdHarbour.Application.Library.Ports;
 using ColdHarbour.Application.Playback.Commands;
 using ColdHarbour.Application.Playback.Ports;
+using ColdHarbour.Domain.Library;
 using ColdHarbour.Domain.Playback;
 using FluentAssertions;
 using NSubstitute;
@@ -251,26 +253,55 @@ public sealed class SetShuffleCommandHandlerTests
 public sealed class TrackEndedCommandHandlerTests
 {
     private readonly IPlaySessionTimeline _timeline = Substitute.For<IPlaySessionTimeline>();
+    private readonly ITrackRepository _tracks = Substitute.For<ITrackRepository>();
 
-    private TrackEndedCommandHandler CreateHandler() => new(_timeline);
+    private TrackEndedCommandHandler CreateHandler() => new(_timeline, _tracks);
 
     [Fact]
-    public async Task Handle_AdvancesQueueAndCallsTimeline()
+    public async Task Handle_AdvancesQueueAndCallsTimeline_UsingServerDuration()
     {
         var device = Guid.NewGuid();
-        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        var trackIds = new[] { Guid.NewGuid(), Guid.NewGuid() };
         var session = PlaybackSession.Create(Guid.NewGuid());
-        session.SetQueue(tracks, 0);
+        session.SetQueue(trackIds, 0);
         session.ClaimActiveIfNone(device);
 
+        // Server returns a 3-minute track
+        var serverTrack = Track.Create("title", Guid.NewGuid(), TimeSpan.FromMinutes(3),
+            "local", "flac", 1000, "a".PadRight(40, 'a'));
+        _tracks.FindByIdAsync(trackIds[0], Arg.Any<CancellationToken>()).Returns(serverTrack);
+
         var changed = await CreateHandler().Handle(
-            new TrackEndedCommand(session, device, tracks[0], 180_000),
+            new TrackEndedCommand(session, device, trackIds[0]),
             CancellationToken.None);
 
-        session.TrackId.Should().Be(tracks[1]);
+        session.TrackId.Should().Be(trackIds[1]);
+        changed.Should().BeTrue();
+        // endPositionMs = Track.Duration = 180_000
+        await _timeline.Received(1).TrackChangedAsync(
+            session.UserId, device, trackIds[0], 180_000, trackIds[1], Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_TrackNotInRepo_FallsBackToSessionPositionMs()
+    {
+        var device = Guid.NewGuid();
+        var track = Guid.NewGuid();
+        var session = PlaybackSession.Create(Guid.NewGuid());
+        session.SetQueue(new[] { track, Guid.NewGuid() }, 0);
+        session.ClaimActiveIfNone(device);
+        session.UpdatePosition(42_000); // last heartbeat
+
+        _tracks.FindByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Track?>(null));
+
+        var changed = await CreateHandler().Handle(
+            new TrackEndedCommand(session, device, track),
+            CancellationToken.None);
+
         changed.Should().BeTrue();
         await _timeline.Received(1).TrackChangedAsync(
-            session.UserId, device, tracks[0], 180_000, tracks[1], Arg.Any<CancellationToken>());
+            session.UserId, device, track, 42_000, Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -283,15 +314,16 @@ public sealed class TrackEndedCommandHandlerTests
         session.ClaimActiveIfNone(device);
         session.SetRepeatMode(RepeatMode.One);
 
+        _tracks.FindByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Track?>(null));
+
         var changed = await CreateHandler().Handle(
-            new TrackEndedCommand(session, device, track, 180_000),
+            new TrackEndedCommand(session, device, track),
             CancellationToken.None);
 
         session.TrackId.Should().Be(track);
         session.PositionMs.Should().Be(0);
         changed.Should().BeTrue();
-        await _timeline.Received(1).TrackChangedAsync(
-            session.UserId, device, track, 180_000, track, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -303,15 +335,18 @@ public sealed class TrackEndedCommandHandlerTests
         session.SetQueue(new[] { track }, 0);
         session.ClaimActiveIfNone(device);
 
+        _tracks.FindByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Track?>(null));
+
         var changed = await CreateHandler().Handle(
-            new TrackEndedCommand(session, device, track, 180_000),
+            new TrackEndedCommand(session, device, track),
             CancellationToken.None);
 
         session.TrackId.Should().BeNull();
         session.IsPlaying.Should().BeFalse();
         changed.Should().BeTrue();
         await _timeline.Received(1).TrackChangedAsync(
-            session.UserId, device, track, 180_000, null, Arg.Any<CancellationToken>());
+            session.UserId, device, track, Arg.Any<int>(), null, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -319,17 +354,17 @@ public sealed class TrackEndedCommandHandlerTests
     {
         var activeDevice = Guid.NewGuid();
         var staleDevice = Guid.NewGuid();
-        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        var trackIds = new[] { Guid.NewGuid(), Guid.NewGuid() };
         var session = PlaybackSession.Create(Guid.NewGuid());
-        session.SetQueue(tracks, 0);
+        session.SetQueue(trackIds, 0);
         session.ClaimActiveIfNone(activeDevice);
 
         var changed = await CreateHandler().Handle(
-            new TrackEndedCommand(session, staleDevice, tracks[0], 180_000),
+            new TrackEndedCommand(session, staleDevice, trackIds[0]),
             CancellationToken.None);
 
         session.QueueIndex.Should().Be(0);
-        session.TrackId.Should().Be(tracks[0]);
+        session.TrackId.Should().Be(trackIds[0]);
         changed.Should().BeFalse();
         await _timeline.DidNotReceive().TrackChangedAsync(
             Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());

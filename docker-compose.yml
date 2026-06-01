@@ -1,10 +1,17 @@
 services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - caddy
+
   caddy:
     build:
       context: .
       dockerfile: caddy/Dockerfile
-    ports:
-      - "80:80"
     depends_on:
       - api
 
@@ -12,12 +19,15 @@ services:
     build: ./ColdHarbourBackend/
     environment:
       - ASPNETCORE_URLS=http://+:8080
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       - COLDHARBOUR_CONTENT_ROOT=/content
       - COLDHARBOUR_BOOTSTRAP_EMAIL=${COLDHARBOUR_BOOTSTRAP_EMAIL}
       - COLDHARBOUR_BOOTSTRAP_PASSWORD=${COLDHARBOUR_BOOTSTRAP_PASSWORD}
-      - COLDHARBOUR_JWT_SIGNING_KEY=${COLDHARBOUR_JWT_SIGNING_KEY:-changeme-dev-key-at-least-32-chars!!}
+      - COLDHARBOUR_JWT_SIGNING_KEY=${COLDHARBOUR_JWT_SIGNING_KEY}
+      - COLDHARBOUR_JWT_ISSUER=coldharbour
+      - COLDHARBOUR_JWT_AUDIENCE=coldharbour-web
+      - COLDHARBOUR_PUBLIC_ORIGIN=${COLDHARBOUR_PUBLIC_ORIGIN}
     volumes:
       - coldharbour_content:/content
     depends_on:
@@ -26,8 +36,6 @@ services:
 
   db:
     image: postgres:latest
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}

@@ -11,8 +11,14 @@ public class ColdHarbourDbContextFactory : IDesignTimeDbContextFactory<ColdHarbo
 {
     public ColdHarbourDbContext CreateDbContext(string[] args)
     {
+        // Honor the same env var the app and the Makefile use, so `dotnet ef`
+        // talks to the real configured database instead of a baked-in default.
+        var connectionString =
+            Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+            ?? "Host=localhost;Port=5432;Database=coldharbourdb;Username=user;Password=password";
+
         var options = new DbContextOptionsBuilder<ColdHarbourDbContext>()
-            .UseNpgsql("Host=localhost;Port=5432;Database=coldharbourdb;Username=user;Password=password")
+            .UseNpgsql(connectionString)
             .Options;
 
         return new ColdHarbourDbContext(options);

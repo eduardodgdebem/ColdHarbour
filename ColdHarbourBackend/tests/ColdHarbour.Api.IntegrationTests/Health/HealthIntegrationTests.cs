@@ -149,6 +149,7 @@ public sealed class HealthTestFactory : WebApplicationFactory<Program>
     private sealed class NullDeviceRepo : IDeviceRepository
     {
         public Task<ColdHarbour.Domain.Playback.Device?> FindByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Playback.Device?>(null);
+        public Task<bool> ExistsForUserAsync(Guid userId, Guid deviceId, CancellationToken ct = default) => Task.FromResult(true);
         public Task<IReadOnlyList<ColdHarbour.Domain.Playback.Device>> ListByUserIdAsync(Guid userId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<ColdHarbour.Domain.Playback.Device>>([]);
         public Task AddAsync(ColdHarbour.Domain.Playback.Device d, CancellationToken ct = default) => Task.CompletedTask;
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;

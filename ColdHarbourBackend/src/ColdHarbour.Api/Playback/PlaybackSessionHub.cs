@@ -12,6 +12,24 @@ using System.IdentityModel.Tokens.Jwt;
 
 namespace ColdHarbour.Api.Playback;
 
+/// <summary>Outcome of assembling one WebSocket message in <see cref="PlaybackSessionHub.ReadFullMessageAsync"/>.</summary>
+internal enum WsFrameStatus
+{
+    /// <summary>A complete, non-empty text message was assembled; <c>Payload</c> holds the bytes.</summary>
+    Text,
+    /// <summary>The peer sent a Close frame.</summary>
+    Closed,
+    /// <summary>A non-text (e.g. binary) frame arrived; ignored by this protocol.</summary>
+    NonText,
+    /// <summary>A complete text message with zero bytes; ignored, not an error.</summary>
+    Empty,
+    /// <summary>The assembled payload exceeded the cap; the socket was closed with 1009.</summary>
+    TooBig,
+}
+
+/// <summary>Result of <see cref="PlaybackSessionHub.ReadFullMessageAsync"/>.</summary>
+internal readonly record struct WsFrameRead(WsFrameStatus Status, byte[] Payload);
+
 /// <summary>
 /// Raw WebSocket hub at /ws/playback. JWT is supplied as ?access_token= query param
 /// (browser WS API does not allow custom headers). On JWT expiry the socket is closed
@@ -77,22 +95,28 @@ public sealed class PlaybackSessionHub(
 
     private async Task ReceiveLoopAsync(WebSocket ws, Guid userId, PlaybackUserActor actor, CancellationToken ct)
     {
-        var buffer = new byte[4096];
+        var maxFrameBytes = MaxFrameBytes();
         try
         {
             while (ws.State == WebSocketState.Open && !ct.IsCancellationRequested)
             {
-                var result = await ws.ReceiveAsync(buffer, ct);
-                if (result.MessageType == WebSocketMessageType.Close)
-                    break;
-
-                if (result.MessageType != WebSocketMessageType.Text)
-                    continue;
-
-                var json = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                var (cmd, commandId) = ParseCommandWithId(json);
-                if (cmd is not null)
-                    await actor.EnqueueAsync(cmd, commandId, ws, ct);
+                var msg = await ReadFullMessageAsync(ws, userId, maxFrameBytes, logger, ct);
+                switch (msg.Status)
+                {
+                    case WsFrameStatus.Closed:
+                    case WsFrameStatus.TooBig:
+                        // Close frame received, or the socket was closed by the cap guard.
+                        return;
+                    case WsFrameStatus.Empty:
+                    case WsFrameStatus.NonText:
+                        continue;
+                    case WsFrameStatus.Text:
+                        var json = Encoding.UTF8.GetString(msg.Payload);
+                        var (cmd, commandId) = ParseCommandWithId(json);
+                        if (cmd is not null)
+                            await actor.EnqueueAsync(cmd, commandId, ws, ct);
+                        continue;
+                }
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
@@ -101,6 +125,60 @@ public sealed class PlaybackSessionHub(
             if (ws.State == WebSocketState.Open)
                 await ws.CloseAsync(PickCloseStatus(ct), "bye", CancellationToken.None);
         }
+    }
+
+    /// <summary>Soft cap for a single assembled WS message. Default 1 MB.</summary>
+    private int MaxFrameBytes()
+    {
+        var raw = config["COLDHARBOUR_WS_MAX_FRAME_BYTES"];
+        return int.TryParse(raw, out var v) && v > 0 ? v : 1_048_576;
+    }
+
+    /// <summary>
+    /// Reads a complete WebSocket message, reassembling fragmented frames until
+    /// <c>EndOfMessage</c>. The browser splits large frames (around 4–16 KB), so a single
+    /// <c>ReceiveAsync</c> is not enough — parsing the first fragment alone silently
+    /// truncates queues. If the assembled payload would exceed <paramref name="maxBytes"/>,
+    /// the socket is closed with <c>1009 MessageTooBig</c> and <see cref="WsFrameStatus.TooBig"/>
+    /// is returned so the caller abandons the read loop.
+    /// </summary>
+    internal static async Task<WsFrameRead> ReadFullMessageAsync(
+        WebSocket ws, Guid userId, int maxBytes, ILogger logger, CancellationToken ct)
+    {
+        var buffer = new byte[4096];
+        using var assembled = new MemoryStream();
+
+        while (true)
+        {
+            var result = await ws.ReceiveAsync(buffer, ct);
+
+            if (result.MessageType == WebSocketMessageType.Close)
+                return new WsFrameRead(WsFrameStatus.Closed, []);
+
+            if (result.MessageType != WebSocketMessageType.Text)
+                return new WsFrameRead(WsFrameStatus.NonText, []);
+
+            if (assembled.Length + result.Count > maxBytes)
+            {
+                logger.LogWarning(
+                    "WS message exceeded {MaxBytes} bytes (>= {Attempted}) for user {UserId}; closing 1009",
+                    maxBytes, assembled.Length + result.Count, userId);
+
+                if (ws.State == WebSocketState.Open)
+                    await ws.CloseAsync(WebSocketCloseStatus.MessageTooBig, "message_too_big", CancellationToken.None);
+
+                return new WsFrameRead(WsFrameStatus.TooBig, []);
+            }
+
+            assembled.Write(buffer, 0, result.Count);
+
+            if (result.EndOfMessage)
+                break;
+        }
+
+        return assembled.Length == 0
+            ? new WsFrameRead(WsFrameStatus.Empty, [])
+            : new WsFrameRead(WsFrameStatus.Text, assembled.ToArray());
     }
 
     /// <summary>

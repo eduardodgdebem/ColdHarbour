@@ -14,11 +14,26 @@
 
 | Phase | Title | Status |
 |---|---|---|
-| 1 | Frame reassembly + size cap | ⬜ Pending |
+| 1 | Frame reassembly + size cap | ✅ Done — landed on `ws-hardening-phase-1-frame-reassembly` 2026-06-06 |
 | 2 | Close-code fidelity for token expiry | ⬜ Pending |
 | 3 | SenderDeviceId validation + active-device guard tightening | ⬜ Pending |
-| 4 | Pause / Resume / Stop through MediatR | ⬜ Pending |
+| 4 | Pause / Resume / Stop through MediatR | 🟡 Partially pre-implemented (see reconciliation note) |
 | 5 | FluentValidation on hub-dispatched commands | ⬜ Pending |
+
+---
+
+## Reconciliation note (2026-06-06)
+
+The codebase diverged from this doc's original premises after a separate **actor refactor** landed. Reading the doc against current `main`:
+
+- **The hub is now a thin parser; mutations run in a per-user `PlaybackUserActor`.** Inbound frames are parsed into `InboundCommand` records in `PlaybackSessionHub`, then enqueued to `PlaybackUserActor` (a single-reader channel per user). The actor dispatches each command through `IMediator.Send(...)`. Wherever the phases below say "the hub calls `session.X` directly and broadcasts inline," read that as "the actor dispatches via MediatR" — the *Api → Application → Domain* path the doc wants is already largely in place.
+- **Phase 1 — done.** `PlaybackSessionHub.ReadFullMessageAsync` reassembles fragments until `EndOfMessage`, capped by `COLDHARBOUR_WS_MAX_FRAME_BYTES` (default 1 MB); over-cap closes with `1009 MessageTooBig`. See `CLAUDE.md` hurdle #18.
+- **Phase 2 — still valid, not done.** `Authenticate(...)` still returns `null` for both invalid and expired tokens, and `HandleAsync` closes with `1008 PolicyViolation`. The `4001` close code the frontend branches on is not yet emitted.
+- **Phase 3 — still valid, not done.** No `IDeviceRepository.ExistsForUserAsync`, no `SenderDeviceValidationBehavior`. `PlaybackUserActor.IsActiveDevice` still returns `true` when `session.ActiveDeviceId is null` (the permissive case the phase tightens). Note the guard now lives on the **actor**, not the hub.
+- **Phase 4 — mostly pre-implemented.** `PauseCommand` / `ResumeCommand` exist and the actor already dispatches them via MediatR. **Remaining work:** `stop` still calls `session.Clear()` directly in `PlaybackUserActor` (Api → Domain) — extract a `StopCommand` so all three are uniform. The grep gate in the per-phase checklist should target `PlaybackUserActor`, not `PlaybackSessionHub`.
+- **Phase 5 — still valid, not done.** No `ColdHarbour.Application/Playback/Validators/` directory exists; no validators are registered for the hub-dispatched commands.
+
+**Pre-existing red, unrelated to this migration:** `ColdHarbour.Api.IntegrationTests/Playback/PlaybackUserActorTests` has 7 failing tests on `main` (revision/ack/tick assertions find `Revision == 0`) — a test-harness DI issue, not a product regression. The "all suites green" Definition of done cannot literally hold until those are fixed separately; each WS-hardening phase should be judged green against its *own* new tests plus the previously-passing suite.
 
 ---
 

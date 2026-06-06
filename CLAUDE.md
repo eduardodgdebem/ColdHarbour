@@ -144,6 +144,7 @@ Three cross-cutting design axes:
 | `COLDHARBOUR_ACCESS_TOKEN_TTL`                      | compose           | Default `15m`                                                     |
 | `COLDHARBOUR_REFRESH_TOKEN_TTL`                     | compose           | Default `14d`                                                     |
 | `COLDHARBOUR_PUBLIC_ORIGIN`                         | compose           | e.g. `https://music.example.com` — CORS allowlist + cookie domain |
+| `COLDHARBOUR_WS_MAX_FRAME_BYTES`                    | compose           | Soft cap for a single assembled `/ws/playback` message. Default `1048576` (1 MB); over-cap closes the socket with 1009 |
 | `COLDHARBOUR_BOOTSTRAP_EMAIL` / `_PASSWORD`         | `.env`            | First-run owner seed (printed once to log, then unset)            |
 | `COLDHARBOUR_APPLE_TEAM_ID` `[post-MVP]`            | `.env` (secret)   | Apple Developer Team ID                                           |
 | `COLDHARBOUR_APPLE_KEY_ID` `[post-MVP]`             | `.env` (secret)   | MusicKit key ID                                                   |
@@ -466,6 +467,9 @@ All times `America/Sao_Paulo`. Library sync is user-triggered, not scheduled.
 
 17. **Orphaned `PlayEvent` rows from pre-Phase-2 code.**
     Before `PlaySessionTimeline` was introduced (Phase 2 of `docs/PLAYEVENT_LIFECYCLE_MIGRATION.md`), every `Next`/`Previous`/`SetQueue` command opened a new `PlayEvent` without closing the prior one. These leaked rows have `EndedAt IS NULL` indefinitely. The one-shot `close-orphans` admin command (`dotnet run --project ColdHarbour.Api -- close-orphans`) cleans them up using a heuristic: `EndedAt = StartedAt + min(Track.Duration, 1 day)`, `ListenedMs = EndedAt − StartedAt`. Rows closed this way carry a non-null `BackfilledAt` so the heuristic is auditable and re-running is a no-op. Do not delete these rows — they are real listen events, just poorly bounded by the old code.
+
+18. **Large `setQueue` silently truncated — WS frame fragmentation.**
+    The browser splits WebSocket frames around the 4–16 KB mark. The hub's `ReceiveLoopAsync` must reassemble fragments until `EndOfMessage` before parsing JSON; reading the first fragment alone drops the tail (queue truncated to the first ~100 tracks) and the malformed-JSON tail is swallowed as a `LogWarning`, so the bug is invisible. `PlaybackSessionHub.ReadFullMessageAsync` accumulates into a `MemoryStream` until `EndOfMessage`, capped at `COLDHARBOUR_WS_MAX_FRAME_BYTES` (default 1 MB) — over-cap closes the socket with `1009 MessageTooBig`.
 
 ---
 

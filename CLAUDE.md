@@ -333,7 +333,7 @@ JWT is supplied as a query param because the browser WebSocket API cannot set cu
 **Infrastructure services**
 
 - `TrackIngestService` — upload flow: validate, hash, extract tags (TagLibSharp), canonical path write, extract art, upsert DB rows.
-- `LibraryReconciler` — sync button: walks `library/`, diffs against DB, applies on confirmation. Advisory Postgres lock while running.
+- `LibraryReconciler` — sync button: walks `library/`, diffs against DB, applies on confirmation. Advisory Postgres lock while running. Files already on the mount are registered **in place** via `ITrackIngestService.IngestExistingFileAsync` (reads tags, inserts the DB row pointing at the discovered path) — the reconciler never moves or copies them, consistent with "the app never writes into `library/`". Only the upload path (`IngestAsync`) moves a file to a canonical path.
 - `TranscodeService` — on-demand FFmpeg, keyed `SemaphoreSlim`, content-addressed output.
 - `ArtworkService` — thumbnail generation (ImageSharp/SkiaSharp), content-addressed cache.
 - `LocalStreamingService` — Range-capable pass-through from `library/`.

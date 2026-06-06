@@ -473,6 +473,8 @@ public sealed class PlaybackUserActorTests
         public Task SaveChangesAsync(CancellationToken ct) => Task.CompletedTask;
         public Task<PlayEvent?> FindActiveByUserAsync(Guid userId, CancellationToken ct)
             => Task.FromResult<PlayEvent?>(null);
+        public Task<IReadOnlyList<PlayEvent>> FindOrphanedAsync(DateTimeOffset before, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<PlayEvent>>(Array.Empty<PlayEvent>());
     }
 
     private sealed class NoopDeviceRepository : IDeviceRepository

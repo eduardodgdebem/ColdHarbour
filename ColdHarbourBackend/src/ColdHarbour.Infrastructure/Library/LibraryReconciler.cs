@@ -62,9 +62,8 @@ public sealed class LibraryReconciler(
 
             foreach (var item in diff.Added)
             {
-                var fullPath = Path.Combine(ContentRoot, item.Path.TrimStart('/'));
-                await using var fs = File.OpenRead(fullPath);
-                await ingestService.IngestAsync(fs, Path.GetFileName(fullPath), ct);
+                // The file is already under library/ — register it in place; do not move it.
+                await ingestService.IngestExistingFileAsync(item.Path, ct);
             }
 
             foreach (var item in diff.Missing)

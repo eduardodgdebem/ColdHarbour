@@ -47,6 +47,9 @@ public sealed class UploadTrackCommandHandlerTests
             return Task.FromResult(result);
         }
 
+        public Task<TrackUploadResultDto> IngestExistingFileAsync(string relativePath, CancellationToken ct = default)
+            => Task.FromResult(result);
+
         public Task RemoveTrackFilesAsync(string? localPath, string audioSha1, CancellationToken ct = default)
             => Task.CompletedTask;
     }

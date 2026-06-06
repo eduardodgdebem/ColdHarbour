@@ -96,6 +96,9 @@ public sealed class DeleteTrackCommandHandlerTests
         public Task<TrackUploadResultDto> IngestAsync(Stream fileStream, string fileName, CancellationToken ct = default)
             => throw new NotImplementedException();
 
+        public Task<TrackUploadResultDto> IngestExistingFileAsync(string relativePath, CancellationToken ct = default)
+            => throw new NotImplementedException();
+
         public Task RemoveTrackFilesAsync(string? localPath, string audioSha1, CancellationToken ct = default)
         {
             RemoveCalledWithSha1 = audioSha1;

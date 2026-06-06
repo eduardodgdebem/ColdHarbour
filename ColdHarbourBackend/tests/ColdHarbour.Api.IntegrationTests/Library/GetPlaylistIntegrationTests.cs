@@ -270,6 +270,8 @@ public class GetPlaylistIntegrationTests : IClassFixture<WebApplicationFactory<P
     {
         public Task<ColdHarbour.Application.Library.Dtos.TrackUploadResultDto> IngestAsync(Stream fileStream, string fileName, CancellationToken ct = default)
             => Task.FromResult(new ColdHarbour.Application.Library.Dtos.TrackUploadResultDto(Guid.NewGuid(), Guid.NewGuid(), false));
+        public Task<ColdHarbour.Application.Library.Dtos.TrackUploadResultDto> IngestExistingFileAsync(string relativePath, CancellationToken ct = default)
+            => Task.FromResult(new ColdHarbour.Application.Library.Dtos.TrackUploadResultDto(Guid.NewGuid(), Guid.NewGuid(), false));
         public Task RemoveTrackFilesAsync(string? localPath, string audioSha1, CancellationToken ct = default) => Task.CompletedTask;
     }
 
@@ -310,6 +312,7 @@ public class GetPlaylistIntegrationTests : IClassFixture<WebApplicationFactory<P
     {
         public Task AddAsync(ColdHarbour.Domain.Playback.PlayEvent e, CancellationToken ct = default) => Task.CompletedTask;
         public Task<ColdHarbour.Domain.Playback.PlayEvent?> FindActiveByUserAsync(Guid userId, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Playback.PlayEvent?>(null);
+        public Task<IReadOnlyList<ColdHarbour.Domain.Playback.PlayEvent>> FindOrphanedAsync(DateTimeOffset before, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<ColdHarbour.Domain.Playback.PlayEvent>>(Array.Empty<ColdHarbour.Domain.Playback.PlayEvent>());
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
     }
 }

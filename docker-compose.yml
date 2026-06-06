@@ -28,6 +28,7 @@ services:
       - COLDHARBOUR_JWT_ISSUER=coldharbour
       - COLDHARBOUR_JWT_AUDIENCE=coldharbour-web
       - COLDHARBOUR_PUBLIC_ORIGIN=${COLDHARBOUR_PUBLIC_ORIGIN}
+      - COLDHARBOUR_WS_MAX_FRAME_BYTES=${COLDHARBOUR_WS_MAX_FRAME_BYTES:-1048576}
     volumes:
       - coldharbour_content:/content
     depends_on:

@@ -137,6 +137,7 @@ public sealed class DevicesTestFactory : WebApplicationFactory<Program>
     {
         public ColdHarbour.Domain.Playback.Device? Stored { get; private set; }
         public Task<ColdHarbour.Domain.Playback.Device?> FindByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Playback.Device?>(null);
+        public Task<bool> ExistsForUserAsync(Guid userId, Guid deviceId, CancellationToken ct = default) => Task.FromResult(true);
         public Task<IReadOnlyList<ColdHarbour.Domain.Playback.Device>> ListByUserIdAsync(Guid userId, CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<ColdHarbour.Domain.Playback.Device>>(Stored is null ? [] : [Stored]);
         public Task AddAsync(ColdHarbour.Domain.Playback.Device d, CancellationToken ct = default) { Stored = d; return Task.CompletedTask; }

@@ -61,4 +61,51 @@ public sealed class DeviceRepositoryTests : IAsyncLifetime
         var result = await repo.FindByIdAsync(Guid.NewGuid());
         result.Should().BeNull();
     }
+
+    [Fact]
+    public async Task ExistsForUserAsync_True_WhenDeviceBelongsToUser()
+    {
+        var userId = Guid.NewGuid();
+        var device = Device.Register(Guid.NewGuid(), userId, "Chrome", "UA/1.0", ["mp3"], "opus-128");
+
+        await using (var writeCtx = CreateContext())
+        {
+            var repo = new DeviceRepository(writeCtx);
+            await repo.AddAsync(device);
+            await repo.SaveChangesAsync();
+        }
+
+        await using var readCtx = CreateContext();
+        var exists = await new DeviceRepository(readCtx).ExistsForUserAsync(userId, device.Id);
+
+        exists.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExistsForUserAsync_False_WhenDeviceBelongsToAnotherUser()
+    {
+        var ownerId = Guid.NewGuid();
+        var device = Device.Register(Guid.NewGuid(), ownerId, "Chrome", "UA/1.0", ["mp3"], "opus-128");
+
+        await using (var writeCtx = CreateContext())
+        {
+            var repo = new DeviceRepository(writeCtx);
+            await repo.AddAsync(device);
+            await repo.SaveChangesAsync();
+        }
+
+        await using var readCtx = CreateContext();
+        // Real device id, but a different user must not match — this is the claim-spoofing guard.
+        var exists = await new DeviceRepository(readCtx).ExistsForUserAsync(Guid.NewGuid(), device.Id);
+
+        exists.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ExistsForUserAsync_False_ForUnknownDevice()
+    {
+        await using var ctx = CreateContext();
+        var exists = await new DeviceRepository(ctx).ExistsForUserAsync(Guid.NewGuid(), Guid.NewGuid());
+        exists.Should().BeFalse();
+    }
 }

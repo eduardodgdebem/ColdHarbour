@@ -314,10 +314,13 @@ public sealed class PlaybackUserActorTests
         var userId = Guid.NewGuid();
         var deviceId = Guid.NewGuid();
 
-        // Pre-seed store with an active session so the heartbeat guard passes
-        // without needing a SetQueueCmd (which would broadcast state and race with Clear).
+        // Pre-seed store with a session already owned by this device, so the heartbeat
+        // guard passes without needing a SetQueueCmd (which would broadcast state and race
+        // with Clear). WS-hardening phase 3 made the guard fail closed: a heartbeat is only
+        // accepted from the current active device, so the seed must claim it active.
         var store = sp.GetRequiredService<ColdHarbour.Infrastructure.Playback.InMemoryPlaybackSessionStore>();
         var seeded = PlaybackSession.Create(userId);
+        seeded.ClaimActiveIfNone(deviceId);
         await store.SaveAsync(seeded, SaveReason.MaterialChange);
 
         using var fakeWs = new FakeWebSocket();
@@ -325,7 +328,6 @@ public sealed class PlaybackUserActorTests
         connStore.Add(userId, fakeWs);
 
         await using var actor = BuildActor(sp, userId);
-        // HeartbeatCmd passes the active-device guard when activeDeviceId is null.
         await actor.EnqueueAsync(new HeartbeatCmd(deviceId, 5_000), CancellationToken.None);
         await actor.DisposeAsync();
 
@@ -481,6 +483,8 @@ public sealed class PlaybackUserActorTests
     {
         public Task<Device?> FindByIdAsync(Guid id, CancellationToken ct)
             => Task.FromResult<Device?>(null);
+        public Task<bool> ExistsForUserAsync(Guid userId, Guid deviceId, CancellationToken ct = default)
+            => Task.FromResult(true);
         public Task<IReadOnlyList<Device>> ListByUserIdAsync(Guid userId, CancellationToken ct)
             => Task.FromResult<IReadOnlyList<Device>>(Array.Empty<Device>());
         public Task AddAsync(Device device, CancellationToken ct) => Task.CompletedTask;

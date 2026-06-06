@@ -18,6 +18,9 @@ public sealed class ListDevicesQueryHandlerConnectedFilterTests
         public Task<Device?> FindByIdAsync(Guid deviceId, CancellationToken ct = default)
             => Task.FromResult(_devices.FirstOrDefault(d => d.Id == deviceId));
 
+        public Task<bool> ExistsForUserAsync(Guid userId, Guid deviceId, CancellationToken ct = default)
+            => Task.FromResult(_devices.Any(d => d.Id == deviceId && d.UserId == userId));
+
         public Task<IReadOnlyList<Device>> ListByUserIdAsync(Guid userId, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<Device>>(_devices.Where(d => d.UserId == userId).ToList());
 

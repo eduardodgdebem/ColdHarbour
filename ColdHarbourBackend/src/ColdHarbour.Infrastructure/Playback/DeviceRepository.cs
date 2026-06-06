@@ -10,6 +10,9 @@ public sealed class DeviceRepository(ColdHarbourDbContext db) : IDeviceRepositor
     public Task<Device?> FindByIdAsync(Guid deviceId, CancellationToken ct = default)
         => db.Devices.FirstOrDefaultAsync(d => d.Id == deviceId, ct);
 
+    public Task<bool> ExistsForUserAsync(Guid userId, Guid deviceId, CancellationToken ct = default)
+        => db.Devices.AnyAsync(d => d.Id == deviceId && d.UserId == userId, ct);
+
     public async Task<IReadOnlyList<Device>> ListByUserIdAsync(Guid userId, CancellationToken ct = default) =>
         await db.Devices.Where(d => d.UserId == userId).OrderByDescending(d => d.LastSeenAt).ToListAsync(ct);
 

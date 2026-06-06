@@ -177,6 +177,22 @@ public sealed class PlaybackUserActor : IAsyncDisposable
         using var scope = _scopeFactory.CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
+        // Phase 3 (WS hardening): a client may only act as a device it actually owns.
+        // Reject commands whose claiming/transport device id is empty or not a registered
+        // device for this user — this is the claim-active spoofing guard. Heartbeat and stop
+        // are already gated by IsActiveDevice; read-only / device-less commands are exempt.
+        if (SenderDeviceToValidate(cmd) is { } sender)
+        {
+            var devices = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
+            if (sender == Guid.Empty || !await devices.ExistsForUserAsync(_userId, sender, ct))
+            {
+                _logger.LogWarning(
+                    "Dropping {MessageType} from unknown sender device {SenderDeviceId} for user {UserId}",
+                    cmd.GetType().Name, sender, _userId);
+                return;
+            }
+        }
+
         switch (cmd)
         {
             case SetQueueCmd c:
@@ -299,8 +315,39 @@ public sealed class PlaybackUserActor : IAsyncDisposable
         catch { /* socket may have closed mid-send; ignore */ }
     }
 
-    private static bool IsActiveDevice(PlaybackSession session, Guid deviceId)
-        => !session.ActiveDeviceId.HasValue || session.ActiveDeviceId.Value == deviceId;
+    /// <summary>
+    /// True only when <paramref name="deviceId"/> is a real id that currently owns playback.
+    /// Fails closed: an empty id or a session with no active device yet both return false, so
+    /// heartbeats / stops can't install or feed an ownerless session.
+    /// </summary>
+    internal static bool IsActiveDevice(PlaybackSession session, Guid deviceId)
+        => deviceId != Guid.Empty
+           && session.ActiveDeviceId.HasValue
+           && session.ActiveDeviceId.Value == deviceId;
+
+    /// <summary>
+    /// The device id that a command would use to claim-active or drive transport, and that must
+    /// therefore be proven to belong to the user before dispatch. Returns null for commands that
+    /// carry no such device: heartbeat/stop (already gated by <see cref="IsActiveDevice"/>),
+    /// resync (read-only), and setRepeatMode/setShuffle (no device). Pause/resume validate only
+    /// when a device is supplied — without one they act on the existing active device.
+    /// </summary>
+    internal static Guid? SenderDeviceToValidate(InboundCommand cmd) => cmd switch
+    {
+        SetQueueCmd c => c.DeviceId,
+        NextCmd c => c.DeviceId,
+        PreviousCmd c => c.DeviceId,
+        SeekCmd c => c.DeviceId,
+        PauseCmd c => c.DeviceId,
+        ResumeCmd c => c.DeviceId,
+        TransferCmd c => c.DeviceId,
+        TrackEndedCmd c => c.DeviceId,
+        AddToQueueCmd c => c.DeviceId,
+        RemoveFromQueueCmd c => c.DeviceId,
+        ReorderQueueCmd c => c.DeviceId,
+        ClearQueueCmd c => c.DeviceId,
+        _ => null,
+    };
 
     private static PlaybackSessionDto ToDto(PlaybackSession session) => new(
         session.UserId,

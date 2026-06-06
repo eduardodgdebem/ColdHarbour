@@ -1,6 +1,7 @@
 import { DestroyRef, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { Router } from '@angular/router';
+import { of, throwError } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { DeviceService } from '../../devices/device.service';
 import { AudioService } from './audio.service';
@@ -59,6 +60,8 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
   let ended = signal(false);
   let audioSpy!: jasmine.SpyObj<AudioService>;
   let musicSpy!: jasmine.SpyObj<MusicService>;
+  let authSpy!: jasmine.SpyObj<AuthService>;
+  let routerSpy!: jasmine.SpyObj<Router>;
 
   const flushMicrotasks = () =>
     new Promise<void>((res) => setTimeout(res, 0));
@@ -77,12 +80,14 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     duration = signal(200);
     ended = signal(false);
 
-    const authSpy = jasmine.createSpyObj(
+    authSpy = jasmine.createSpyObj(
       'AuthService',
       ['refresh'],
       { accessToken },
     );
     authSpy.refresh.and.returnValue(of('new-token'));
+
+    routerSpy = jasmine.createSpyObj('Router', ['navigate']);
 
     audioSpy = jasmine.createSpyObj(
       'AudioService',
@@ -116,6 +121,7 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
         { provide: AudioService, useValue: audioSpy },
         { provide: MusicService, useValue: musicSpy },
         { provide: DeviceService, useValue: deviceSpy },
+        { provide: Router, useValue: routerSpy },
         { provide: DestroyRef, useValue: { onDestroy: () => {} } },
       ],
     });
@@ -685,5 +691,58 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     await flushMicrotasks();
 
     expect(audioSpy.seekTo).not.toHaveBeenCalled();
+  });
+
+  // ── WS_PROTOCOL_HARDENING Phase 2: close-code fidelity for token expiry ──────
+
+  it('on 4001 (token_expired) it refreshes and reconnects with the new token', async () => {
+    await setupAndConnect();
+    const before = MockWebSocket.instances.length;
+
+    ws().onclose?.({ code: 4001 });
+    await flushMicrotasks();
+
+    expect(authSpy.refresh).toHaveBeenCalledTimes(1);
+    expect(MockWebSocket.instances.length).toBe(before + 1);
+    // The reconnect uses the refreshed token, never the stale one.
+    expect(MockWebSocket.instances[before].url).toContain('access_token=new-token');
+    expect(routerSpy.navigate).not.toHaveBeenCalled();
+  });
+
+  it('on 4001 with a failed refresh it routes to /login instead of looping', async () => {
+    await setupAndConnect();
+    authSpy.refresh.and.returnValue(throwError(() => new Error('refresh token dead')));
+    const before = MockWebSocket.instances.length;
+
+    ws().onclose?.({ code: 4001 });
+    await flushMicrotasks();
+
+    expect(authSpy.refresh).toHaveBeenCalledTimes(1);
+    expect(MockWebSocket.instances.length).toBe(before, 'must not reconnect when refresh fails');
+    expect(routerSpy.navigate).toHaveBeenCalledWith(['/login']);
+  });
+
+  it('on 1008 (invalid_token) it routes to /login without refreshing', async () => {
+    await setupAndConnect();
+    const before = MockWebSocket.instances.length;
+
+    ws().onclose?.({ code: 1008 });
+    await flushMicrotasks();
+
+    expect(authSpy.refresh).not.toHaveBeenCalled();
+    expect(MockWebSocket.instances.length).toBe(before, 'invalid token is not recoverable by reconnecting');
+    expect(routerSpy.navigate).toHaveBeenCalledWith(['/login']);
+  });
+
+  it('on a clean 1000 close it neither refreshes nor routes to /login', async () => {
+    await setupAndConnect();
+    const before = MockWebSocket.instances.length;
+
+    ws().onclose?.({ code: 1000 });
+    await flushMicrotasks();
+
+    expect(authSpy.refresh).not.toHaveBeenCalled();
+    expect(routerSpy.navigate).not.toHaveBeenCalled();
+    expect(MockWebSocket.instances.length).toBe(before);
   });
 });

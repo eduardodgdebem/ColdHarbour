@@ -30,6 +30,25 @@ internal enum WsFrameStatus
 /// <summary>Result of <see cref="PlaybackSessionHub.ReadFullMessageAsync"/>.</summary>
 internal readonly record struct WsFrameRead(WsFrameStatus Status, byte[] Payload);
 
+/// <summary>Outcome of authenticating a WS connection from its <c>access_token</c>.</summary>
+internal enum AuthStatus
+{
+    /// <summary>Token valid; <c>UserId</c> (and optional <c>DeviceId</c>) are populated.</summary>
+    Ok,
+    /// <summary>Token missing, malformed, or signed with the wrong key — not recoverable.</summary>
+    Invalid,
+    /// <summary>Token was well-formed but expired — recoverable by refreshing.</summary>
+    Expired,
+}
+
+/// <summary>Result of <see cref="PlaybackSessionHub.Authenticate"/>.</summary>
+internal readonly record struct AuthResult(AuthStatus Status, Guid UserId, Guid? DeviceId)
+{
+    public static AuthResult Ok(Guid userId, Guid? deviceId) => new(AuthStatus.Ok, userId, deviceId);
+    public static readonly AuthResult Invalid = new(AuthStatus.Invalid, default, null);
+    public static readonly AuthResult Expired = new(AuthStatus.Expired, default, null);
+}
+
 /// <summary>
 /// Raw WebSocket hub at /ws/playback. JWT is supplied as ?access_token= query param
 /// (browser WS API does not allow custom headers). On JWT expiry the socket is closed
@@ -58,13 +77,15 @@ public sealed class PlaybackSessionHub(
     public async Task HandleAsync(HttpContext ctx, WebSocket ws)
     {
         var auth = Authenticate(ctx);
-        if (auth is null)
+        if (auth.Status != AuthStatus.Ok)
         {
-            await ws.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Unauthorized", CancellationToken.None);
+            var (closeStatus, description) = CloseInfoFor(auth.Status);
+            await CloseWithAsync(ws, closeStatus, description);
             return;
         }
 
-        var (userId, deviceId) = auth.Value;
+        var userId = auth.UserId;
+        var deviceId = auth.DeviceId;
 
         if (deviceId.HasValue)
             connectedDeviceStore.Add(deviceId.Value);
@@ -122,8 +143,7 @@ public sealed class PlaybackSessionHub(
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
         finally
         {
-            if (ws.State == WebSocketState.Open)
-                await ws.CloseAsync(PickCloseStatus(ct), "bye", CancellationToken.None);
+            await CloseWithAsync(ws, PickCloseStatus(ct), "bye");
         }
     }
 
@@ -164,8 +184,7 @@ public sealed class PlaybackSessionHub(
                     "WS message exceeded {MaxBytes} bytes (>= {Attempted}) for user {UserId}; closing 1009",
                     maxBytes, assembled.Length + result.Count, userId);
 
-                if (ws.State == WebSocketState.Open)
-                    await ws.CloseAsync(WebSocketCloseStatus.MessageTooBig, "message_too_big", CancellationToken.None);
+                await CloseWithAsync(ws, WebSocketCloseStatus.MessageTooBig, "message_too_big");
 
                 return new WsFrameRead(WsFrameStatus.TooBig, []);
             }
@@ -309,13 +328,13 @@ public sealed class PlaybackSessionHub(
         return raw is not null && Guid.TryParse(raw, out var g) ? g : null;
     }
 
-    private (Guid userId, Guid? deviceId)? Authenticate(HttpContext ctx)
+    internal AuthResult Authenticate(HttpContext ctx)
     {
         var token = ctx.Request.Query["access_token"].FirstOrDefault()
             ?? ctx.Request.Headers.Authorization.FirstOrDefault()?.Replace("Bearer ", "");
 
         if (string.IsNullOrEmpty(token))
-            return null;
+            return AuthResult.Invalid;
 
         try
         {
@@ -336,20 +355,39 @@ public sealed class PlaybackSessionHub(
                    ?? principal.FindFirst("sub")?.Value;
 
             if (!Guid.TryParse(sub, out var userId))
-                return null;
+                return AuthResult.Invalid;
 
             var deviceIdRaw = principal.FindFirst("deviceId")?.Value;
             Guid? deviceId = Guid.TryParse(deviceIdRaw, out var did) ? did : null;
 
-            return (userId, deviceId);
+            return AuthResult.Ok(userId, deviceId);
         }
         catch (SecurityTokenExpiredException)
         {
-            return null;
+            // Recoverable: the client refreshes its token and reconnects.
+            return AuthResult.Expired;
         }
         catch
         {
-            return null;
+            return AuthResult.Invalid;
         }
     }
+
+    /// <summary>
+    /// Maps an auth failure to a WebSocket close code + description. Expiry uses the
+    /// application-specific 4001 the frontend branches on (refresh-and-reconnect); any
+    /// other failure is 1008 PolicyViolation (force re-auth).
+    /// </summary>
+    internal static (WebSocketCloseStatus Status, string Description) CloseInfoFor(AuthStatus status) =>
+        status switch
+        {
+            AuthStatus.Expired => ((WebSocketCloseStatus)4001, "token_expired"),
+            _ => (WebSocketCloseStatus.PolicyViolation, "invalid_token"),
+        };
+
+    /// <summary>Single close path so every call site reports a consistent code + description.</summary>
+    private static Task CloseWithAsync(WebSocket ws, WebSocketCloseStatus status, string description) =>
+        ws.State == WebSocketState.Open
+            ? ws.CloseAsync(status, description, CancellationToken.None)
+            : Task.CompletedTask;
 }

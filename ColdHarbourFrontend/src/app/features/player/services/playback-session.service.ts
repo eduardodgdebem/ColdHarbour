@@ -6,6 +6,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../../core/auth/auth.service';
 import { DeviceService } from '../../devices/device.service';
@@ -94,6 +95,7 @@ export class PlaybackSessionService {
     private audioService: AudioService,
     private musicService: MusicService,
     private deviceService: DeviceService,
+    private router: Router,
     destroyRef: DestroyRef,
   ) {
     // Connect after both token and device registration are ready.
@@ -419,11 +421,18 @@ export class PlaybackSessionService {
     ws.onclose = (e) => {
       this.stopHeartbeat();
       if (e.code === 4001) {
+        // token_expired — refresh, then reconnect with the *new* token. Never
+        // reconnect on the old token (that produced a tight rejection loop).
+        // If the refresh token is also dead, the session is unrecoverable.
         this.authService.refresh().subscribe({
           next: (t) => this.connect(t),
-          error: () => {},
+          error: () => this.router.navigate(['/login']),
         });
+      } else if (e.code === 1008) {
+        // invalid_token — not recoverable by reconnecting; force re-auth.
+        this.router.navigate(['/login']);
       } else if (e.code !== 1000) {
+        // Network blip / server going away — reconnect with the current token.
         this.reconnectTimer = setTimeout(() => {
           const t = this.authService.accessToken();
           if (t) this.connect(t);

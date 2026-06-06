@@ -48,61 +48,21 @@ public sealed class TrackIngestService(
                 return new TrackUploadResultDto(existing.Id, existing.AlbumId, true);
             }
 
-            using var tagFile = File.Create(tmpPath);
-            var tags = tagFile.Tag;
-
-            var artistName = tags.FirstAlbumArtist ?? tags.FirstPerformer ?? "Unknown Artist";
-            var albumTitle = tags.Album ?? "Unknown Album";
-            var trackTitle = tags.Title ?? Path.GetFileNameWithoutExtension(fileName);
-            var year = tags.Year > 0 ? (int?)tags.Year : null;
-            var trackNumber = tags.Track > 0 ? (int?)tags.Track : null;
-            var durationSec = tagFile.Properties.Duration;
-            var bitrate = tagFile.Properties.AudioBitrate > 0 ? tagFile.Properties.AudioBitrate : 128;
-            var format = ext.TrimStart('.').ToLowerInvariant();
-
-            var artist = await repo.FindArtistByNameAsync(artistName, ct);
-            if (artist is null)
+            // Derive the canonical destination from tags, then move the upload into place.
+            string canonicalPath;
+            using (var tagFile = File.Create(tmpPath))
             {
-                artist = Artist.Create(artistName);
-                await repo.AddArtistAsync(artist, ct);
+                var tags = tagFile.Tag;
+                var artistName = tags.FirstAlbumArtist ?? tags.FirstPerformer ?? "Unknown Artist";
+                var albumTitle = tags.Album ?? "Unknown Album";
+                var trackTitle = tags.Title ?? Path.GetFileNameWithoutExtension(fileName);
+                canonicalPath = BuildCanonicalPath(ContentRoot, artistName, albumTitle, trackTitle, ext);
             }
 
-            var album = await repo.FindAlbumByArtistAndTitleAsync(artist.Id, albumTitle, ct);
-            if (album is null)
-            {
-                album = Album.Create(albumTitle, artist.Id, year);
-                await repo.AddAlbumAsync(album, ct);
-            }
-
-            var canonicalPath = BuildCanonicalPath(ContentRoot, artistName, albumTitle, trackTitle, ext);
             Directory.CreateDirectory(Path.GetDirectoryName(canonicalPath)!);
-
-            // Extract embedded artwork before moving the file
-            var artSha1 = await ExtractArtworkAsync(tagFile, ct);
-            if (artSha1 is not null)
-                album.UpdateCoverArt(artSha1);
-
             System.IO.File.Move(tmpPath, canonicalPath, overwrite: false);
 
-            var relativePath = "/" + Path.GetRelativePath(ContentRoot, canonicalPath)
-                .Replace(Path.DirectorySeparatorChar, '/');
-
-            var track = Track.Create(
-                title: trackTitle,
-                albumId: album.Id,
-                duration: durationSec,
-                provider: "local",
-                format: format,
-                bitrate: bitrate,
-                audioSha1: audioSha1,
-                localPath: relativePath,
-                trackNumber: trackNumber);
-
-            await repo.AddTrackAsync(track, ct);
-            await repo.SaveChangesAsync(ct);
-
-            logger.LogInformation("Ingested track {Title} → {Path}", track.Title, relativePath);
-            return new TrackUploadResultDto(track.Id, album.Id, false);
+            return await RegisterTrackAsync(canonicalPath, ToRelativePath(canonicalPath), audioSha1, fileName, ext, ct);
         }
         catch
         {
@@ -111,6 +71,85 @@ public sealed class TrackIngestService(
             throw;
         }
     }
+
+    public async Task<TrackUploadResultDto> IngestExistingFileAsync(string relativePath, CancellationToken ct = default)
+    {
+        var ext = Path.GetExtension(relativePath);
+        if (!SupportedExtensions.Contains(ext))
+            throw new InvalidOperationException($"Unsupported audio format: {ext}");
+
+        var normalizedRelative = "/" + relativePath.TrimStart('/');
+        var fullPath = Path.Combine(ContentRoot, normalizedRelative.TrimStart('/'));
+        if (!System.IO.File.Exists(fullPath))
+            throw new FileNotFoundException("Library file not found.", fullPath);
+
+        var audioSha1 = await ComputeSha1Async(fullPath, ct);
+
+        var existing = await repo.FindByAudioSha1Async(audioSha1, ct);
+        if (existing is not null)
+            return new TrackUploadResultDto(existing.Id, existing.AlbumId, true);
+
+        // The file already lives at its destination — register it in place, never move it.
+        return await RegisterTrackAsync(fullPath, normalizedRelative, audioSha1, fullPath, ext, ct);
+    }
+
+    /// <summary>
+    /// Reads tags from a file already on disk and creates the Artist/Album/Track rows,
+    /// recording <paramref name="relativePath"/> as the track's location. Does not move files.
+    /// </summary>
+    private async Task<TrackUploadResultDto> RegisterTrackAsync(
+        string fileOnDisk, string relativePath, string audioSha1, string fallbackTitleName, string ext, CancellationToken ct)
+    {
+        using var tagFile = File.Create(fileOnDisk);
+        var tags = tagFile.Tag;
+
+        var artistName = tags.FirstAlbumArtist ?? tags.FirstPerformer ?? "Unknown Artist";
+        var albumTitle = tags.Album ?? "Unknown Album";
+        var trackTitle = tags.Title ?? Path.GetFileNameWithoutExtension(fallbackTitleName);
+        var year = tags.Year > 0 ? (int?)tags.Year : null;
+        var trackNumber = tags.Track > 0 ? (int?)tags.Track : null;
+        var durationSec = tagFile.Properties.Duration;
+        var bitrate = tagFile.Properties.AudioBitrate > 0 ? tagFile.Properties.AudioBitrate : 128;
+        var format = ext.TrimStart('.').ToLowerInvariant();
+
+        var artist = await repo.FindArtistByNameAsync(artistName, ct);
+        if (artist is null)
+        {
+            artist = Artist.Create(artistName);
+            await repo.AddArtistAsync(artist, ct);
+        }
+
+        var album = await repo.FindAlbumByArtistAndTitleAsync(artist.Id, albumTitle, ct);
+        if (album is null)
+        {
+            album = Album.Create(albumTitle, artist.Id, year);
+            await repo.AddAlbumAsync(album, ct);
+        }
+
+        var artSha1 = await ExtractArtworkAsync(tagFile, ct);
+        if (artSha1 is not null)
+            album.UpdateCoverArt(artSha1);
+
+        var track = Track.Create(
+            title: trackTitle,
+            albumId: album.Id,
+            duration: durationSec,
+            provider: "local",
+            format: format,
+            bitrate: bitrate,
+            audioSha1: audioSha1,
+            localPath: relativePath,
+            trackNumber: trackNumber);
+
+        await repo.AddTrackAsync(track, ct);
+        await repo.SaveChangesAsync(ct);
+
+        logger.LogInformation("Ingested track {Title} → {Path}", track.Title, relativePath);
+        return new TrackUploadResultDto(track.Id, album.Id, false);
+    }
+
+    private string ToRelativePath(string fullPath) =>
+        "/" + Path.GetRelativePath(ContentRoot, fullPath).Replace(Path.DirectorySeparatorChar, '/');
 
     public Task RemoveTrackFilesAsync(string? localPath, string audioSha1, CancellationToken ct = default)
     {

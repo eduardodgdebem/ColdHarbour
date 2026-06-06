@@ -129,6 +129,8 @@ public sealed class HealthTestFactory : WebApplicationFactory<Program>
     {
         public Task<ColdHarbour.Application.Library.Dtos.TrackUploadResultDto> IngestAsync(System.IO.Stream s, string f, CancellationToken ct = default)
             => Task.FromResult(new ColdHarbour.Application.Library.Dtos.TrackUploadResultDto(Guid.NewGuid(), Guid.NewGuid(), false));
+        public Task<ColdHarbour.Application.Library.Dtos.TrackUploadResultDto> IngestExistingFileAsync(string relativePath, CancellationToken ct = default)
+            => Task.FromResult(new ColdHarbour.Application.Library.Dtos.TrackUploadResultDto(Guid.NewGuid(), Guid.NewGuid(), false));
         public Task RemoveTrackFilesAsync(string? p, string sha1, CancellationToken ct = default) => Task.CompletedTask;
     }
 
@@ -169,6 +171,7 @@ public sealed class HealthTestFactory : WebApplicationFactory<Program>
     {
         public Task AddAsync(ColdHarbour.Domain.Playback.PlayEvent e, CancellationToken ct = default) => Task.CompletedTask;
         public Task<ColdHarbour.Domain.Playback.PlayEvent?> FindActiveByUserAsync(Guid userId, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Playback.PlayEvent?>(null);
+        public Task<IReadOnlyList<ColdHarbour.Domain.Playback.PlayEvent>> FindOrphanedAsync(DateTimeOffset before, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<ColdHarbour.Domain.Playback.PlayEvent>>(Array.Empty<ColdHarbour.Domain.Playback.PlayEvent>());
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
     }
 

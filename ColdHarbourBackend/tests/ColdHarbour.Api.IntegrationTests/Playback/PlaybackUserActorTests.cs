@@ -1,8 +1,11 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ColdHarbour.Api.Playback;
+using ColdHarbour.Application.Library.Ports;
 using ColdHarbour.Application.Playback.Commands;
 using ColdHarbour.Application.Playback.Ports;
+using ColdHarbour.Application.Playback.Services;
+using ColdHarbour.Domain.Library;
 using ColdHarbour.Domain.Playback;
 using FluentAssertions;
 using MediatR;
@@ -34,6 +37,12 @@ public sealed class PlaybackUserActorTests
             sp.GetRequiredService<ColdHarbour.Infrastructure.Playback.InMemoryPlaybackSessionStore>());
         services.AddSingleton<PlaybackConnectionStore>();
         services.AddScoped<IPlayEventRepository, NoopPlayEventRepository>();
+        // Command handlers depend on IPlaySessionTimeline (which needs ITrackRepository).
+        // Without these the handlers can't be constructed, mediator.Send throws, the pump
+        // swallows it, and every material command leaves Revision at 0 — the root cause of
+        // the previously-failing revision/ack/tick assertions.
+        services.AddScoped<ITrackRepository, NoopTrackRepository>();
+        services.AddScoped<IPlaySessionTimeline, PlaySessionTimeline>();
         // Device-related dependencies for ListDevicesQuery
         services.AddScoped<IDeviceRepository, NoopDeviceRepository>();
         services.AddSingleton<IConnectedDeviceStore, NoopConnectedDeviceStore>();
@@ -477,6 +486,26 @@ public sealed class PlaybackUserActorTests
             => Task.FromResult<PlayEvent?>(null);
         public Task<IReadOnlyList<PlayEvent>> FindOrphanedAsync(DateTimeOffset before, CancellationToken ct)
             => Task.FromResult<IReadOnlyList<PlayEvent>>(Array.Empty<PlayEvent>());
+    }
+
+    private sealed class NoopTrackRepository : ITrackRepository
+    {
+        public Task<Track?> FindByIdAsync(Guid trackId, CancellationToken ct = default) => Task.FromResult<Track?>(null);
+        public Task<Track?> FindByAudioSha1Async(string audioSha1, CancellationToken ct = default) => Task.FromResult<Track?>(null);
+        public Task<Artist?> FindArtistByIdAsync(Guid artistId, CancellationToken ct = default) => Task.FromResult<Artist?>(null);
+        public Task<Artist?> FindArtistByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<Artist?>(null);
+        public Task<Album?> FindAlbumByArtistAndTitleAsync(Guid artistId, string title, CancellationToken ct = default) => Task.FromResult<Album?>(null);
+        public Task<Album?> FindAlbumByIdAsync(Guid albumId, CancellationToken ct = default) => Task.FromResult<Album?>(null);
+        public Task<int> CountTracksByAlbumIdAsync(Guid albumId, CancellationToken ct = default) => Task.FromResult(0);
+        public Task<int> CountAlbumsByArtistIdAsync(Guid artistId, CancellationToken ct = default) => Task.FromResult(0);
+        public Task AddArtistAsync(Artist artist, CancellationToken ct = default) => Task.CompletedTask;
+        public Task AddAlbumAsync(Album album, CancellationToken ct = default) => Task.CompletedTask;
+        public Task AddTrackAsync(Track track, CancellationToken ct = default) => Task.CompletedTask;
+        public void RemoveTrack(Track track) { }
+        public void RemoveAlbum(Album album) { }
+        public void RemoveArtist(Artist artist) { }
+        public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task<List<Track>> GetLocalTrackSampleAsync(int maxCount, CancellationToken ct = default) => Task.FromResult(new List<Track>());
     }
 
     private sealed class NoopDeviceRepository : IDeviceRepository

@@ -224,8 +224,7 @@ public sealed class PlaybackUserActor : IAsyncDisposable
                 break;
             case StopCmd c:
                 if (!IsActiveDevice(session, c.DeviceId)) return;
-                session.Clear();
-                changed = true;
+                changed = await mediator.Send(new StopCommand(session, c.DeviceId), ct);
                 break;
             case SetRepeatModeCmd c:
                 changed = await mediator.Send(new SetRepeatModeCommand(session, c.Mode), ct);

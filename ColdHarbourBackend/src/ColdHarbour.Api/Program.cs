@@ -114,6 +114,14 @@ try
 
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
+
+    // Override the default playback limits from configuration (last registration wins).
+    builder.Services.AddSingleton(new ColdHarbour.Application.Playback.PlaybackLimits
+    {
+        MaxQueueSize = int.TryParse(builder.Configuration["COLDHARBOUR_WS_MAX_QUEUE_SIZE"], out var max) && max > 0
+            ? max
+            : 1000,
+    });
     builder.Services.AddSingleton<ColdHarbour.Api.Playback.PlaybackConnectionStore>();
     builder.Services.AddSingleton<ColdHarbour.Api.Playback.PlaybackUserActorRegistry>();
     builder.Services.AddHostedService(sp => sp.GetRequiredService<ColdHarbour.Api.Playback.PlaybackUserActorRegistry>());

@@ -1,4 +1,5 @@
 using ColdHarbour.Application.Pipeline;
+using ColdHarbour.Application.Playback;
 using ColdHarbour.Application.Playback.Ports;
 using ColdHarbour.Application.Playback.Services;
 using FluentValidation;
@@ -19,6 +20,9 @@ public static class DependencyInjection
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
         services.AddScoped<IPlaySessionTimeline, PlaySessionTimeline>();
+
+        // Default limits; the composition root (Program.cs) overrides this from configuration.
+        services.AddSingleton(new PlaybackLimits());
 
         return services;
     }

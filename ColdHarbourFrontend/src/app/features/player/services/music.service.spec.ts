@@ -61,11 +61,19 @@ describe('MusicService', () => {
   });
 
   it('should load playlist successfully after setCurrentPlaylist', () => {
-    service.setCurrentPlaylist(1);
+    service.setCurrentPlaylist(7);
 
     expect(service.currentPlayList()).toEqual(mockPlaylist);
     expect(service.isLoading()).toBeFalse();
     expect(service.error()).toBeNull();
+  });
+
+  it('loadLibrary loads the library view', () => {
+    service.loadLibrary();
+
+    expect(apiService.getPlaylist).toHaveBeenCalled();
+    expect(service.currentPlayList()).toEqual(mockPlaylist);
+    expect(service.isLoading()).toBeFalse();
   });
 
   it('should handle playlist loading error', () => {
@@ -73,7 +81,7 @@ describe('MusicService', () => {
       throwError(() => new Error('Network error')),
     );
 
-    service.setCurrentPlaylist(1);
+    service.setCurrentPlaylist(7);
 
     expect(service.currentPlayList()).toBeNull();
     expect(service.isLoading()).toBeFalse();

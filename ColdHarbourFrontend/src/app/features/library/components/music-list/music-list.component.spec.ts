@@ -55,6 +55,7 @@ describe('MusicListComponent', () => {
     );
 
     playbackSpy = jasmine.createSpyObj('PlaybackSessionService', [
+      'setQueue',
       'addToQueue',
       'removeFromQueue',
       'reorderQueue',
@@ -85,17 +86,20 @@ describe('MusicListComponent', () => {
       .nativeElement as HTMLButtonElement;
     queueBtn.click();
     expect(playbackSpy.addToQueue).toHaveBeenCalledWith(mockMusic.trackId);
-    // Click should not also select the track (stopPropagation).
-    expect(musicService.selectMusic).not.toHaveBeenCalled();
+    // Click should not also start the track (stopPropagation).
+    expect(playbackSpy.setQueue).not.toHaveBeenCalled();
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should call selectMusic when selecting a music item', () => {
+  it('declares the queue via the hub when selecting a music item', () => {
     component.selectMusic(mockMusic);
-    expect(musicService.selectMusic).toHaveBeenCalledWith(mockMusic);
+    // Server-authoritative: the click pushes setQueue (the displayed list +
+    // picked index). currentMusic is written later by the server-state effect.
+    expect(playbackSpy.setQueue).toHaveBeenCalledWith([mockMusic.trackId], 0);
+    expect(musicService.selectMusic).not.toHaveBeenCalled();
   });
 
   it('should check if music is current music', () => {
@@ -171,7 +175,7 @@ describe('MusicListComponent', () => {
         .query(By.css('.track .delete-btn'))
         .nativeElement as HTMLButtonElement;
       deleteBtn.click();
-      expect(musicService.selectMusic).not.toHaveBeenCalled();
+      expect(playbackSpy.setQueue).not.toHaveBeenCalled();
     });
 
     it('calls libraryService.deleteTrack and clears the candidate when confirmed', () => {

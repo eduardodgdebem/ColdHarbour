@@ -7,6 +7,7 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MusicService } from '../../../player/services/music.service';
+import { PlaybackSessionService } from '../../../player/services/playback-session.service';
 import { AuthService } from '../../../../core/auth/auth.service';
 import type { Music } from '../../../../core/api/api.service';
 import { ButtonComponent } from '../../../../shared/ui';
@@ -21,6 +22,7 @@ import { ButtonComponent } from '../../../../shared/ui';
 })
 export class HomePageComponent implements OnInit {
   private readonly musicService = inject(MusicService);
+  private readonly playbackSession = inject(PlaybackSessionService);
   private readonly authService = inject(AuthService);
 
   readonly isLoading = this.musicService.isLoading;
@@ -63,11 +65,19 @@ export class HomePageComponent implements OnInit {
   readonly nowLabel = this.computeNowLabel();
 
   ngOnInit(): void {
-    this.musicService.setCurrentPlaylist(1);
+    this.musicService.loadLibrary();
   }
 
   play(track: Music): void {
-    this.musicService.selectMusic(track);
+    // Queue the full library view with the picked track's index; the server
+    // echoes the broadcast and the session effect writes currentMusic.
+    const list = this.playlist()?.musics ?? [];
+    const idx = list.findIndex((m) => m.trackId === track.trackId);
+    if (idx < 0) return;
+    this.playbackSession.setQueue(
+      list.map((m) => m.trackId),
+      idx,
+    );
   }
 
   formatDuration(seconds: number): string {

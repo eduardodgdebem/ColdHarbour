@@ -34,7 +34,7 @@ describe('LibraryPageComponent', () => {
 
     musicService = jasmine.createSpyObj(
       'MusicService',
-      ['setCurrentPlaylist', 'selectMusic', 'isCurrentMusic'],
+      ['setCurrentPlaylist', 'loadLibrary', 'selectMusic', 'isCurrentMusic'],
       {
         currentPlayList,
         isLoading,
@@ -80,9 +80,9 @@ describe('LibraryPageComponent', () => {
     fixture.detectChanges();
   }
 
-  it('requests the all-tracks playlist on init', () => {
+  it('requests the library on init', () => {
     setUp(null, true);
-    expect(musicService.setCurrentPlaylist).toHaveBeenCalledWith(1);
+    expect(musicService.loadLibrary).toHaveBeenCalled();
   });
 
   it('renders the search input and the sort toggle', () => {

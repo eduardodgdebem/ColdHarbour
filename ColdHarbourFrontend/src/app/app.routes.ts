@@ -1,7 +1,6 @@
 import { Routes } from '@angular/router';
 import { HomePageComponent } from './features/home/pages/home-page/home-page.component';
 import { LibraryPageComponent } from './features/library/pages/library-page/library-page.component';
-import { PlaylistPageComponent } from './features/library/pages/playlist-page/playlist-page.component';
 import { LoginPageComponent } from './features/auth/pages/login-page/login-page.component';
 import { DevicesPageComponent } from './features/devices/pages/devices-page/devices-page.component';
 import { AccountPageComponent } from './features/account/pages/account-page/account-page.component';
@@ -25,11 +24,6 @@ export const routes: Routes = [
   {
     path: 'library',
     component: LibraryPageComponent,
-    canActivate: [authGuard],
-  },
-  {
-    path: 'playlist/:id',
-    component: PlaylistPageComponent,
     canActivate: [authGuard],
   },
   {

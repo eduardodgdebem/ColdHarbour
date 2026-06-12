@@ -37,9 +37,20 @@ export class MusicService {
     // play in parallel the moment its user picked a track.
   }
 
+  // The backend has no real playlists yet: GetPlaylistQuery returns the whole
+  // library for any id. This constant names that fact instead of scattering a
+  // magic `1` across the app. (When a real playlist feature lands, reintroduce a
+  // playlist route + per-id loading; for now the only collection is the library.)
+  private static readonly LIBRARY_PLAYLIST_ID = 1;
+
   public setCurrentPlaylist(id: number) {
     this.currentPlayList.set(null);
     this.loadPlaylist(id);
+  }
+
+  /** Load the whole library as the current playlist (the player/home/library default view). */
+  public loadLibrary() {
+    this.setCurrentPlaylist(MusicService.LIBRARY_PLAYLIST_ID);
   }
 
   private loadPlaylist(id: number) {

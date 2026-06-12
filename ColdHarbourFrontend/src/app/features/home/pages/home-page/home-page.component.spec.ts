@@ -4,6 +4,7 @@ import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { HomePageComponent } from './home-page.component';
 import { MusicService } from '../../../player/services/music.service';
+import { PlaybackSessionService } from '../../../player/services/playback-session.service';
 import { AuthService } from '../../../../core/auth/auth.service';
 import type { Music, Playlist } from '../../../../core/api/api.service';
 
@@ -28,6 +29,7 @@ describe('HomePageComponent', () => {
   let fixture: ComponentFixture<HomePageComponent>;
   let component: HomePageComponent;
   let musicService: jasmine.SpyObj<MusicService>;
+  let playbackSpy: jasmine.SpyObj<PlaybackSessionService>;
   let currentPlayList: ReturnType<typeof signal<Playlist | null>>;
   let isLoading: ReturnType<typeof signal<boolean>>;
   let email: ReturnType<typeof signal<string | null>>;
@@ -46,18 +48,21 @@ describe('HomePageComponent', () => {
 
     musicService = jasmine.createSpyObj(
       'MusicService',
-      ['setCurrentPlaylist', 'selectMusic'],
+      ['setCurrentPlaylist', 'loadLibrary', 'selectMusic'],
       {
         currentPlayList,
         isLoading,
       },
     );
 
+    playbackSpy = jasmine.createSpyObj('PlaybackSessionService', ['setQueue']);
+
     TestBed.configureTestingModule({
       imports: [HomePageComponent],
       providers: [
         provideRouter([]),
         { provide: MusicService, useValue: musicService },
+        { provide: PlaybackSessionService, useValue: playbackSpy },
         { provide: AuthService, useValue: { email, name } },
       ],
     });
@@ -67,9 +72,9 @@ describe('HomePageComponent', () => {
     fixture.detectChanges();
   }
 
-  it('requests the all-tracks playlist on init', () => {
+  it('requests the library on init', () => {
     setUp({ loading: true });
-    expect(musicService.setCurrentPlaylist).toHaveBeenCalledWith(1);
+    expect(musicService.loadLibrary).toHaveBeenCalled();
   });
 
   it('renders the loading state while isLoading is true', () => {
@@ -190,16 +195,21 @@ describe('HomePageComponent', () => {
     expect(names).toEqual(['Newer', 'Older']);
   });
 
-  it('calls musicService.selectMusic when an arrival tile is clicked', () => {
+  it('declares the queue via the hub when an arrival tile is clicked', () => {
     const t1 = track(1);
     const t2 = track(2);
     setUp({
       loading: false,
       playlist: { id: 1, name: 'All', imageRef: '', musics: [t1, t2] },
     });
+    // recentlyAdded reverses, so tile[0] is t2 (the newer). The queue is the
+    // full library view; the picked index points at t2.
     const tiles = fixture.debugElement.queryAll(By.css('.arrival'));
     tiles[0].nativeElement.click();
-    expect(musicService.selectMusic).toHaveBeenCalledWith(t2);
+    expect(playbackSpy.setQueue).toHaveBeenCalledWith(
+      [t1.trackId, t2.trackId],
+      1,
+    );
   });
 
   it('derives userName from the email local-part and uppercases it', () => {

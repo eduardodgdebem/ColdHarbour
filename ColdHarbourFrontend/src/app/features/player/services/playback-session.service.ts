@@ -54,19 +54,15 @@ export class PlaybackSessionService {
   // Phase 4: outbound command tracking for ack correlation.
   private readonly pendingCommands = new Map<string, { sentAt: number; type: string }>();
 
-  // Track the last trackId we sent setQueue for, to avoid duplicate sends.
-  private lastTrackId: string | null = null;
-
   // Track previous session state to detect transitions.
   private prevActiveDeviceId: string | null = null;
   private prevTrackId: string | null = null;
   private prevIsPlaying = false;
 
-  // True while the active-device effect is mutating MusicService /
-  // AudioService in response to a server broadcast. Prevents the setQueue
-  // effect from echoing those locally-triggered currentMusic changes back
-  // to the server.
-  private applyingRemote = false;
+  // Per-connection generation. Bumped on every connect(); a socket's handlers
+  // capture the value live so a stale socket's onclose (fired after a fast
+  // reconnect) can't touch the new connection's heartbeat/reconnect state.
+  private generation = 0;
 
   // Inactive-device interpolation of remote playback position. Updates every
   // 250ms between server heartbeats so the UI ticks smoothly instead of
@@ -106,34 +102,6 @@ export class PlaybackSessionService {
       else if (!token) this.disconnect();
     });
 
-    // Emit setQueue whenever the user picks a new track from a loaded
-    // playlist. The hub treats setQueue as "play this": it sets TrackId,
-    // IsPlaying=true, claims active if no one owns playback. The active
-    // device — whoever that is — will then load + play (see effect below).
-    effect(() => {
-      const music = musicService.currentMusic();
-      if (!music || music.trackId === this.lastTrackId) return;
-      if (this.applyingRemote) {
-        // currentMusic was just mutated by the active-device effect
-        // applying a server broadcast — don't echo back as a new setQueue.
-        this.lastTrackId = music.trackId;
-        return;
-      }
-      this.lastTrackId = music.trackId;
-      const playlist = untracked(() => musicService.currentPlayList());
-      if (!playlist) return;
-      const idx = playlist.musics.findIndex(
-        (t) => t.trackId === music.trackId,
-      );
-      if (idx < 0) return;
-      this.send({
-        type: 'setQueue',
-        deviceId: deviceService.getOrCreateDeviceId(),
-        trackIds: playlist.musics.map((t) => t.trackId),
-        startIndex: idx,
-      });
-    });
-
     // Server-state mirror effect.
     //   Step 1 — runs on every device: sync musicService.currentMusic to the
     //   server's trackId so inactive devices still show "now playing".
@@ -153,32 +121,29 @@ export class PlaybackSessionService {
       this.prevTrackId = sess.trackId;
       this.prevIsPlaying = sess.isPlaying;
 
-      // ── Playlist bootstrap (all devices) ──────────────────────────────
-      // When a session has a track but no playlist is loaded, kick off a load.
+      // ── Library bootstrap (all devices) ───────────────────────────────
+      // When a session has a track but no library is loaded, kick off a load.
       // This runs on BOTH the active device and any inactive device (second tab,
       // page refresh) so the mini-player appears on all clients.
       // Guard with isLoading() to avoid a duplicate fetch if one is already
-      // in flight (e.g., the PlaylistPageComponent triggered it first).
+      // in flight (e.g., the home/library page triggered it first).
       if (sess.trackId && !playlist) {
         if (!untracked(() => this.musicService.isLoading())) {
-          this.musicService.setCurrentPlaylist(1);
+          this.musicService.loadLibrary();
         }
         return; // wait for the playlist signal to change, then re-enter
       }
 
       // ── Step 1: sync UI on every device ────────────────────────────────
+      // The server is the *sole* writer of currentMusic — this is the only
+      // place it is set in response to a broadcast. Nothing watches currentMusic
+      // to push setQueue back, so there is no cycle to guard against.
       if (sess.trackId && playlist) {
         const track = playlist.musics.find((m) => m.trackId === sess.trackId);
         if (track) {
           const currentMusic = untracked(() => this.musicService.currentMusic());
           if (currentMusic?.trackId !== track.trackId) {
-            this.lastTrackId = track.trackId;
-            this.applyingRemote = true;
-            try {
-              this.musicService.selectMusic(track);
-            } finally {
-              this.applyingRemote = false;
-            }
+            this.musicService.selectMusic(track);
           }
         }
       }
@@ -260,6 +225,25 @@ export class PlaybackSessionService {
 
   // ── Transport: thin wrappers around the hub. The frontend never mutates
   //    audio directly from user input anymore; it always asks the server.
+
+  /**
+   * Declare the queue + the track to start on. This is the single explicit
+   * "play this" entry point — call it from the row-click site (the component
+   * knows which list it is showing). The server echoes a broadcast; the
+   * server-state effect is what writes currentMusic. The UI must NOT set
+   * currentMusic itself, or the old echo cycle comes back.
+   */
+  setQueue(trackIds: string[], startIndex: number): void {
+    if (trackIds.length === 0 || startIndex < 0 || startIndex >= trackIds.length) {
+      return;
+    }
+    this.send({
+      type: 'setQueue',
+      deviceId: this.deviceService.getOrCreateDeviceId(),
+      trackIds,
+      startIndex,
+    });
+  }
 
   next(): void {
     this.send({
@@ -369,11 +353,15 @@ export class PlaybackSessionService {
 
   private connect(token: string): void {
     this.disconnect();
+    const myGen = ++this.generation;
     const ws = new WebSocket(
       `${environment.wsBase}/ws/playback?access_token=${token}`,
     );
 
-    ws.onopen = () => this.startHeartbeat();
+    ws.onopen = () => {
+      if (myGen !== this.generation) return; // a newer connection supersedes us
+      this.startHeartbeat();
+    };
 
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data as string);
@@ -419,6 +407,9 @@ export class PlaybackSessionService {
     };
 
     ws.onclose = (e) => {
+      // A stale socket (already superseded by a newer connect) must not touch
+      // shared heartbeat/reconnect state belonging to the live connection.
+      if (myGen !== this.generation) return;
       this.stopHeartbeat();
       if (e.code === 4001) {
         // token_expired — refresh, then reconnect with the *new* token. Never
@@ -450,6 +441,12 @@ export class PlaybackSessionService {
       this.reconnectTimer = undefined;
     }
     if (this.ws) {
+      // Detach handlers before closing so the old socket's onclose can't run
+      // reconnect/heartbeat logic against the connection that replaces it.
+      this.ws.onopen = null;
+      this.ws.onmessage = null;
+      this.ws.onerror = null;
+      this.ws.onclose = null;
       this.ws.close(1000, 'disconnect');
       this.ws = undefined;
     }

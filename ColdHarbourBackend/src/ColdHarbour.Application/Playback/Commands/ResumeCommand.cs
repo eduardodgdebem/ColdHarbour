@@ -11,10 +11,8 @@ public sealed class ResumeCommandHandler(IPlaySessionTimeline timeline) : IReque
     public async Task<bool> Handle(ResumeCommand request, CancellationToken cancellationToken)
     {
         var session = request.Session;
-        if (request.SenderDeviceId.HasValue)
-            session.ClaimActiveIfNone(request.SenderDeviceId.Value);
         if (session.TrackId is null) return false;
-        session.Resume();
+        session.ApplyTransport(request.SenderDeviceId, () => session.Resume());
         await timeline.ResumedAsync(session.UserId, DateTimeOffset.UtcNow, cancellationToken);
         return true;
     }

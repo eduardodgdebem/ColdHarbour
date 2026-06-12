@@ -18,8 +18,7 @@ public sealed class ReorderQueueCommandHandler : IRequestHandler<ReorderQueueCom
         if (request.From < 0 || request.From >= session.Queue.Count) return Task.FromResult(false);
         if (request.To < 0 || request.To >= session.Queue.Count) return Task.FromResult(false);
 
-        session.ClaimActiveIfNone(request.SenderDeviceId);
-        session.ReorderQueue(request.From, request.To);
+        session.ApplyTransport(request.SenderDeviceId, () => session.ReorderQueue(request.From, request.To));
         return Task.FromResult(true);
     }
 }

@@ -13,10 +13,9 @@ public sealed class NextTrackCommandHandler(IPlaySessionTimeline timeline) : IRe
         var session = request.Session;
         if (session.Queue.Count == 0) return false;
 
-        session.ClaimActiveIfNone(request.SenderDeviceId);
         var oldTrackId = session.TrackId;
         var oldPositionMs = (int)session.PositionMs;
-        session.AdvanceNext();
+        session.ApplyTransport(request.SenderDeviceId, () => session.AdvanceNext());
 
         if (session.ActiveDeviceId is { } activeDeviceId)
             await timeline.TrackChangedAsync(

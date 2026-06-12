@@ -373,6 +373,85 @@ public sealed class PlaybackSessionTests
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
+    // --- Playback hardening Phase 3: ApplyTransport + queue cap ----------------
+
+    [Fact]
+    public void ApplyTransport_ClaimsActiveWhenNone_AndAppliesMutation()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { TrackId }, 0); // playing, no owner yet
+
+        session.ApplyTransport(DeviceId, () => session.Pause());
+
+        session.ActiveDeviceId.Should().Be(DeviceId, "the sender claims the ownerless session");
+        session.IsPlaying.Should().BeFalse("the wrapped mutation is applied");
+    }
+
+    [Fact]
+    public void ApplyTransport_DoesNotDisplaceExistingActiveDevice()
+    {
+        var existing = Guid.NewGuid();
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { TrackId }, 0);
+        session.ClaimActiveIfNone(existing);
+
+        session.ApplyTransport(DeviceId, () => session.Pause());
+
+        session.ActiveDeviceId.Should().Be(existing, "only transfer moves an existing owner");
+        session.IsPlaying.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ApplyTransport_NullSender_AppliesMutationWithoutClaiming()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { TrackId }, 0);
+
+        session.ApplyTransport(null, () => session.Pause());
+
+        session.ActiveDeviceId.Should().BeNull("a null sender claims nothing");
+        session.IsPlaying.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SetQueue_AtMaxQueueSize_Succeeds()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = Enumerable.Range(0, PlaybackSession.MaxQueueSize)
+            .Select(_ => Guid.NewGuid()).ToArray();
+
+        var act = () => session.SetQueue(tracks, 0);
+
+        act.Should().NotThrow();
+        session.Queue.Count.Should().Be(PlaybackSession.MaxQueueSize);
+    }
+
+    [Fact]
+    public void SetQueue_ThrowsWhenExceedsMaxQueueSize()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = Enumerable.Range(0, PlaybackSession.MaxQueueSize + 1)
+            .Select(_ => Guid.NewGuid()).ToArray();
+
+        var act = () => session.SetQueue(tracks, 0);
+
+        act.Should().Throw<QueueTooLargeException>();
+    }
+
+    [Fact]
+    public void AddToQueue_ThrowsWhenAtMaxQueueSize()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = Enumerable.Range(0, PlaybackSession.MaxQueueSize)
+            .Select(_ => Guid.NewGuid()).ToArray();
+        session.SetQueue(tracks, 0);
+
+        var act = () => session.AddToQueue(Guid.NewGuid());
+
+        act.Should().Throw<QueueTooLargeException>();
+        session.Queue.Count.Should().Be(PlaybackSession.MaxQueueSize, "the rejected add must not grow the queue");
+    }
+
     // --- Playback hardening Phase 1: DemoteActiveDevice -----------------------
 
     [Fact]

@@ -96,6 +96,9 @@ public sealed class PlaybackSessionHub(
 
         try
         {
+            // Playback hardening Phase 1: release the active device through the pump if it has gone
+            // stale, so a reconnecting client doesn't render the session as owned by a dead device.
+            await actor.EnqueueLivenessCheckAsync(CancellationToken.None);
             await actor.BroadcastCurrentSessionAsync(CancellationToken.None);
             await BroadcastDevicesAsync(userId, CancellationToken.None);
             await ReceiveLoopAsync(ws, userId, actor, ctx.RequestAborted);

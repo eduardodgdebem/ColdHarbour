@@ -16,12 +16,22 @@
 
 | Phase | Title | Status |
 |---|---|---|
-| 1 | Liveness-aware active device + heartbeat gating | ⏳ Not started |
+| 1 | Liveness-aware active device + heartbeat gating | ✅ Done — landed on `playback-hardening-phase-1-liveness` 2026-06-12 |
 | 2 | Frontend one-way data flow | ⏳ Not started |
 | 3 | Domain invariants + concurrency tests | ⏳ Not started |
 | 4 | Server-side position interpolation + heartbeat sanity bound | ⏳ Not started |
 | 5 | Domain events + outbox-style broadcasts | ⏳ Not started |
 | 6 | Client-side command idempotency | ⏳ Not started |
+
+---
+
+## Reconciliation note (2026-06-12)
+
+This plan predates the **actor refactor** (`PlaybackUserActor` + MediatR) and the WS-hardening migration. Reading it against current `main`:
+
+- **The hub is a thin parser; all mutations run in the per-user `PlaybackUserActor` through a single-reader channel.** Wherever a phase says "the hub mutates the session and broadcasts," read that as "the actor dispatches a command/mutation through the pump." Anything that mutates `PlaybackSession` must go through the pump (single-writer), not from the hub's connect/disconnect path directly.
+- **Phase 1 — done (adapted).** `PlaybackSession.DemoteActiveDevice()` added (releases ownership, keeps queue/track/position/`IsPlaying`). Liveness lives at the **actor chokepoint**, not inline in the hub: a `CheckLivenessCmd` (internal, enqueued by the hub on connect) and a pre-dispatch check ahead of every mutating command call `DemoteIfActiveDeviceStaleAsync` — demote only on positive evidence (active id set, not in `IConnectedDeviceStore`, device exists, `LastSeenAt` past `COLDHARBOUR_ACTIVE_DEVICE_TTL_SECONDS`, default 30). Unknown device / still-connected / recently-seen all fail safe (no demote). Recovery is the existing sender-claim rule: the next transport command from a live device demotes the dead owner then claims active. Heartbeat gating is enforced both client-side (`startHeartbeat` skips when `!isPlaying || trackId == null`) and server-side (actor `HeartbeatCmd` branch drops idle heartbeats).
+- **Phase 6 — already implemented.** Client-side `commandId` idempotency is live: the frontend's `send()` attaches a `commandId` (UUID with the non-secure-context fallback) and the actor keeps a bounded per-user LRU (`_seenCommandIds`, cap 256), emitting a `noop` ack on duplicates. When Phase 6 is reached, verify against the actor's existing dedup rather than building `CommandIdempotencyStore` from scratch.
 
 ---
 

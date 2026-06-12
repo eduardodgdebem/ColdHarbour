@@ -327,8 +327,11 @@ public sealed class PlaybackUserActorTests
         // guard passes without needing a SetQueueCmd (which would broadcast state and race
         // with Clear). WS-hardening phase 3 made the guard fail closed: a heartbeat is only
         // accepted from the current active device, so the seed must claim it active.
+        // Playback-hardening phase 1 added a server-side idle-heartbeat gate, so the seed must
+        // also be playing a track (SetQueue sets TrackId + IsPlaying) for the heartbeat to apply.
         var store = sp.GetRequiredService<ColdHarbour.Infrastructure.Playback.InMemoryPlaybackSessionStore>();
         var seeded = PlaybackSession.Create(userId);
+        seeded.SetQueue(new[] { Guid.NewGuid() }, 0);
         seeded.ClaimActiveIfNone(deviceId);
         await store.SaveAsync(seeded, SaveReason.MaterialChange);
 

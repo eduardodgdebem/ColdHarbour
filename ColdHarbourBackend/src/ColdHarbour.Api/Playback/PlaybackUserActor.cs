@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
+using ColdHarbour.Application.Playback;
 using ColdHarbour.Application.Playback.Commands;
 using ColdHarbour.Application.Playback.Dtos;
 using ColdHarbour.Application.Playback.Ports;
@@ -82,6 +83,14 @@ public sealed class PlaybackUserActor : IAsyncDisposable
     /// <summary>Fire-and-forget overload used by tests and internal callers.</summary>
     public ValueTask EnqueueAsync(InboundCommand cmd, CancellationToken ct)
         => EnqueueAsync(cmd, commandId: null, source: null, ct);
+
+    /// <summary>
+    /// Enqueue a liveness check through the pump. Called by the hub on connect so a session
+    /// still owned by a device that has gone away is released (and re-broadcast) before the
+    /// freshly-connected client renders it as "playing on a dead device".
+    /// </summary>
+    public ValueTask EnqueueLivenessCheckAsync(CancellationToken ct)
+        => EnqueueAsync(new CheckLivenessCmd(), ct);
 
     /// <summary>
     /// Hub-facing overload. Wraps the command in a <see cref="CommandEnvelope"/>
@@ -186,6 +195,14 @@ public sealed class PlaybackUserActor : IAsyncDisposable
         using var scope = _scopeFactory.CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
+        // Playback hardening Phase 1: release the session if its active device has gone away.
+        // Runs ahead of every mutating command (not heartbeat/resync, which can't recover a dead
+        // owner). A demotion is itself a material change, so it must broadcast even if the command
+        // that triggered it ends up a no-op — `demoted` is OR-ed into `changed` below.
+        bool demoted = false;
+        if (cmd is not HeartbeatCmd and not ResyncCmd)
+            demoted = await DemoteIfActiveDeviceStaleAsync(session, scope.ServiceProvider, ct);
+
         // Phase 3 (WS hardening): a client may only act as a device it actually owns.
         // Reject commands whose claiming/transport device id is empty or not a registered
         // device for this user — this is the claim-active spoofing guard. Heartbeat and stop
@@ -224,6 +241,10 @@ public sealed class PlaybackUserActor : IAsyncDisposable
                 break;
             case HeartbeatCmd c:
                 if (!IsActiveDevice(session, c.DeviceId)) return;
+                // Heartbeat gate (server defence-in-depth): a heartbeat only carries position
+                // truth for an actually-playing track. Drop idle heartbeats so a misbehaving
+                // client can't churn UpdatedAt against a paused or empty session.
+                if (!session.IsPlaying || session.TrackId is null) return;
                 changed = await mediator.Send(new UpdatePlaybackPositionCommand(session, c.PositionMs), ct);
                 isHeartbeat = true;
                 break;
@@ -262,7 +283,15 @@ public sealed class PlaybackUserActor : IAsyncDisposable
                 // Unicast the current full state to the requesting socket only.
                 await UnicastSessionAsync(envelope.Source, session, ct);
                 return;
+
+            case CheckLivenessCmd:
+                // The demotion (if any) was already applied above; nothing else to do here.
+                // `changed` is driven entirely by `demoted` so a stale owner is broadcast away.
+                break;
         }
+
+        // A demotion is a material change even when the triggering command no-ops.
+        changed = changed || demoted;
 
         if (!changed)
         {
@@ -321,6 +350,34 @@ public sealed class PlaybackUserActor : IAsyncDisposable
                 ct);
         }
         catch { /* socket may have closed mid-send; ignore */ }
+    }
+
+    /// <summary>
+    /// Releases the session's active device when it has demonstrably gone away: no live socket in
+    /// the connected-device store AND its <c>Device.LastSeenAt</c> is older than the liveness TTL.
+    /// Fails safe — when the active id is null, still connected, or unknown to the device repo, it
+    /// leaves ownership untouched (we only demote on positive evidence of staleness). Returns true
+    /// iff a demotion occurred.
+    /// </summary>
+    private async Task<bool> DemoteIfActiveDeviceStaleAsync(
+        PlaybackSession session, IServiceProvider scope, CancellationToken ct)
+    {
+        if (session.ActiveDeviceId is not { } active) return false;
+
+        var connected = scope.GetRequiredService<IConnectedDeviceStore>().GetConnected();
+        if (connected.Contains(active)) return false; // live socket — owner is present
+
+        var device = await scope.GetRequiredService<IDeviceRepository>().FindByIdAsync(active, ct);
+        if (device is null) return false; // unknown device — can't prove staleness, don't demote
+
+        var ttlSeconds = scope.GetService<PlaybackLimits>()?.ActiveDeviceTtlSeconds ?? 30;
+        if (DateTimeOffset.UtcNow - device.LastSeenAt <= TimeSpan.FromSeconds(ttlSeconds)) return false;
+
+        session.DemoteActiveDevice();
+        _logger.LogInformation(
+            "Released stale active device {DeviceId} for user {UserId} (last seen {LastSeenAt:o})",
+            active, _userId, device.LastSeenAt);
+        return true;
     }
 
     /// <summary>

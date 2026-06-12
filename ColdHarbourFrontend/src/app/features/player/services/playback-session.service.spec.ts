@@ -745,4 +745,70 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     expect(routerSpy.navigate).not.toHaveBeenCalled();
     expect(MockWebSocket.instances.length).toBe(before);
   });
+
+  // ── Phase 1: heartbeat gating ─────────────────────────────────────────────
+  // The active device only heartbeats while actually playing a track. Paused or
+  // empty sessions stay silent — an idle heartbeat carries no position truth.
+  describe('heartbeat gating', () => {
+    beforeEach(() => jasmine.clock().install());
+    afterEach(() => jasmine.clock().uninstall());
+
+    const connectWithClock = async () => {
+      const service = TestBed.inject(PlaybackSessionService);
+      TestBed.flushEffects();
+      accessToken.set('jwt-token');
+      registered.set(true);
+      TestBed.flushEffects();
+      // onopen is queued via queueMicrotask; jasmine.clock mocks timers, not
+      // microtasks, so awaiting resolved promises flushes it and starts the timer.
+      await Promise.resolve();
+      await Promise.resolve();
+      return service;
+    };
+
+    const pushState = (overrides: Record<string, unknown>) => {
+      const base = {
+        userId: 'u',
+        activeDeviceId: MY_DEVICE,
+        trackId: '11111111-0000-0000-0000-000000000001',
+        positionMs: 0,
+        isPlaying: true,
+        queue: ['11111111-0000-0000-0000-000000000001'],
+        queueIndex: 0,
+        updatedAt: '2026-05-23T00:00:00Z',
+      };
+      ws().onmessage?.({
+        data: JSON.stringify({ type: 'state', session: { ...base, ...overrides } }),
+      });
+      TestBed.flushEffects();
+    };
+
+    it('sends a heartbeat while playing a track', async () => {
+      await connectWithClock();
+      currentTime.set(12);
+      pushState({ isPlaying: true });
+
+      jasmine.clock().tick(2000);
+
+      expect(sent('heartbeat').length).toBeGreaterThan(0);
+    });
+
+    it('stays silent when paused', async () => {
+      await connectWithClock();
+      pushState({ isPlaying: false });
+
+      jasmine.clock().tick(2000);
+
+      expect(sent('heartbeat').length).toBe(0);
+    });
+
+    it('stays silent when no track is loaded', async () => {
+      await connectWithClock();
+      pushState({ isPlaying: true, trackId: null, queue: [], queueIndex: 0 });
+
+      jasmine.clock().tick(2000);
+
+      expect(sent('heartbeat').length).toBe(0);
+    });
+  });
 });

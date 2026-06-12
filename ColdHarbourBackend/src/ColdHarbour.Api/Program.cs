@@ -121,6 +121,9 @@ try
         MaxQueueSize = int.TryParse(builder.Configuration["COLDHARBOUR_WS_MAX_QUEUE_SIZE"], out var max) && max > 0
             ? max
             : 1000,
+        ActiveDeviceTtlSeconds = int.TryParse(builder.Configuration["COLDHARBOUR_ACTIVE_DEVICE_TTL_SECONDS"], out var ttl) && ttl > 0
+            ? ttl
+            : 30,
     });
     builder.Services.AddSingleton<ColdHarbour.Api.Playback.PlaybackConnectionStore>();
     builder.Services.AddSingleton<ColdHarbour.Api.Playback.PlaybackUserActorRegistry>();

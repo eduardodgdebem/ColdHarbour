@@ -26,11 +26,9 @@ describe('ControllerService', () => {
       },
     );
 
-    const musicSpy = jasmine.createSpyObj(
-      'MusicService',
-      ['selectMusic'],
-      { currentMusic: signal(null) },
-    );
+    const musicSpy = jasmine.createSpyObj('MusicService', ['selectMusic'], {
+      currentMusic: signal(null),
+    });
 
     playbackSpy = jasmine.createSpyObj(
       'PlaybackSessionService',

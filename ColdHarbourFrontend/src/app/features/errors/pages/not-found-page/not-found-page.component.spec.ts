@@ -10,9 +10,7 @@ describe('NotFoundPageComponent', () => {
   function setUp() {
     TestBed.configureTestingModule({
       imports: [NotFoundPageComponent],
-      providers: [
-        provideRouter([{ path: 'home', children: [] }]),
-      ],
+      providers: [provideRouter([{ path: 'home', children: [] }])],
     });
 
     const router = TestBed.inject(Router);

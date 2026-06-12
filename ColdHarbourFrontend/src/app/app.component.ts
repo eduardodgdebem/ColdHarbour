@@ -1,9 +1,4 @@
-import {
-  Component,
-  OnInit,
-  computed,
-  inject,
-} from '@angular/core';
+import { Component, OnInit, computed, inject } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs/operators';

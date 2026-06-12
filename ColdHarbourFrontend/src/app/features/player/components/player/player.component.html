@@ -31,9 +31,7 @@
       </button>
 
       <div class="player-progress">
-        <span class="time-label">{{
-          formatTime(displayedTimeSec())
-        }}</span>
+        <span class="time-label">{{ formatTime(displayedTimeSec()) }}</span>
         <div class="progress-track" (click)="onSliderClick($event)">
           <input
             #progressInput
@@ -45,9 +43,7 @@
             (input)="onInputChange($event)"
           />
         </div>
-        <span class="time-label">{{
-          formatTime(displayedDurationSec())
-        }}</span>
+        <span class="time-label">{{ formatTime(displayedDurationSec()) }}</span>
       </div>
 
       <div class="player-transport">
@@ -97,11 +93,7 @@
           }
         </button>
 
-        <button
-          class="transport-btn"
-          title="Next"
-          (click)="nextClick()"
-        >
+        <button class="transport-btn" title="Next" (click)="nextClick()">
           <svg
             viewBox="0 0 24 24"
             fill="currentColor"

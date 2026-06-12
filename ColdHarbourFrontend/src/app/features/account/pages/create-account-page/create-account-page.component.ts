@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+} from '@angular/core';
 import {
   FormControl,
   FormGroup,
@@ -6,7 +11,10 @@ import {
   Validators,
 } from '@angular/forms';
 import { Router } from '@angular/router';
-import { AuthService, RegisterPayload } from '../../../../core/auth/auth.service';
+import {
+  AuthService,
+  RegisterPayload,
+} from '../../../../core/auth/auth.service';
 import {
   BackButtonComponent,
   ButtonComponent,

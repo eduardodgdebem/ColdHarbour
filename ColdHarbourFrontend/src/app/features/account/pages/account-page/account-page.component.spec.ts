@@ -15,11 +15,13 @@ describe('AccountPageComponent', () => {
   let changePasswordSpy: jasmine.Spy;
   let routerSpy: jasmine.SpyObj<Router>;
 
-  function setUp(opts: {
-    email?: string | null;
-    name?: string | null;
-    role?: UserRole | null;
-  } = {}) {
+  function setUp(
+    opts: {
+      email?: string | null;
+      name?: string | null;
+      role?: UserRole | null;
+    } = {},
+  ) {
     const email = signal<string | null>(opts.email ?? 'user@example.com');
     const name = signal<string | null>(opts.name ?? null);
     const role = signal<UserRole | null>(opts.role ?? 'User');
@@ -81,7 +83,9 @@ describe('AccountPageComponent', () => {
 
   it('shows the CREATE USER link when the user is an Owner', () => {
     setUp({ role: 'Owner' });
-    const link = fixture.debugElement.query(By.css('[data-test="create-user-link"]'));
+    const link = fixture.debugElement.query(
+      By.css('[data-test="create-user-link"]'),
+    );
     expect(link).toBeTruthy();
   });
 
@@ -134,9 +138,7 @@ describe('AccountPageComponent', () => {
 
   it('surfaces a password-change failure as an error message', () => {
     setUp();
-    changePasswordSpy.and.returnValue(
-      throwError(() => new Error('boom')),
-    );
+    changePasswordSpy.and.returnValue(throwError(() => new Error('boom')));
     component.passwordForm.setValue({
       currentPassword: 'old',
       newPassword: 'new-password-123',

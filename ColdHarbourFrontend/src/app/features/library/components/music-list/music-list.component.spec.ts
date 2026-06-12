@@ -81,8 +81,7 @@ describe('MusicListComponent', () => {
   });
 
   it('sends addToQueue via the hub when the queue button is clicked', () => {
-    const queueBtn = fixture.debugElement
-      .query(By.css('.track .queue-btn'))
+    const queueBtn = fixture.debugElement.query(By.css('.track .queue-btn'))
       .nativeElement as HTMLButtonElement;
     queueBtn.click();
     expect(playbackSpy.addToQueue).toHaveBeenCalledWith(mockMusic.trackId);
@@ -158,8 +157,7 @@ describe('MusicListComponent', () => {
     });
 
     it('opens the delete-confirm modal with the track when the delete button is clicked', () => {
-      const deleteBtn = fixture.debugElement
-        .query(By.css('.track .delete-btn'))
+      const deleteBtn = fixture.debugElement.query(By.css('.track .delete-btn'))
         .nativeElement as HTMLButtonElement;
       deleteBtn.click();
       fixture.detectChanges();
@@ -171,8 +169,7 @@ describe('MusicListComponent', () => {
     });
 
     it('does not trigger row selection when the delete button is clicked', () => {
-      const deleteBtn = fixture.debugElement
-        .query(By.css('.track .delete-btn'))
+      const deleteBtn = fixture.debugElement.query(By.css('.track .delete-btn'))
         .nativeElement as HTMLButtonElement;
       deleteBtn.click();
       expect(playbackSpy.setQueue).not.toHaveBeenCalled();

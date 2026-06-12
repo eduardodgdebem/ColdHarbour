@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { Location } from '@angular/common';
 import { MusicService } from '../../services/music.service';
 import { AudioService } from '../../services/audio.service';
@@ -12,7 +18,12 @@ import { DevicesPanelComponent } from '../../components/devices-panel/devices-pa
 @Component({
   selector: 'app-player-page',
   standalone: true,
-  imports: [PlayIconComponent, PauseIconComponent, QueuePanelComponent, DevicesPanelComponent],
+  imports: [
+    PlayIconComponent,
+    PauseIconComponent,
+    QueuePanelComponent,
+    DevicesPanelComponent,
+  ],
   templateUrl: './player-page.component.html',
   styleUrl: './player-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -72,8 +83,8 @@ export class PlayerPageComponent {
     }
   });
 
-  readonly volumePercent = computed(
-    () => Math.round(this.audioService.volume() * 100),
+  readonly volumePercent = computed(() =>
+    Math.round(this.audioService.volume() * 100),
   );
 
   /** Queue items resolved against the loaded playlist for display.

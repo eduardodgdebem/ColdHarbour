@@ -63,12 +63,12 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
   let authSpy!: jasmine.SpyObj<AuthService>;
   let routerSpy!: jasmine.SpyObj<Router>;
 
-  const flushMicrotasks = () =>
-    new Promise<void>((res) => setTimeout(res, 0));
+  const flushMicrotasks = () => new Promise<void>((res) => setTimeout(res, 0));
 
   beforeEach(() => {
     originalWS = (globalThis as any).WebSocket;
-    (globalThis as any).WebSocket = MockWebSocket as unknown as typeof WebSocket;
+    (globalThis as any).WebSocket =
+      MockWebSocket as unknown as typeof WebSocket;
     MockWebSocket.instances = [];
 
     accessToken = signal<string | null>(null);
@@ -80,11 +80,7 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     duration = signal(200);
     ended = signal(false);
 
-    authSpy = jasmine.createSpyObj(
-      'AuthService',
-      ['refresh'],
-      { accessToken },
-    );
+    authSpy = jasmine.createSpyObj('AuthService', ['refresh'], { accessToken });
     authSpy.refresh.and.returnValue(of('new-token'));
 
     routerSpy = jasmine.createSpyObj('Router', ['navigate']);
@@ -157,7 +153,10 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
       updatedAt: '2026-05-23T00:00:00Z',
     };
     ws().onmessage?.({
-      data: JSON.stringify({ type: 'state', session: { ...base, ...overrides } }),
+      data: JSON.stringify({
+        type: 'state',
+        session: { ...base, ...overrides },
+      }),
     });
     TestBed.flushEffects();
     await flushMicrotasks();
@@ -173,7 +172,10 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
       track('11111111-0000-0000-0000-000000000002', 'Bravo'),
       track('11111111-0000-0000-0000-000000000003', 'Charlie'),
     ];
-    service.setQueue(tracks.map((t) => t.trackId), 1);
+    service.setQueue(
+      tracks.map((t) => t.trackId),
+      1,
+    );
 
     const setQueueMsgs = sent('setQueue');
     expect(setQueueMsgs.length).toBe(1);
@@ -191,7 +193,12 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     // server tells us a track is playing; the server-state effect calls
     // selectMusic(Y), and that must NOT produce a setQueue back to the server.
     const t = track('11111111-0000-0000-0000-000000000001');
-    const playlist: Playlist = { id: 1, name: 'All', imageRef: '', musics: [t] };
+    const playlist: Playlist = {
+      id: 1,
+      name: 'All',
+      imageRef: '',
+      musics: [t],
+    };
     currentPlayList.set(playlist);
     await setupAndConnect();
 
@@ -381,7 +388,9 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
         trackId: t.trackId,
       }),
     );
-    expect((sent('trackEnded')[0] as Record<string, unknown>)['durationMs']).toBeUndefined();
+    expect(
+      (sent('trackEnded')[0] as Record<string, unknown>)['durationMs'],
+    ).toBeUndefined();
 
     // Inactive device: ended is ignored.
     ended.set(false);
@@ -405,7 +414,9 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
       }),
     );
     // No position in the payload when appending.
-    expect((sent('addToQueue')[0] as Record<string, unknown>)['position']).toBeUndefined();
+    expect(
+      (sent('addToQueue')[0] as Record<string, unknown>)['position'],
+    ).toBeUndefined();
   });
 
   it('addToQueue with a position includes the position field', async () => {
@@ -442,7 +453,10 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     // playlist starts null (not pre-seeded — simulates page refresh)
     await setupAndConnect();
 
-    await pushSession({ trackId: '11111111-0000-0000-0000-000000000001', activeDeviceId: MY_DEVICE });
+    await pushSession({
+      trackId: '11111111-0000-0000-0000-000000000001',
+      activeDeviceId: MY_DEVICE,
+    });
 
     expect(musicSpy.loadLibrary).toHaveBeenCalled();
   });
@@ -452,7 +466,10 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     // Previously the early return for inactive devices prevented this call.
     await setupAndConnect();
 
-    await pushSession({ trackId: '11111111-0000-0000-0000-000000000001', activeDeviceId: OTHER_DEVICE });
+    await pushSession({
+      trackId: '11111111-0000-0000-0000-000000000001',
+      activeDeviceId: OTHER_DEVICE,
+    });
 
     expect(musicSpy.loadLibrary).toHaveBeenCalled();
   });
@@ -479,7 +496,9 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
         },
       }),
     });
-    expect(service.session()).not.toBeNull('state message type must be accepted');
+    expect(service.session()).not.toBeNull(
+      'state message type must be accepted',
+    );
   });
 
   it('ignores a state message with a lower or equal revision than localRevision', async () => {
@@ -492,9 +511,16 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
       data: JSON.stringify({
         type: 'state',
         session: {
-          userId: 'u', activeDeviceId: MY_DEVICE, trackId: t.trackId,
-          positionMs: 5000, isPlaying: true, queue: [t.trackId], queueIndex: 0,
-          repeatMode: 'off', shuffle: false, updatedAt: '2026-05-28T00:00:00Z',
+          userId: 'u',
+          activeDeviceId: MY_DEVICE,
+          trackId: t.trackId,
+          positionMs: 5000,
+          isPlaying: true,
+          queue: [t.trackId],
+          queueIndex: 0,
+          repeatMode: 'off',
+          shuffle: false,
+          updatedAt: '2026-05-28T00:00:00Z',
           revision: 3,
         },
       }),
@@ -508,17 +534,26 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
       data: JSON.stringify({
         type: 'state',
         session: {
-          userId: 'u', activeDeviceId: MY_DEVICE, trackId: t.trackId,
-          positionMs: 999, isPlaying: true, queue: [t.trackId], queueIndex: 0,
-          repeatMode: 'off', shuffle: false, updatedAt: '2026-05-28T00:00:00Z',
+          userId: 'u',
+          activeDeviceId: MY_DEVICE,
+          trackId: t.trackId,
+          positionMs: 999,
+          isPlaying: true,
+          queue: [t.trackId],
+          queueIndex: 0,
+          repeatMode: 'off',
+          shuffle: false,
+          updatedAt: '2026-05-28T00:00:00Z',
           revision: 2,
         },
       }),
     });
     TestBed.flushEffects();
 
-    expect(service.session()?.positionMs).toBe(posAfterFirst,
-      'stale revision must not roll back localRevision or update the session signal');
+    expect(service.session()?.positionMs).toBe(
+      posAfterFirst,
+      'stale revision must not roll back localRevision or update the session signal',
+    );
   });
 
   it('generates a commandId on every outbound command', async () => {
@@ -529,10 +564,16 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
 
     const msgs = ws().sentMessages as Array<Record<string, unknown>>;
     const commandIds = msgs.map((m) => m['commandId']).filter(Boolean);
-    expect(commandIds.length).toBe(3, 'every outbound command must carry a commandId');
+    expect(commandIds.length).toBe(
+      3,
+      'every outbound command must carry a commandId',
+    );
     // All commandIds must be distinct UUIDs.
     const unique = new Set(commandIds);
-    expect(unique.size).toBe(3, 'every outbound command must carry a unique commandId');
+    expect(unique.size).toBe(
+      3,
+      'every outbound command must carry a unique commandId',
+    );
   });
 
   it('resolves a pending command on command-ack and removes it from pendingCommands', async () => {
@@ -545,7 +586,12 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
 
     // Simulate server ack.
     ws().onmessage?.({
-      data: JSON.stringify({ type: 'command-ack', commandId, status: 'applied', revision: 1 }),
+      data: JSON.stringify({
+        type: 'command-ack',
+        commandId,
+        status: 'applied',
+        revision: 1,
+      }),
     });
 
     // No assertion on internal state — the observable effect is that it doesn't throw
@@ -577,14 +623,24 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
       data: JSON.stringify({
         type: 'session',
         session: {
-          userId: 'u', activeDeviceId: null, trackId: null, positionMs: 0,
-          isPlaying: false, queue: [], queueIndex: 0, repeatMode: 'off',
-          shuffle: false, updatedAt: '2026-05-28T00:00:00Z', revision: 99,
+          userId: 'u',
+          activeDeviceId: null,
+          trackId: null,
+          positionMs: 0,
+          isPlaying: false,
+          queue: [],
+          queueIndex: 0,
+          repeatMode: 'off',
+          shuffle: false,
+          updatedAt: '2026-05-28T00:00:00Z',
+          revision: 99,
         },
       }),
     });
     TestBed.flushEffects();
-    expect(service.session()).toBeNull('retired session type must not update the session signal');
+    expect(service.session()).toBeNull(
+      'retired session type must not update the session signal',
+    );
   });
 
   it('tick handler does NOT update the session signal (session is for material state only)', async () => {
@@ -597,10 +653,20 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     const service = await setupAndConnect();
     const t = track('11111111-0000-0000-0000-000000000001');
     currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
-    await pushSession({ trackId: t.trackId, positionMs: 0, isPlaying: false, revision: 1 });
+    await pushSession({
+      trackId: t.trackId,
+      positionMs: 0,
+      isPlaying: false,
+      revision: 1,
+    });
 
     ws().onmessage?.({
-      data: JSON.stringify({ type: 'tick', positionMs: 30_000, isPlaying: true, revision: 1 }),
+      data: JSON.stringify({
+        type: 'tick',
+        positionMs: 30_000,
+        isPlaying: true,
+        revision: 1,
+      }),
     });
     TestBed.flushEffects();
 
@@ -621,18 +687,34 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
 
     // Track 1 is playing at 30 s on this (active) device.
     currentTime.set(30);
-    await pushSession({ trackId: t1.trackId, positionMs: 30_000, isPlaying: true, revision: 1 });
+    await pushSession({
+      trackId: t1.trackId,
+      positionMs: 30_000,
+      isPlaying: true,
+      revision: 1,
+    });
     audioSpy.seekTo.calls.reset();
 
     // Server advances to track 2 (state: positionMs=0, revision=2).
-    await pushSession({ trackId: t2.trackId, positionMs: 0, isPlaying: true, revision: 2 });
+    await pushSession({
+      trackId: t2.trackId,
+      positionMs: 0,
+      isPlaying: true,
+      revision: 2,
+    });
     currentTime.set(0); // new track just started
     audioSpy.seekTo.calls.reset();
 
     // A stale tick arrives (heartbeat of track 1 echoed by the server with positionMs=30 000).
     // The tick carries t1.trackId so the frontend can detect the mismatch.
     ws().onmessage?.({
-      data: JSON.stringify({ type: 'tick', positionMs: 30_000, isPlaying: true, revision: 2, trackId: t1.trackId }),
+      data: JSON.stringify({
+        type: 'tick',
+        positionMs: 30_000,
+        isPlaying: true,
+        revision: 2,
+        trackId: t1.trackId,
+      }),
     });
     TestBed.flushEffects();
     await flushMicrotasks();
@@ -648,26 +730,48 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     await pushSession({ revision: 2 });
 
     ws().onmessage?.({
-      data: JSON.stringify({ type: 'tick', positionMs: 5_000, isPlaying: true, revision: 5 }),
+      data: JSON.stringify({
+        type: 'tick',
+        positionMs: 5_000,
+        isPlaying: true,
+        revision: 5,
+      }),
     });
     TestBed.flushEffects();
 
     const resyncs = sent('resync');
-    expect(resyncs.length).toBeGreaterThanOrEqual(1, 'a tick with higher revision must trigger resync');
-    expect((resyncs[resyncs.length - 1] as Record<string, unknown>)['lastSeenRevision']).toBe(2,
-      'resync must report the last accepted state revision');
+    expect(resyncs.length).toBeGreaterThanOrEqual(
+      1,
+      'a tick with higher revision must trigger resync',
+    );
+    expect(
+      (resyncs[resyncs.length - 1] as Record<string, unknown>)[
+        'lastSeenRevision'
+      ],
+    ).toBe(2, 'resync must report the last accepted state revision');
   });
 
   it('tick applies drift correction on the active device when drift exceeds 1 s', async () => {
     const t = track('11111111-0000-0000-0000-000000000001');
     currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
     await setupAndConnect();
-    await pushSession({ trackId: t.trackId, positionMs: 0, isPlaying: true, revision: 1 });
+    await pushSession({
+      trackId: t.trackId,
+      positionMs: 0,
+      isPlaying: true,
+      revision: 1,
+    });
     audioSpy.seekTo.calls.reset();
 
     currentTime.set(10); // local audio at 10s
     ws().onmessage?.({
-      data: JSON.stringify({ type: 'tick', positionMs: 60_000, isPlaying: true, revision: 1, trackId: t.trackId }),
+      data: JSON.stringify({
+        type: 'tick',
+        positionMs: 60_000,
+        isPlaying: true,
+        revision: 1,
+        trackId: t.trackId,
+      }),
     });
     TestBed.flushEffects();
     await flushMicrotasks();
@@ -679,12 +783,23 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     const t = track('11111111-0000-0000-0000-000000000001');
     currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
     await setupAndConnect();
-    await pushSession({ trackId: t.trackId, positionMs: 0, isPlaying: true, revision: 1 });
+    await pushSession({
+      trackId: t.trackId,
+      positionMs: 0,
+      isPlaying: true,
+      revision: 1,
+    });
     audioSpy.seekTo.calls.reset();
 
     currentTime.set(30); // local audio at 30s
     ws().onmessage?.({
-      data: JSON.stringify({ type: 'tick', positionMs: 30_500, isPlaying: true, revision: 1, trackId: t.trackId }),
+      data: JSON.stringify({
+        type: 'tick',
+        positionMs: 30_500,
+        isPlaying: true,
+        revision: 1,
+        trackId: t.trackId,
+      }),
     });
     TestBed.flushEffects();
     await flushMicrotasks();
@@ -704,20 +819,27 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     expect(authSpy.refresh).toHaveBeenCalledTimes(1);
     expect(MockWebSocket.instances.length).toBe(before + 1);
     // The reconnect uses the refreshed token, never the stale one.
-    expect(MockWebSocket.instances[before].url).toContain('access_token=new-token');
+    expect(MockWebSocket.instances[before].url).toContain(
+      'access_token=new-token',
+    );
     expect(routerSpy.navigate).not.toHaveBeenCalled();
   });
 
   it('on 4001 with a failed refresh it routes to /login instead of looping', async () => {
     await setupAndConnect();
-    authSpy.refresh.and.returnValue(throwError(() => new Error('refresh token dead')));
+    authSpy.refresh.and.returnValue(
+      throwError(() => new Error('refresh token dead')),
+    );
     const before = MockWebSocket.instances.length;
 
     ws().onclose?.({ code: 4001 });
     await flushMicrotasks();
 
     expect(authSpy.refresh).toHaveBeenCalledTimes(1);
-    expect(MockWebSocket.instances.length).toBe(before, 'must not reconnect when refresh fails');
+    expect(MockWebSocket.instances.length).toBe(
+      before,
+      'must not reconnect when refresh fails',
+    );
     expect(routerSpy.navigate).toHaveBeenCalledWith(['/login']);
   });
 
@@ -729,7 +851,10 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     await flushMicrotasks();
 
     expect(authSpy.refresh).not.toHaveBeenCalled();
-    expect(MockWebSocket.instances.length).toBe(before, 'invalid token is not recoverable by reconnecting');
+    expect(MockWebSocket.instances.length).toBe(
+      before,
+      'invalid token is not recoverable by reconnecting',
+    );
     expect(routerSpy.navigate).toHaveBeenCalledWith(['/login']);
   });
 
@@ -757,7 +882,9 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     await flushMicrotasks();
 
     expect(MockWebSocket.instances.length).toBe(2);
-    expect(stale.onclose).toBeNull('superseded socket must have its handlers detached');
+    expect(stale.onclose).toBeNull(
+      'superseded socket must have its handlers detached',
+    );
     expect(stale.onmessage).toBeNull();
   });
 
@@ -776,7 +903,10 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     staleClose?.({ code: 1006 });
     await flushMicrotasks();
 
-    expect(MockWebSocket.instances.length).toBe(afterReconnect, 'no reconnect from a stale close');
+    expect(MockWebSocket.instances.length).toBe(
+      afterReconnect,
+      'no reconnect from a stale close',
+    );
     expect(authSpy.refresh).not.toHaveBeenCalled();
   });
 
@@ -812,7 +942,10 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
         updatedAt: '2026-05-23T00:00:00Z',
       };
       ws().onmessage?.({
-        data: JSON.stringify({ type: 'state', session: { ...base, ...overrides } }),
+        data: JSON.stringify({
+          type: 'state',
+          session: { ...base, ...overrides },
+        }),
       });
       TestBed.flushEffects();
     };

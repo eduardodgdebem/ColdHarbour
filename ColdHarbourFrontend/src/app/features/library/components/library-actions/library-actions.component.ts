@@ -8,10 +8,7 @@ import {
 } from '@angular/core';
 import { LibraryService } from '../../library.service';
 import type { LibrarySyncDiff } from '../../../../core/api/api.service';
-import {
-  ButtonComponent,
-  ModalComponent,
-} from '../../../../shared/ui';
+import { ButtonComponent, ModalComponent } from '../../../../shared/ui';
 
 @Component({
   selector: 'app-library-actions',

@@ -8,10 +8,7 @@ import { PlaybackSessionService } from '../../../player/services/playback-sessio
 import { AuthService } from '../../../../core/auth/auth.service';
 import type { Music, Playlist } from '../../../../core/api/api.service';
 
-function track(
-  id: number,
-  overrides: Partial<Music> = {},
-): Music {
+function track(id: number, overrides: Partial<Music> = {}): Music {
   return {
     id,
     trackId: `track-${id}`,
@@ -35,12 +32,14 @@ describe('HomePageComponent', () => {
   let email: ReturnType<typeof signal<string | null>>;
   let name: ReturnType<typeof signal<string | null>>;
 
-  function setUp(opts: {
-    playlist?: Playlist | null;
-    loading?: boolean;
-    email?: string | null;
-    name?: string | null;
-  } = {}) {
+  function setUp(
+    opts: {
+      playlist?: Playlist | null;
+      loading?: boolean;
+      email?: string | null;
+      name?: string | null;
+    } = {},
+  ) {
     currentPlayList = signal<Playlist | null>(opts.playlist ?? null);
     isLoading = signal<boolean>(opts.loading ?? false);
     email = signal<string | null>(opts.email ?? null);

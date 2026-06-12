@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+} from '@angular/core';
 import {
   FormControl,
   FormGroup,
@@ -40,7 +45,10 @@ export class AccountPageComponent {
   readonly role = this.auth.role;
 
   readonly passwordForm = new FormGroup({
-    currentPassword: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    currentPassword: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
     newPassword: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required, Validators.minLength(8)],

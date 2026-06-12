@@ -27,11 +27,15 @@
       >
         <div class="devices-panel__device-info">
           <span class="devices-panel__device-name">{{ device.name }}</span>
-          <span class="devices-panel__device-seen">{{ device.lastSeenAt | date: 'short' }}</span>
+          <span class="devices-panel__device-seen">{{
+            device.lastSeenAt | date: 'short'
+          }}</span>
         </div>
         <div class="devices-panel__device-actions">
           @if (activeDeviceId() === device.id) {
-            <span class="devices-panel__badge devices-panel__badge--playing">PLAYING</span>
+            <span class="devices-panel__badge devices-panel__badge--playing"
+              >PLAYING</span
+            >
           }
           @if (myDeviceId() === device.id) {
             <span class="devices-panel__badge">THIS DEVICE</span>

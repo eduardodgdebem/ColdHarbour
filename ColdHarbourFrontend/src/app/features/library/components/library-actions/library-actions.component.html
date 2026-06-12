@@ -40,11 +40,7 @@
   <p class="upload-error" role="alert">{{ err }}</p>
 }
 
-<app-modal
-  [isOpen]="!!diff()"
-  title="SYNC PREVIEW"
-  (close)="closeSync()"
->
+<app-modal [isOpen]="!!diff()" title="SYNC PREVIEW" (close)="closeSync()">
   @if (diff(); as d) {
     @if (d.added.length) {
       <p>{{ d.added.length }} track(s) to add</p>

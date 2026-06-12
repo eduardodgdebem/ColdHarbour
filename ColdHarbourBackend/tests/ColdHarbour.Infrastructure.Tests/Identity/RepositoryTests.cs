@@ -151,7 +151,7 @@ public class RepositoryTests : IAsyncLifetime
             ctx.RefreshTokens.AddRange(valid, expired);
             await ctx.SaveChangesAsync();
             // Back-date expiry directly so we bypass Create's validation
-            await ctx.Database.ExecuteSqlRawAsync(
+            await ctx.Database.ExecuteSqlAsync(
                 $"UPDATE \"RefreshTokens\" SET \"ExpiresAt\" = NOW() - INTERVAL '1 day' WHERE \"Id\" = '{expired.Id}'");
         }
 

@@ -6,11 +6,7 @@
   <p class="state-msg">{{ emptyMessage() ?? 'NO TRACKS' }}</p>
 } @else {
   <ul class="tracklist">
-    @for (
-      music of tracks();
-      track music.id;
-      let i = $index
-    ) {
+    @for (music of tracks(); track music.id; let i = $index) {
       <li
         class="track"
         [class.track--playing]="isCurrentMusic(music)"

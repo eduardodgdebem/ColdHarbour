@@ -17,13 +17,15 @@ describe('DevicesPanelComponent', () => {
   let fixture: ComponentFixture<DevicesPanelComponent>;
   let component: DevicesPanelComponent;
 
-  function setUp(opts: {
-    devices?: DeviceDto[];
-    myDeviceId?: string;
-    activeDeviceId?: string | null;
-    trackId?: string | null;
-    mobilePage?: boolean;
-  } = {}): void {
+  function setUp(
+    opts: {
+      devices?: DeviceDto[];
+      myDeviceId?: string;
+      activeDeviceId?: string | null;
+      trackId?: string | null;
+      mobilePage?: boolean;
+    } = {},
+  ): void {
     TestBed.configureTestingModule({
       imports: [DevicesPanelComponent, DatePipe],
     });
@@ -31,7 +33,10 @@ describe('DevicesPanelComponent', () => {
     component = fixture.componentInstance;
     fixture.componentRef.setInput('devices', opts.devices ?? []);
     fixture.componentRef.setInput('myDeviceId', opts.myDeviceId ?? 'device-1');
-    fixture.componentRef.setInput('activeDeviceId', opts.activeDeviceId ?? null);
+    fixture.componentRef.setInput(
+      'activeDeviceId',
+      opts.activeDeviceId ?? null,
+    );
     fixture.componentRef.setInput('trackId', opts.trackId ?? null);
     if (opts.mobilePage) fixture.componentRef.setInput('mobilePage', true);
     fixture.detectChanges();
@@ -56,7 +61,11 @@ describe('DevicesPanelComponent', () => {
   describe('with devices', () => {
     const TWO_DEVICES: DeviceDto[] = [
       makeDevice({ id: 'device-1', name: 'Laptop' }),
-      makeDevice({ id: 'device-2', name: 'Phone', lastSeenAt: '2024-01-02T10:00:00Z' }),
+      makeDevice({
+        id: 'device-2',
+        name: 'Phone',
+        lastSeenAt: '2024-01-02T10:00:00Z',
+      }),
     ];
 
     it('renders one row per device', () => {
@@ -75,37 +84,63 @@ describe('DevicesPanelComponent', () => {
 
     it('applies --active class to the currently active device', () => {
       setUp({ devices: TWO_DEVICES, activeDeviceId: 'device-1' });
-      const rows = fixture.debugElement.queryAll(By.css('.devices-panel__device'));
-      expect(rows[0].nativeElement.classList).toContain('devices-panel__device--active');
-      expect(rows[1].nativeElement.classList).not.toContain('devices-panel__device--active');
+      const rows = fixture.debugElement.queryAll(
+        By.css('.devices-panel__device'),
+      );
+      expect(rows[0].nativeElement.classList).toContain(
+        'devices-panel__device--active',
+      );
+      expect(rows[1].nativeElement.classList).not.toContain(
+        'devices-panel__device--active',
+      );
     });
 
     it('applies --mine class to this device', () => {
       setUp({ devices: TWO_DEVICES, myDeviceId: 'device-2' });
-      const rows = fixture.debugElement.queryAll(By.css('.devices-panel__device'));
-      expect(rows[0].nativeElement.classList).not.toContain('devices-panel__device--mine');
-      expect(rows[1].nativeElement.classList).toContain('devices-panel__device--mine');
+      const rows = fixture.debugElement.queryAll(
+        By.css('.devices-panel__device'),
+      );
+      expect(rows[0].nativeElement.classList).not.toContain(
+        'devices-panel__device--mine',
+      );
+      expect(rows[1].nativeElement.classList).toContain(
+        'devices-panel__device--mine',
+      );
     });
 
     it('does not show PLAY HERE when no track is loaded', () => {
-      setUp({ devices: TWO_DEVICES, trackId: null, activeDeviceId: 'device-1' });
+      setUp({
+        devices: TWO_DEVICES,
+        trackId: null,
+        activeDeviceId: 'device-1',
+      });
       expect(
         fixture.debugElement.query(By.css('.devices-panel__play-here')),
       ).toBeNull();
     });
 
     it('does not show PLAY HERE on the active device even when a track is loaded', () => {
-      setUp({ devices: TWO_DEVICES, trackId: 'track-1', activeDeviceId: 'device-1' });
-      const rows = fixture.debugElement.queryAll(By.css('.devices-panel__device'));
+      setUp({
+        devices: TWO_DEVICES,
+        trackId: 'track-1',
+        activeDeviceId: 'device-1',
+      });
+      const rows = fixture.debugElement.queryAll(
+        By.css('.devices-panel__device'),
+      );
       const activeRow = rows[0];
-      expect(
-        activeRow.query(By.css('.devices-panel__play-here')),
-      ).toBeNull();
+      expect(activeRow.query(By.css('.devices-panel__play-here'))).toBeNull();
     });
 
     it('shows PLAY HERE on an inactive device when a track is loaded', () => {
-      setUp({ devices: TWO_DEVICES, trackId: 'track-1', activeDeviceId: 'device-1' });
-      const rows = fixture.debugElement.queryAll(By.css('.devices-panel__device'));
+      setUp({
+        devices: TWO_DEVICES,
+        trackId: 'track-1',
+        activeDeviceId: 'device-1',
+      });
+      const rows = fixture.debugElement.queryAll(
+        By.css('.devices-panel__device'),
+      );
       const inactiveRow = rows[1];
       expect(
         inactiveRow.query(By.css('.devices-panel__play-here')),
@@ -116,7 +151,11 @@ describe('DevicesPanelComponent', () => {
   describe('outputs', () => {
     const TWO_DEVICES: DeviceDto[] = [
       makeDevice({ id: 'device-1', name: 'Laptop' }),
-      makeDevice({ id: 'device-2', name: 'Phone', lastSeenAt: '2024-01-02T10:00:00Z' }),
+      makeDevice({
+        id: 'device-2',
+        name: 'Phone',
+        lastSeenAt: '2024-01-02T10:00:00Z',
+      }),
     ];
 
     it('emits close when the close button is clicked', () => {
@@ -129,7 +168,11 @@ describe('DevicesPanelComponent', () => {
     });
 
     it('emits transfer with the device id when PLAY HERE is clicked', () => {
-      setUp({ devices: TWO_DEVICES, trackId: 'track-1', activeDeviceId: 'device-1' });
+      setUp({
+        devices: TWO_DEVICES,
+        trackId: 'track-1',
+        activeDeviceId: 'device-1',
+      });
       spyOn(component.transfer, 'emit');
       fixture.debugElement
         .query(By.css('.devices-panel__play-here'))
@@ -141,16 +184,16 @@ describe('DevicesPanelComponent', () => {
   describe('mobilePage input', () => {
     it('host does not have --mobile-page class by default', () => {
       setUp({});
-      expect(
-        (fixture.nativeElement as HTMLElement).classList,
-      ).not.toContain('devices-panel--mobile-page');
+      expect((fixture.nativeElement as HTMLElement).classList).not.toContain(
+        'devices-panel--mobile-page',
+      );
     });
 
     it('host gains --mobile-page class when mobilePage is true', () => {
       setUp({ mobilePage: true });
-      expect(
-        (fixture.nativeElement as HTMLElement).classList,
-      ).toContain('devices-panel--mobile-page');
+      expect((fixture.nativeElement as HTMLElement).classList).toContain(
+        'devices-panel--mobile-page',
+      );
     });
   });
 });

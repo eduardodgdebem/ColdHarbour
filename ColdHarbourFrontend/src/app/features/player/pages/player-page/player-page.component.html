@@ -32,7 +32,9 @@
         (click)="toggleDevices()"
       >
         <span class="bar__devices-label">DEVICES</span>
-        <span class="bar__devices-count">{{ playbackSession.devices().length }}</span>
+        <span class="bar__devices-count">{{
+          playbackSession.devices().length
+        }}</span>
       </button>
     </div>
   </header>

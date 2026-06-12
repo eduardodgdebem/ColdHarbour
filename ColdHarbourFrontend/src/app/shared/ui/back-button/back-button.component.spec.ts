@@ -10,9 +10,7 @@ import {
 @Component({
   standalone: true,
   imports: [BackButtonComponent],
-  template: `
-    <app-back-button [variant]="variant()" [label]="label()" />
-  `,
+  template: ` <app-back-button [variant]="variant()" [label]="label()" /> `,
 })
 class HostComponent {
   variant = signal<BackButtonVariant>('default');

@@ -87,7 +87,9 @@ describe('LibraryPageComponent', () => {
 
   it('renders the search input and the sort toggle', () => {
     setUp({ id: 1, name: 'All', imageRef: '', musics: [track(1)] });
-    expect(fixture.debugElement.query(By.css('.deck__cell--search'))).toBeTruthy();
+    expect(
+      fixture.debugElement.query(By.css('.deck__cell--search')),
+    ).toBeTruthy();
     expect(fixture.debugElement.query(By.css('.sort-toggle'))).toBeTruthy();
   });
 
@@ -109,15 +111,18 @@ describe('LibraryPageComponent', () => {
 
   it('closes the panel and applies the sort when an option is selected', () => {
     setUp({
-      id: 1, name: 'All', imageRef: '',
+      id: 1,
+      name: 'All',
+      imageRef: '',
       musics: [
         track(1, { name: 'A', author: 'Zara' }),
         track(2, { name: 'B', author: 'Atlas' }),
       ],
     });
     openSortPanel();
-    const artistOption = fixture.debugElement.queryAll(By.css('.sort-option'))[1]
-      .nativeElement as HTMLButtonElement;
+    const artistOption = fixture.debugElement.queryAll(
+      By.css('.sort-option'),
+    )[1].nativeElement as HTMLButtonElement;
     artistOption.click();
     fixture.detectChanges();
     expect(component.sortOpen()).toBeFalse();
@@ -135,7 +140,9 @@ describe('LibraryPageComponent', () => {
 
   it('sorts by name ascending by default', () => {
     setUp({
-      id: 1, name: 'All', imageRef: '',
+      id: 1,
+      name: 'All',
+      imageRef: '',
       musics: [
         track(1, { name: 'Charlie' }),
         track(2, { name: 'Alpha' }),
@@ -147,7 +154,9 @@ describe('LibraryPageComponent', () => {
 
   it('toggles to descending when the active sort column is selected again', () => {
     setUp({
-      id: 1, name: 'All', imageRef: '',
+      id: 1,
+      name: 'All',
+      imageRef: '',
       musics: [
         track(1, { name: 'Charlie' }),
         track(2, { name: 'Alpha' }),
@@ -164,7 +173,9 @@ describe('LibraryPageComponent', () => {
 
   it('switches sort column to artist (asc) when the artist option is selected', () => {
     setUp({
-      id: 1, name: 'All', imageRef: '',
+      id: 1,
+      name: 'All',
+      imageRef: '',
       musics: [
         track(1, { name: 'A', author: 'Zara' }),
         track(2, { name: 'B', author: 'Atlas' }),
@@ -178,7 +189,9 @@ describe('LibraryPageComponent', () => {
 
   it('filters by track name (case-insensitive)', () => {
     setUp({
-      id: 1, name: 'All', imageRef: '',
+      id: 1,
+      name: 'All',
+      imageRef: '',
       musics: [
         track(1, { name: 'Lonely Day' }),
         track(2, { name: 'Bright Side' }),
@@ -192,7 +205,9 @@ describe('LibraryPageComponent', () => {
 
   it('filters by artist name (case-insensitive)', () => {
     setUp({
-      id: 1, name: 'All', imageRef: '',
+      id: 1,
+      name: 'All',
+      imageRef: '',
       musics: [
         track(1, { name: 'A', author: 'Radiohead' }),
         track(2, { name: 'B', author: 'Burial' }),
@@ -206,7 +221,9 @@ describe('LibraryPageComponent', () => {
 
   it('shows the no-match empty state when filter matches nothing', () => {
     setUp({
-      id: 1, name: 'All', imageRef: '',
+      id: 1,
+      name: 'All',
+      imageRef: '',
       musics: [track(1, { name: 'Anything' })],
     });
     component.searchQuery.set('zzzz-no-match');
@@ -220,7 +237,9 @@ describe('LibraryPageComponent', () => {
     openSortPanel();
     const options = fixture.debugElement.queryAll(By.css('.sort-option'));
     expect(options[0].nativeElement.classList).toContain('sort-option--active');
-    expect(options[1].nativeElement.classList).not.toContain('sort-option--active');
+    expect(options[1].nativeElement.classList).not.toContain(
+      'sort-option--active',
+    );
     expect(options[0].nativeElement.textContent).toContain('▲');
   });
 });

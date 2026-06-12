@@ -46,7 +46,15 @@ describe('PlayerComponent', () => {
 
     const playbackSpy = jasmine.createSpyObj(
       'PlaybackSessionService',
-      ['next', 'previous', 'seek', 'pause', 'resume', 'setShuffle', 'setRepeatMode'],
+      [
+        'next',
+        'previous',
+        'seek',
+        'pause',
+        'resume',
+        'setShuffle',
+        'setRepeatMode',
+      ],
       {
         session: signal(null),
         devices: signal([]),

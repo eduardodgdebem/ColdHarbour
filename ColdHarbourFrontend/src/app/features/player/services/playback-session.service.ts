@@ -52,7 +52,10 @@ export class PlaybackSessionService {
   private localRevision = 0;
 
   // Phase 4: outbound command tracking for ack correlation.
-  private readonly pendingCommands = new Map<string, { sentAt: number; type: string }>();
+  private readonly pendingCommands = new Map<
+    string,
+    { sentAt: number; type: string }
+  >();
 
   // Track previous session state to detect transitions.
   private prevActiveDeviceId: string | null = null;
@@ -141,7 +144,9 @@ export class PlaybackSessionService {
       if (sess.trackId && playlist) {
         const track = playlist.musics.find((m) => m.trackId === sess.trackId);
         if (track) {
-          const currentMusic = untracked(() => this.musicService.currentMusic());
+          const currentMusic = untracked(() =>
+            this.musicService.currentMusic(),
+          );
           if (currentMusic?.trackId !== track.trackId) {
             this.musicService.selectMusic(track);
           }
@@ -234,7 +239,11 @@ export class PlaybackSessionService {
    * currentMusic itself, or the old echo cycle comes back.
    */
   setQueue(trackIds: string[], startIndex: number): void {
-    if (trackIds.length === 0 || startIndex < 0 || startIndex >= trackIds.length) {
+    if (
+      trackIds.length === 0 ||
+      startIndex < 0 ||
+      startIndex >= trackIds.length
+    ) {
       return;
     }
     this.send({
@@ -374,11 +383,20 @@ export class PlaybackSessionService {
         }
       }
       if (msg.type === 'tick') {
-        const tick = msg as { positionMs: number; isPlaying: boolean; revision: number; trackId?: string | null };
+        const tick = msg as {
+          positionMs: number;
+          isPlaying: boolean;
+          revision: number;
+          trackId?: string | null;
+        };
         if (tick.revision > this.localRevision) {
           // Session is behind — request a full resync and do not apply drift
           // correction based on stale revision context.
-          this.send({ type: 'resync', lastSeenRevision: this.localRevision, deviceId: this.deviceService.getOrCreateDeviceId() });
+          this.send({
+            type: 'resync',
+            lastSeenRevision: this.localRevision,
+            deviceId: this.deviceService.getOrCreateDeviceId(),
+          });
           return;
         }
         // Do NOT write to session() here. Writing the tick's positionMs into the
@@ -389,7 +407,8 @@ export class PlaybackSessionService {
         // Drop stale ticks: a heartbeat for the previous track can arrive after
         // "next"/"transfer" sets the session to a new track. Its positionMs (e.g.
         // 30 000 ms from the old track) would wrongly seek the new track.
-        if (tick.trackId !== undefined && tick.trackId !== currentSess?.trackId) return;
+        if (tick.trackId !== undefined && tick.trackId !== currentSess?.trackId)
+          return;
         if (currentSess?.activeDeviceId === myId) {
           const localMs = this.audioService.currentTime() * 1000;
           if (Math.abs(localMs - tick.positionMs) > DRIFT_TOLERANCE_MS) {

@@ -62,18 +62,17 @@ export class AuthService {
 
   register(payload: RegisterPayload): Observable<void> {
     return this.http
-      .post<void>(
-        `${environment.apiBase}/auth/register`,
-        payload,
-        {
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${this._accessToken()}` },
-        },
-      )
+      .post<void>(`${environment.apiBase}/auth/register`, payload, {
+        withCredentials: true,
+        headers: { Authorization: `Bearer ${this._accessToken()}` },
+      })
       .pipe(map(() => void 0));
   }
 
-  changePassword(currentPassword: string, newPassword: string): Observable<void> {
+  changePassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Observable<void> {
     return this.http
       .post<void>(
         `${environment.apiBase}/auth/change-password`,

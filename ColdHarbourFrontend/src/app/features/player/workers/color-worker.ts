@@ -10,7 +10,12 @@ const HIGH_SATURATION_THRESHOLD = 0.8;
 const SATURATION_BOOST_FACTOR = 3;
 const SATURATION_MIN_FACTOR = 0.6;
 
-function linearDampen(value: number, threshold: number, ceiling: number, minFactor: number): number {
+function linearDampen(
+  value: number,
+  threshold: number,
+  ceiling: number,
+  minFactor: number,
+): number {
   return 1 - ((value - threshold) / (ceiling - threshold)) * (1 - minFactor);
 }
 
@@ -23,7 +28,10 @@ async function fetchImageBitmap(url: string): Promise<ImageBitmap> {
 function averageVisibleColor(
   data: Uint8ClampedArray,
 ): { r: number; g: number; b: number } | null {
-  let r = 0, g = 0, b = 0, count = 0;
+  let r = 0,
+    g = 0,
+    b = 0,
+    count = 0;
   for (let i = 0; i < data.length; i += 4) {
     if (data[i + 3] < ALPHA_THRESHOLD) continue;
     r += data[i];
@@ -32,7 +40,11 @@ function averageVisibleColor(
     count++;
   }
   if (count === 0) return null;
-  return { r: Math.round(r / count), g: Math.round(g / count), b: Math.round(b / count) };
+  return {
+    r: Math.round(r / count),
+    g: Math.round(g / count),
+    b: Math.round(b / count),
+  };
 }
 
 function normalizeBrightness(
@@ -45,7 +57,9 @@ function normalizeBrightness(
   const luma = (r * 299 + g * 587 + b * 114) / 1000;
 
   if (luma < DARK_LUMA_THRESHOLD) {
-    const factor = maxBoost - (luma / DARK_LUMA_THRESHOLD) * (maxBoost - BRIGHTNESS_MIN_BOOST);
+    const factor =
+      maxBoost -
+      (luma / DARK_LUMA_THRESHOLD) * (maxBoost - BRIGHTNESS_MIN_BOOST);
     return {
       r: Math.min(255, Math.round(r * factor)),
       g: Math.min(255, Math.round(g * factor)),
@@ -81,8 +95,11 @@ function normalizeSaturation(
   boostFactor = SATURATION_BOOST_FACTOR,
   minFactor = SATURATION_MIN_FACTOR,
 ): { r: number; g: number; b: number } {
-  const rn = r / 255, gn = g / 255, bn = b / 255;
-  const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn);
+  const rn = r / 255,
+    gn = g / 255,
+    bn = b / 255;
+  const max = Math.max(rn, gn, bn),
+    min = Math.min(rn, gn, bn);
   const l = (max + min) / 2;
 
   if (max === min) return { r, g, b }; // achromatic — nothing to normalize
@@ -136,11 +153,24 @@ self.onmessage = async (e: MessageEvent) => {
       return;
     }
 
-    const brightened = normalizeBrightness(avg.r, avg.g, avg.b, BRIGHTNESS_MAX_BOOST, BRIGHTNESS_MIN_FACTOR);
-    const { r, g, b } = normalizeSaturation(brightened.r, brightened.g, brightened.b, SATURATION_BOOST_FACTOR, SATURATION_MIN_FACTOR);
+    const brightened = normalizeBrightness(
+      avg.r,
+      avg.g,
+      avg.b,
+      BRIGHTNESS_MAX_BOOST,
+      BRIGHTNESS_MIN_FACTOR,
+    );
+    const { r, g, b } = normalizeSaturation(
+      brightened.r,
+      brightened.g,
+      brightened.b,
+      SATURATION_BOOST_FACTOR,
+      SATURATION_MIN_FACTOR,
+    );
     self.postMessage({ color: toHex(r, g, b), imageUrl });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error occurred';
     self.postMessage({ error: errorMessage, imageUrl });
   }
 };

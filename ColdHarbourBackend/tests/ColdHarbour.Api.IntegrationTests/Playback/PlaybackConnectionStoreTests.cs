@@ -90,7 +90,7 @@ public sealed class PlaybackConnectionStoreTests
 
         // Race: old sockets remove themselves while new sockets join.
         var removes = oldSockets.Select(ws => Task.Run(() => store.Remove(userId, ws)));
-        var adds    = newSockets.Select(ws => Task.Run(() => store.Add(userId, ws)));
+        var adds = newSockets.Select(ws => Task.Run(() => store.Add(userId, ws)));
         await Task.WhenAll(removes.Concat(adds));
 
         await store.BroadcastAsync(userId, "ping");

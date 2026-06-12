@@ -71,9 +71,11 @@ describe('LibraryActionsComponent', () => {
 
   it('opens the modal when syncDiff is set', () => {
     expect(fixture.debugElement.query(By.css('.modal'))).toBeNull();
-    (
-      librarySpy.syncDiff as ReturnType<typeof signal<unknown | null>>
-    ).set({ added: [], missing: [], renamed: [] });
+    (librarySpy.syncDiff as ReturnType<typeof signal<unknown | null>>).set({
+      added: [],
+      missing: [],
+      renamed: [],
+    });
     fixture.detectChanges();
     expect(fixture.debugElement.query(By.css('.modal'))).toBeTruthy();
   });

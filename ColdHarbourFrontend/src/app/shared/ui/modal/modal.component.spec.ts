@@ -7,11 +7,7 @@ import { ModalComponent } from './modal.component';
   standalone: true,
   imports: [ModalComponent],
   template: `
-    <app-modal
-      [isOpen]="isOpen()"
-      [title]="title()"
-      (close)="onClose()"
-    >
+    <app-modal [isOpen]="isOpen()" [title]="title()" (close)="onClose()">
       <p>Body</p>
       <div slot="footer">
         <button>OK</button>

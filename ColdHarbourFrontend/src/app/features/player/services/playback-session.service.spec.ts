@@ -97,7 +97,7 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
 
     musicSpy = jasmine.createSpyObj(
       'MusicService',
-      ['selectMusic', 'setCurrentPlaylist'],
+      ['selectMusic', 'setCurrentPlaylist', 'loadLibrary'],
       {
         currentMusic,
         currentPlayList,
@@ -163,23 +163,21 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     await flushMicrotasks();
   };
 
-  // ── setQueue fires on user pick (only) ────────────────────────────────────
+  // ── setQueue is an explicit call, never an echo of currentMusic ───────────
 
-  it('sends setQueue with all playlist tracks when the user picks a track', async () => {
-    await setupAndConnect();
+  it('setQueue() sends the queue + start index to the hub', async () => {
+    const service = await setupAndConnect();
 
     const tracks = [
       track('11111111-0000-0000-0000-000000000001', 'Alpha'),
       track('11111111-0000-0000-0000-000000000002', 'Bravo'),
       track('11111111-0000-0000-0000-000000000003', 'Charlie'),
     ];
-    currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: tracks });
-    currentMusic.set(tracks[1]);
-    TestBed.flushEffects();
+    service.setQueue(tracks.map((t) => t.trackId), 1);
 
     const setQueueMsgs = sent('setQueue');
-    expect(setQueueMsgs.length).toBeGreaterThanOrEqual(1);
-    expect(setQueueMsgs[setQueueMsgs.length - 1]).toEqual(
+    expect(setQueueMsgs.length).toBe(1);
+    expect(setQueueMsgs[0]).toEqual(
       jasmine.objectContaining({
         type: 'setQueue',
         trackIds: tracks.map((t) => t.trackId),
@@ -188,11 +186,10 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     );
   });
 
-  it('does NOT echo setQueue when the active-device effect mutates currentMusic from a remote session', async () => {
-    // Simulate: the user picked nothing yet; the server tells us we're active
-    // playing track Y (e.g. transferred from another device). The
-    // active-device effect calls selectMusic(Y) under applyingRemote=true,
-    // which must NOT trigger a new setQueue echo.
+  it('does not echo setQueue when the server-state effect writes currentMusic', async () => {
+    // The cycle is gone: nothing watches currentMusic to push setQueue. The
+    // server tells us a track is playing; the server-state effect calls
+    // selectMusic(Y), and that must NOT produce a setQueue back to the server.
     const t = track('11111111-0000-0000-0000-000000000001');
     const playlist: Playlist = { id: 1, name: 'All', imageRef: '', musics: [t] };
     currentPlayList.set(playlist);
@@ -204,12 +201,14 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     expect(musicSpy.selectMusic).toHaveBeenCalledWith(t);
   });
 
-  it('does not emit the retired start message', async () => {
+  it('mutating currentMusic locally does not send any setQueue', async () => {
+    // Belt-and-suspenders for the deleted echo effect.
     await setupAndConnect();
     const t = track('22222222-0000-0000-0000-000000000001');
     currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
     currentMusic.set(t);
     TestBed.flushEffects();
+    expect(sent('setQueue').length).toBe(0);
     expect(sent('start').length).toBe(0);
   });
 
@@ -232,15 +231,15 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     // just fixed.
     const t = track('33333333-0000-0000-0000-000000000001');
     currentPlayList.set({ id: 1, name: 'All', imageRef: '', musics: [t] });
-    await setupAndConnect();
+    const service = await setupAndConnect();
 
     // Pretend another device is active.
     await pushSession({ activeDeviceId: OTHER_DEVICE, trackId: t.trackId });
     audioSpy.loadMusic.calls.reset();
     audioSpy.play.calls.reset();
 
-    // User picks the same track locally.
-    currentMusic.set(t);
+    // User picks the same track locally (explicit setQueue, server-authoritative).
+    service.setQueue([t.trackId], 0);
     TestBed.flushEffects();
     await flushMicrotasks();
 
@@ -439,23 +438,23 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
   // mini-player can appear. This must happen for BOTH the active device AND any
   // inactive device (second tab) — previously it only ran for the active device.
 
-  it('calls setCurrentPlaylist when session arrives with a trackId but no playlist loaded (active device)', async () => {
+  it('loads the library when session arrives with a trackId but no playlist loaded (active device)', async () => {
     // playlist starts null (not pre-seeded — simulates page refresh)
     await setupAndConnect();
 
     await pushSession({ trackId: '11111111-0000-0000-0000-000000000001', activeDeviceId: MY_DEVICE });
 
-    expect(musicSpy.setCurrentPlaylist).toHaveBeenCalledWith(1);
+    expect(musicSpy.loadLibrary).toHaveBeenCalled();
   });
 
-  it('calls setCurrentPlaylist when session arrives with a trackId but no playlist loaded (inactive device)', async () => {
+  it('loads the library when session arrives with a trackId but no playlist loaded (inactive device)', async () => {
     // Same scenario but another device is the active one.
     // Previously the early return for inactive devices prevented this call.
     await setupAndConnect();
 
     await pushSession({ trackId: '11111111-0000-0000-0000-000000000001', activeDeviceId: OTHER_DEVICE });
 
-    expect(musicSpy.setCurrentPlaylist).toHaveBeenCalledWith(1);
+    expect(musicSpy.loadLibrary).toHaveBeenCalled();
   });
 
   // ── Phase 4: protocol revisioning ────────────────────────────────────────
@@ -744,6 +743,41 @@ describe('PlaybackSessionService — Phase 2 (corrected single-owner-of-audio)',
     expect(authSpy.refresh).not.toHaveBeenCalled();
     expect(routerSpy.navigate).not.toHaveBeenCalled();
     expect(MockWebSocket.instances.length).toBe(before);
+  });
+
+  // ── Phase 2: connect/disconnect race ──────────────────────────────────────
+
+  it('detaches the old socket handlers on reconnect', async () => {
+    await setupAndConnect();
+    const stale = MockWebSocket.instances[0];
+
+    // Force a reconnect with a fresh token (connect() runs disconnect() first).
+    accessToken.set('jwt-token-2');
+    TestBed.flushEffects();
+    await flushMicrotasks();
+
+    expect(MockWebSocket.instances.length).toBe(2);
+    expect(stale.onclose).toBeNull('superseded socket must have its handlers detached');
+    expect(stale.onmessage).toBeNull();
+  });
+
+  it('a superseded socket close cannot disturb the live connection', async () => {
+    await setupAndConnect();
+    const stale = MockWebSocket.instances[0];
+    const staleClose = stale.onclose; // capture before it is detached
+
+    accessToken.set('jwt-token-2');
+    TestBed.flushEffects();
+    await flushMicrotasks();
+    const afterReconnect = MockWebSocket.instances.length;
+
+    // The dead socket's onclose fires late with a network-blip code. The
+    // generation guard must make it a no-op — no refresh, no reconnect storm.
+    staleClose?.({ code: 1006 });
+    await flushMicrotasks();
+
+    expect(MockWebSocket.instances.length).toBe(afterReconnect, 'no reconnect from a stale close');
+    expect(authSpy.refresh).not.toHaveBeenCalled();
   });
 
   // ── Phase 1: heartbeat gating ─────────────────────────────────────────────

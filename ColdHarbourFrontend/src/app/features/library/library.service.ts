@@ -22,7 +22,7 @@ export class LibraryService {
     this.api.uploadTrack(file).subscribe({
       next: () => {
         this.isUploading.set(false);
-        this.musicService.setCurrentPlaylist(1); // refresh playlist
+        this.musicService.loadLibrary(); // refresh library view
       },
       error: (err) => {
         console.error('Upload failed', err);
@@ -34,7 +34,7 @@ export class LibraryService {
 
   deleteTrack(trackId: string): void {
     this.api.deleteTrack(trackId).subscribe({
-      next: () => this.musicService.setCurrentPlaylist(1),
+      next: () => this.musicService.loadLibrary(),
       error: (err) => console.error('Delete failed', err),
     });
   }
@@ -56,7 +56,7 @@ export class LibraryService {
     this.api.applySync().subscribe({
       next: () => {
         this.isSyncing.set(false);
-        this.musicService.setCurrentPlaylist(1);
+        this.musicService.loadLibrary();
       },
       error: (err) => {
         console.error('Sync apply failed', err);

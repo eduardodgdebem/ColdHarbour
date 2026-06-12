@@ -80,7 +80,7 @@ export class LibraryPageComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.musicService.setCurrentPlaylist(1);
+    this.musicService.loadLibrary();
   }
 
   setSort(column: SortColumn): void {

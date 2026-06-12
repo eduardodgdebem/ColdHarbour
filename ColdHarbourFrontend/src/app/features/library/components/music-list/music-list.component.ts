@@ -41,7 +41,16 @@ export class MusicListComponent {
   ) {}
 
   selectMusic(music: Music) {
-    this.musicService.selectMusic(music);
+    // Server-authoritative: declare the queue (the list this component is
+    // actually showing) + the picked index. The server echoes a broadcast and
+    // the session effect writes currentMusic — we must not set it here.
+    const list = this.tracks();
+    const idx = list.findIndex((m) => m.trackId === music.trackId);
+    if (idx < 0) return;
+    this.playbackSession.setQueue(
+      list.map((m) => m.trackId),
+      idx,
+    );
   }
 
   addToQueue(event: Event, music: Music) {

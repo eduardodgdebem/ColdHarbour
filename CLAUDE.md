@@ -377,7 +377,7 @@ All times `America/Sao_Paulo`. Library sync is user-triggered, not scheduled.
 
 - `LoginPageComponent` — `/login`
 - `HomePageComponent` — `/home` (and `/` redirects here) — authenticated dashboard with HARBOUR // OPEN / CARGO MANIFEST / LATEST ARRIVALS / CONTROL ROOM sections, plus a DRY DOCK empty state when the library is empty
-- `PlaylistPageComponent` — `/playlist/:id` — main library view + inline upload/sync
+- `LibraryPageComponent` — `/library` — main library view + inline upload/sync. (There is intentionally **no** playlist page: the backend has no real playlists yet — `GetPlaylistQuery` returns the whole library for any id — so the duplicate `/playlist/:id` route was removed. Reintroduce it when a real playlist feature lands.)
 - `DevicesPageComponent` — `/devices` — device list, PLAYING / THIS DEVICE badges, PLAY HERE button, back button (`Location.back()`)
 
 **App layout shell (`AppComponent`)**

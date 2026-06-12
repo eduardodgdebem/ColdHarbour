@@ -11,8 +11,7 @@ public sealed class SeekCommandHandler : IRequestHandler<SeekCommand, bool>
     {
         if (request.Session.TrackId is null) return Task.FromResult(false);
 
-        request.Session.ClaimActiveIfNone(request.SenderDeviceId);
-        request.Session.Seek(request.PositionMs);
+        request.Session.ApplyTransport(request.SenderDeviceId, () => request.Session.Seek(request.PositionMs));
         return Task.FromResult(true);
     }
 }

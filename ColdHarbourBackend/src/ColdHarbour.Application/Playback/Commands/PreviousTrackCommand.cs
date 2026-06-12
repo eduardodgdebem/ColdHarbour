@@ -13,10 +13,9 @@ public sealed class PreviousTrackCommandHandler(IPlaySessionTimeline timeline) :
         var session = request.Session;
         if (session.Queue.Count == 0) return false;
 
-        session.ClaimActiveIfNone(request.SenderDeviceId);
         var oldTrackId = session.TrackId;
         var oldPositionMs = (int)session.PositionMs;
-        session.AdvancePrevious();
+        session.ApplyTransport(request.SenderDeviceId, () => session.AdvancePrevious());
 
         if (session.ActiveDeviceId is { } activeDeviceId)
             await timeline.TrackChangedAsync(

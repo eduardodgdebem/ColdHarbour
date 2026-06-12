@@ -147,6 +147,14 @@ public sealed class PlaybackUserActor : IAsyncDisposable
                         envelope.Command.GetType().Name, _userId,
                         string.Join("; ", vex.Errors.Select(e => e.ErrorMessage)));
                 }
+                catch (QueueTooLargeException qex)
+                {
+                    // Playback-hardening Phase 3: a queue mutation would exceed the domain cap
+                    // (notably an addToQueue flood). Drop + log; the socket stays open.
+                    _logger.LogWarning(
+                        "Dropping {MessageType} for user {UserId}: queue too large ({Attempted} > {Limit})",
+                        envelope.Command.GetType().Name, _userId, qex.Attempted, qex.Limit);
+                }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Playback command error for user {UserId}", _userId);

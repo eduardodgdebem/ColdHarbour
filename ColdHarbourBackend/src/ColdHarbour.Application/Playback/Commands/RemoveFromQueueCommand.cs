@@ -20,8 +20,7 @@ public sealed class RemoveFromQueueCommandHandler(IPlaySessionTimeline timeline)
         var oldPositionMs = (int)session.PositionMs;
         var wasRemovingCurrentTrack = session.QueueIndex == request.Index && oldTrackId is not null;
 
-        session.ClaimActiveIfNone(request.SenderDeviceId);
-        session.RemoveFromQueue(request.Index);
+        session.ApplyTransport(request.SenderDeviceId, () => session.RemoveFromQueue(request.Index));
 
         if (wasRemovingCurrentTrack
             && session.TrackId != oldTrackId

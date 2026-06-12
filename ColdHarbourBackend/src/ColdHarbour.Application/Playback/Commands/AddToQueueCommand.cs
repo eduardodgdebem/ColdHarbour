@@ -19,8 +19,7 @@ public sealed class AddToQueueCommandHandler(IPlaySessionTimeline timeline) : IR
         var oldTrackId = session.TrackId;
         var oldPositionMs = (int)session.PositionMs;
 
-        session.AddToQueue(request.TrackId, request.Position);
-        session.ClaimActiveIfNone(request.SenderDeviceId);
+        session.ApplyTransport(request.SenderDeviceId, () => session.AddToQueue(request.TrackId, request.Position));
 
         if (wasEmpty && session.TrackId.HasValue && session.ActiveDeviceId is { } activeDeviceId)
             await timeline.TrackChangedAsync(

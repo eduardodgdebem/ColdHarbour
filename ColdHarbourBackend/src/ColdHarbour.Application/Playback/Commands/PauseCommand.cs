@@ -11,9 +11,7 @@ public sealed class PauseCommandHandler(IPlaySessionTimeline timeline) : IReques
     public async Task<bool> Handle(PauseCommand request, CancellationToken cancellationToken)
     {
         var session = request.Session;
-        if (request.SenderDeviceId.HasValue)
-            session.ClaimActiveIfNone(request.SenderDeviceId.Value);
-        session.Pause();
+        session.ApplyTransport(request.SenderDeviceId, () => session.Pause());
         await timeline.PausedAsync(session.UserId, DateTimeOffset.UtcNow, cancellationToken);
         return true;
     }

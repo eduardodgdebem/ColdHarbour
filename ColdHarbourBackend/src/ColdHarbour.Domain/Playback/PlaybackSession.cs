@@ -2,6 +2,14 @@ namespace ColdHarbour.Domain.Playback;
 
 public sealed class PlaybackSession
 {
+    /// <summary>
+    /// Hard ceiling on queue length, enforced by the aggregate itself. This is the absolute
+    /// backstop against unbounded growth (notably incremental <see cref="AddToQueue"/> floods,
+    /// which the edge validator does not bound). The configurable edge cap
+    /// (<c>COLDHARBOUR_WS_MAX_QUEUE_SIZE</c>) should stay ≤ this value; its default matches it.
+    /// </summary>
+    public const int MaxQueueSize = 1000;
+
     public Guid UserId { get; private set; }
     public Guid? ActiveDeviceId { get; private set; }
     public Guid? TrackId { get; private set; }
@@ -133,6 +141,9 @@ public sealed class PlaybackSession
     {
         ArgumentNullException.ThrowIfNull(trackIds);
 
+        if (trackIds.Count > MaxQueueSize)
+            throw new QueueTooLargeException(trackIds.Count, MaxQueueSize);
+
         if (trackIds.Count == 0)
         {
             if (startIndex != 0)
@@ -243,6 +254,21 @@ public sealed class PlaybackSession
     }
 
     /// <summary>
+    /// The single place the "claim active when none, then apply the transport mutation" rule
+    /// lives. Command handlers call this instead of duplicating
+    /// <see cref="ClaimActiveIfNone"/> + the per-command mutation. When <paramref name="senderDeviceId"/>
+    /// is null (e.g. a pause/resume that targets the existing active device), no claim happens.
+    /// </summary>
+    public void ApplyTransport(Guid? senderDeviceId, Action mutate)
+    {
+        ArgumentNullException.ThrowIfNull(mutate);
+        if (senderDeviceId is { } deviceId)
+            ClaimActiveIfNone(deviceId);
+        mutate();
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>
     /// Releases ownership of the session when the active device has gone away for good
     /// (socket closed and <c>LastSeenAt</c> past the liveness TTL). Queue, track, position
     /// and <c>IsPlaying</c> are deliberately left intact so the next device to act can
@@ -283,6 +309,9 @@ public sealed class PlaybackSession
     /// </summary>
     public void AddToQueue(Guid trackId, int? position = null)
     {
+        if (_queue.Count >= MaxQueueSize)
+            throw new QueueTooLargeException(_queue.Count + 1, MaxQueueSize);
+
         var insertAt = position is null
             ? _queue.Count
             : Math.Clamp(position.Value, 0, _queue.Count);

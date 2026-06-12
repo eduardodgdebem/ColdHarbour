@@ -12,8 +12,7 @@ public sealed class ClearQueueCommandHandler(IPlaySessionTimeline timeline) : IR
     {
         var session = request.Session;
         var oldPositionMs = (int)session.PositionMs;
-        session.ClaimActiveIfNone(request.SenderDeviceId);
-        session.ClearQueue();
+        session.ApplyTransport(request.SenderDeviceId, () => session.ClearQueue());
         await timeline.SessionClearedAsync(session.UserId, oldPositionMs, cancellationToken);
         return true;
     }

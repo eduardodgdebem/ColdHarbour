@@ -20,8 +20,7 @@ public sealed class SetQueueCommandHandler(IPlaySessionTimeline timeline) : IReq
         var oldTrackId = session.TrackId;
         var oldPositionMs = (int)session.PositionMs;
 
-        session.SetQueue(request.TrackIds, request.StartIndex);
-        session.ClaimActiveIfNone(request.SenderDeviceId);
+        session.ApplyTransport(request.SenderDeviceId, () => session.SetQueue(request.TrackIds, request.StartIndex));
 
         if (session.ActiveDeviceId is { } activeDeviceId)
             await timeline.TrackChangedAsync(

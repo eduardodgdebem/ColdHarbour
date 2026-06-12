@@ -129,6 +129,15 @@ public sealed class PlaybackUserActor : IAsyncDisposable
             {
                 _lastCommandTime = DateTimeOffset.UtcNow;
                 try { await ProcessEnvelopeAsync(envelope, ct); }
+                catch (FluentValidation.ValidationException vex)
+                {
+                    // Phase 5 (WS hardening): a hub-dispatched command failed FluentValidation in the
+                    // pipeline. Drop it and log — never tear down the socket over one bad message.
+                    _logger.LogWarning(
+                        "Dropping invalid {MessageType} for user {UserId}: {Errors}",
+                        envelope.Command.GetType().Name, _userId,
+                        string.Join("; ", vex.Errors.Select(e => e.ErrorMessage)));
+                }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Playback command error for user {UserId}", _userId);

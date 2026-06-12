@@ -368,7 +368,7 @@ public sealed class PlaybackUserActorTests
         await actor.EnqueueAsync(new SetQueueCmd(deviceId, tracks, 0), CancellationToken.None);
         fakeWs.ReceivedMessages.Clear();
 
-        await actor.EnqueueAsync(new HeartbeatCmd(deviceId, 10_000), CancellationToken.None);
+        await actor.EnqueueAsync(new HeartbeatCmd(deviceId, 4_000), CancellationToken.None);
         await actor.DisposeAsync();
 
         var tick = fakeWs.ReceivedMessages

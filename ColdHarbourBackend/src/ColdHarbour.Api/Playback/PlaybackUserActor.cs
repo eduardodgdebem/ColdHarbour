@@ -253,7 +253,8 @@ public sealed class PlaybackUserActor : IAsyncDisposable
                 // truth for an actually-playing track. Drop idle heartbeats so a misbehaving
                 // client can't churn UpdatedAt against a paused or empty session.
                 if (!session.IsPlaying || session.TrackId is null) return;
-                changed = await mediator.Send(new UpdatePlaybackPositionCommand(session, c.PositionMs), ct);
+                var maxDrift = scope.ServiceProvider.GetService<PlaybackLimits>()?.HeartbeatMaxDriftMs ?? 5000;
+                changed = await mediator.Send(new UpdatePlaybackPositionCommand(session, c.PositionMs, maxDrift), ct);
                 isHeartbeat = true;
                 break;
             case TransferCmd c:
@@ -433,7 +434,8 @@ public sealed class PlaybackUserActor : IAsyncDisposable
         session.RepeatMode,
         session.Shuffle,
         session.UpdatedAt,
-        session.Revision);
+        session.Revision,
+        session.CurrentPositionMs(DateTimeOffset.UtcNow));
 
     private async Task BroadcastSessionAsync(PlaybackSession session, CancellationToken ct)
     {

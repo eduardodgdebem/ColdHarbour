@@ -94,6 +94,37 @@ public sealed class PlaybackSession
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
+    /// <summary>
+    /// The server-derived "live" position. While playing it interpolates the last stored
+    /// <see cref="PositionMs"/> forward by wall-clock since <see cref="UpdatedAt"/>; while paused
+    /// it is the frozen <see cref="PositionMs"/>. Pure read — gives REST/non-WS callers an accurate
+    /// now-playing position between heartbeats without forcing them onto the socket.
+    /// </summary>
+    public long CurrentPositionMs(DateTimeOffset now)
+    {
+        if (!IsPlaying) return PositionMs;
+        var elapsed = (long)(now - UpdatedAt).TotalMilliseconds;
+        return PositionMs + Math.Max(0, elapsed); // clock skew must never rewind the position
+    }
+
+    /// <summary>
+    /// Apply a heartbeat position with a sanity bound. The accepted range is
+    /// <c>[PositionMs - 250, PositionMs + maxForwardDriftMs]</c> — a small back-tolerance for
+    /// clock skew on the active device, and a forward grace covering the heartbeat interval.
+    /// A value outside the range (rogue process, replayed packet, debugger skip) is dropped:
+    /// nothing changes, <see cref="UpdatedAt"/> is not bumped, and <c>false</c> is returned.
+    /// </summary>
+    public bool RecordHeartbeat(long positionMs, int maxForwardDriftMs)
+    {
+        const long backToleranceMs = 250;
+        if (positionMs < PositionMs - backToleranceMs || positionMs > PositionMs + maxForwardDriftMs)
+            return false;
+
+        PositionMs = positionMs;
+        UpdatedAt = DateTimeOffset.UtcNow;
+        return true;
+    }
+
     public void UpdatePosition(long positionMs)
     {
         PositionMs = positionMs;

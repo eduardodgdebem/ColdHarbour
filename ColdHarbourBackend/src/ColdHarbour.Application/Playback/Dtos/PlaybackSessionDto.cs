@@ -13,4 +13,8 @@ public sealed record PlaybackSessionDto(
     RepeatMode RepeatMode,
     bool Shuffle,
     DateTimeOffset UpdatedAt,
-    long Revision = 0);
+    long Revision = 0,
+    // Server-derived live position (PositionMs interpolated by wall-clock while playing).
+    // Sits alongside the canonical PositionMs + UpdatedAt so WS clients can still interpolate
+    // themselves; REST/non-WS callers read this directly.
+    long CurrentPositionMs = 0);

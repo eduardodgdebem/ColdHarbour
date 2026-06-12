@@ -124,6 +124,9 @@ try
         ActiveDeviceTtlSeconds = int.TryParse(builder.Configuration["COLDHARBOUR_ACTIVE_DEVICE_TTL_SECONDS"], out var ttl) && ttl > 0
             ? ttl
             : 30,
+        HeartbeatMaxDriftMs = int.TryParse(builder.Configuration["COLDHARBOUR_HEARTBEAT_MAX_DRIFT_MS"], out var drift) && drift > 0
+            ? drift
+            : 5000,
     });
     builder.Services.AddSingleton<ColdHarbour.Api.Playback.PlaybackConnectionStore>();
     builder.Services.AddSingleton<ColdHarbour.Api.Playback.PlaybackUserActorRegistry>();

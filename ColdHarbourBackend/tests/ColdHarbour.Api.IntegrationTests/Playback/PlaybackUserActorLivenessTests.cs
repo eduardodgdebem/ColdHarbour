@@ -201,11 +201,31 @@ public sealed class PlaybackUserActorLivenessTests
         await SeedActiveSession(sp, userId, device, Guid.NewGuid(), playing: true);
 
         await using var actor = BuildActor(sp, userId);
-        await actor.EnqueueAsync(new HeartbeatCmd(device, 9_000), CancellationToken.None);
+        await actor.EnqueueAsync(new HeartbeatCmd(device, 4_000), CancellationToken.None);
         await actor.DisposeAsync();
 
         var session = await sp.GetRequiredService<IPlaybackSessionStore>().LoadAsync(userId);
-        session!.PositionMs.Should().Be(9_000, "a playing heartbeat updates the position");
+        session!.PositionMs.Should().Be(4_000, "a playing heartbeat within the drift bound updates the position");
+    }
+
+    [Fact]
+    public async Task Heartbeat_Dropped_WhenBeyondDriftBound()
+    {
+        var userId = Guid.NewGuid();
+        var device = Guid.NewGuid();
+        var connected = new FakeConnectedDeviceStore(device);
+        var devices = new FakeDeviceRepository();
+        devices.Add(device, userId, lastSeen: DateTimeOffset.UtcNow);
+        var sp = BuildServices(connected, devices);
+
+        await SeedActiveSession(sp, userId, device, Guid.NewGuid(), playing: true); // PositionMs = 0
+
+        await using var actor = BuildActor(sp, userId);
+        await actor.EnqueueAsync(new HeartbeatCmd(device, 50_000), CancellationToken.None); // teleport
+        await actor.DisposeAsync();
+
+        var session = await sp.GetRequiredService<IPlaybackSessionStore>().LoadAsync(userId);
+        session!.PositionMs.Should().Be(0, "a heartbeat past the drift bound is dropped");
     }
 
     // ── doubles ───────────────────────────────────────────────────────────────

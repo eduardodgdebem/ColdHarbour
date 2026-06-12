@@ -24,6 +24,8 @@ public sealed class GetActiveSessionQueryHandler(IPlaybackSessionStore store) : 
             session.QueueIndex,
             session.RepeatMode,
             session.Shuffle,
-            session.UpdatedAt);
+            session.UpdatedAt,
+            session.Revision,
+            session.CurrentPositionMs(DateTimeOffset.UtcNow));
     }
 }

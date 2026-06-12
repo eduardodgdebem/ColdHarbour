@@ -520,6 +520,48 @@ public sealed class ClearQueueCommandHandlerTests
     }
 }
 
+public sealed class StopCommandHandlerTests
+{
+    private readonly IPlaySessionTimeline _timeline = Substitute.For<IPlaySessionTimeline>();
+
+    [Fact]
+    public async Task Handle_ClearsSessionAndCallsTimeline()
+    {
+        var session = PlaybackSession.Create(Guid.NewGuid());
+        var device = Guid.NewGuid();
+        session.SetQueue(new[] { Guid.NewGuid(), Guid.NewGuid() }, 1);
+        session.ClaimActiveIfNone(device);
+        session.UpdatePosition(15_000);
+
+        var changed = await new StopCommandHandler(_timeline).Handle(
+            new StopCommand(session, device), CancellationToken.None);
+
+        session.TrackId.Should().BeNull();
+        session.ActiveDeviceId.Should().BeNull();
+        session.IsPlaying.Should().BeFalse();
+        session.Queue.Should().BeEmpty();
+        session.QueueIndex.Should().Be(0);
+        changed.Should().BeTrue();
+        await _timeline.Received(1).SessionClearedAsync(
+            session.UserId, 15_000, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_NeverClaimsActiveOnEmptySession()
+    {
+        // Phantom-owner guard: stop must never install an owner on an empty session.
+        var session = PlaybackSession.Create(Guid.NewGuid());
+
+        var changed = await new StopCommandHandler(_timeline).Handle(
+            new StopCommand(session, Guid.NewGuid()), CancellationToken.None);
+
+        session.ActiveDeviceId.Should().BeNull();
+        changed.Should().BeTrue();
+        await _timeline.Received(1).SessionClearedAsync(
+            session.UserId, 0, Arg.Any<CancellationToken>());
+    }
+}
+
 public sealed class ListDevicesQueryHandlerTests
 {
     private readonly IDeviceRepository _repo = Substitute.For<IDeviceRepository>();

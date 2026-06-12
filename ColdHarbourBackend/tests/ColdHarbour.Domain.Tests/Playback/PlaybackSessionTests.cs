@@ -373,6 +373,94 @@ public sealed class PlaybackSessionTests
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
+    // --- Playback hardening Phase 4: position interpolation + heartbeat bound --
+
+    [Fact]
+    public void CurrentPositionMs_InterpolatesWhilePlaying()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { TrackId }, 0); // IsPlaying = true, PositionMs = 0
+        session.UpdatePosition(10_000);  // seed PositionMs = 10_000, UpdatedAt = now
+        var baseline = session.UpdatedAt;
+
+        var interpolated = session.CurrentPositionMs(baseline.AddMilliseconds(500));
+
+        interpolated.Should().BeInRange(10_450, 10_550, "playing position advances with wall-clock");
+    }
+
+    [Fact]
+    public void CurrentPositionMs_DoesNotAdvanceWhilePaused()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { TrackId }, 0);
+        session.UpdatePosition(10_000);
+        session.Pause();
+        var at = session.UpdatedAt;
+
+        session.CurrentPositionMs(at.AddSeconds(30)).Should().Be(10_000, "a paused session does not advance");
+    }
+
+    [Fact]
+    public void CurrentPositionMs_NeverGoesBackwardOnClockSkew()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { TrackId }, 0);
+        session.UpdatePosition(10_000);
+
+        // now slightly before UpdatedAt (clock skew) must not subtract.
+        session.CurrentPositionMs(session.UpdatedAt.AddMilliseconds(-200)).Should().Be(10_000);
+    }
+
+    [Fact]
+    public void RecordHeartbeat_AcceptsValueWithinForwardDrift()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { TrackId }, 0); // PositionMs = 0
+
+        var accepted = session.RecordHeartbeat(4_000, 5_000);
+
+        accepted.Should().BeTrue();
+        session.PositionMs.Should().Be(4_000);
+    }
+
+    [Fact]
+    public void RecordHeartbeat_RejectsValueBeyondForwardDrift()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { TrackId }, 0);
+
+        var accepted = session.RecordHeartbeat(20_000, 5_000);
+
+        accepted.Should().BeFalse("a teleporting heartbeat is dropped");
+        session.PositionMs.Should().Be(0, "rejected heartbeat does not move position");
+    }
+
+    [Fact]
+    public void RecordHeartbeat_RejectsValueBelowBackTolerance()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { TrackId }, 0);
+        session.UpdatePosition(10_000); // seed PositionMs = 10_000
+
+        var accepted = session.RecordHeartbeat(9_000, 5_000); // 1000ms backward, beyond 250 tolerance
+
+        accepted.Should().BeFalse();
+        session.PositionMs.Should().Be(10_000);
+    }
+
+    [Fact]
+    public void RecordHeartbeat_AcceptsSmallBackwardWithinTolerance()
+    {
+        var session = PlaybackSession.Create(UserId);
+        session.SetQueue(new[] { TrackId }, 0);
+        session.UpdatePosition(10_000);
+
+        var accepted = session.RecordHeartbeat(9_900, 5_000); // 100ms backward, within 250 tolerance
+
+        accepted.Should().BeTrue();
+        session.PositionMs.Should().Be(9_900);
+    }
+
     // --- Playback hardening Phase 3: ApplyTransport + queue cap ----------------
 
     [Fact]

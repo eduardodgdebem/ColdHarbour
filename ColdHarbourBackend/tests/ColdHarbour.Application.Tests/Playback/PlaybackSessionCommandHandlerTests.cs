@@ -15,16 +15,29 @@ namespace ColdHarbour.Application.Tests.Playback;
 public sealed class UpdatePlaybackPositionCommandHandlerTests
 {
     [Fact]
-    public async Task Handle_UpdatesPosition()
+    public async Task Handle_UpdatesPosition_WhenWithinDrift()
     {
         var session = PlaybackSession.Create(Guid.NewGuid());
-        session.SetQueue(new[] { Guid.NewGuid() }, 0);
+        session.SetQueue(new[] { Guid.NewGuid() }, 0); // PositionMs = 0
 
         var changed = await new UpdatePlaybackPositionCommandHandler()
-            .Handle(new UpdatePlaybackPositionCommand(session, 45_000), CancellationToken.None);
+            .Handle(new UpdatePlaybackPositionCommand(session, 4_000, 5_000), CancellationToken.None);
 
-        session.PositionMs.Should().Be(45_000);
+        session.PositionMs.Should().Be(4_000);
         changed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_RejectsOutOfBoundsHeartbeat()
+    {
+        var session = PlaybackSession.Create(Guid.NewGuid());
+        session.SetQueue(new[] { Guid.NewGuid() }, 0); // PositionMs = 0
+
+        var changed = await new UpdatePlaybackPositionCommandHandler()
+            .Handle(new UpdatePlaybackPositionCommand(session, 45_000, 5_000), CancellationToken.None);
+
+        session.PositionMs.Should().Be(0, "a teleporting heartbeat is dropped");
+        changed.Should().BeFalse();
     }
 }
 
@@ -559,6 +572,41 @@ public sealed class StopCommandHandlerTests
         changed.Should().BeTrue();
         await _timeline.Received(1).SessionClearedAsync(
             session.UserId, 0, Arg.Any<CancellationToken>());
+    }
+}
+
+public sealed class GetActiveSessionQueryHandlerTests
+{
+    private readonly IPlaybackSessionStore _store = Substitute.For<IPlaybackSessionStore>();
+
+    [Fact]
+    public async Task Handle_PopulatesCurrentPositionMs_FromLivePosition()
+    {
+        var userId = Guid.NewGuid();
+        var session = PlaybackSession.Create(userId);
+        session.SetQueue(new[] { Guid.NewGuid() }, 0); // playing
+        session.UpdatePosition(10_000);                 // PositionMs = 10_000, UpdatedAt = now
+        _store.LoadAsync(userId, Arg.Any<CancellationToken>()).Returns(session);
+
+        var dto = await new GetActiveSessionQueryHandler(_store)
+            .Handle(new GetActiveSessionQuery(userId), CancellationToken.None);
+
+        dto.Should().NotBeNull();
+        dto!.PositionMs.Should().Be(10_000);
+        dto.CurrentPositionMs.Should().BeInRange(10_000, 10_500,
+            "currentPositionMs interpolates the live position for REST callers");
+    }
+
+    [Fact]
+    public async Task Handle_ReturnsNull_WhenNoTrackLoaded()
+    {
+        var userId = Guid.NewGuid();
+        _store.LoadAsync(userId, Arg.Any<CancellationToken>()).Returns(PlaybackSession.Create(userId));
+
+        var dto = await new GetActiveSessionQueryHandler(_store)
+            .Handle(new GetActiveSessionQuery(userId), CancellationToken.None);
+
+        dto.Should().BeNull();
     }
 }
 

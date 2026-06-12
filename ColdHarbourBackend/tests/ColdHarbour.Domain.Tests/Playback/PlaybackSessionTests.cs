@@ -373,6 +373,39 @@ public sealed class PlaybackSessionTests
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
+    // --- Playback hardening Phase 1: DemoteActiveDevice -----------------------
+
+    [Fact]
+    public void DemoteActiveDevice_LeavesPositionAndQueueIntact()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var tracks = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        session.SetQueue(tracks, 1);
+        session.ClaimActiveIfNone(DeviceId);
+        session.UpdatePosition(42_000);
+
+        session.DemoteActiveDevice();
+
+        session.ActiveDeviceId.Should().BeNull("the stale owner is released");
+        session.TrackId.Should().Be(tracks[1], "the track keeps playing where it was");
+        session.PositionMs.Should().Be(42_000, "position is preserved for the next device to resume");
+        session.Queue.Should().Equal(tracks);
+        session.QueueIndex.Should().Be(1);
+        session.IsPlaying.Should().BeTrue("demotion releases ownership, it does not stop playback");
+    }
+
+    [Fact]
+    public void DemoteActiveDevice_WhenAlreadyNull_IsNoOp()
+    {
+        var session = PlaybackSession.Create(UserId);
+        var before = session.UpdatedAt;
+
+        session.DemoteActiveDevice();
+
+        session.ActiveDeviceId.Should().BeNull();
+        session.UpdatedAt.Should().Be(before, "a no-op demotion must not churn UpdatedAt");
+    }
+
     // --- Phase 2: ClaimActiveIfNone -------------------------------------------
 
     [Fact]

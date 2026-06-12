@@ -461,8 +461,11 @@ export class PlaybackSessionService {
       const sess = this.session();
       // Only the active device sends heartbeats — the server's guard would
       // drop ours anyway, and sending stale 0s from an inactive device just
-      // pollutes the wire.
+      // pollutes the wire. Phase 1: stay silent when nothing is playing
+      // (paused or no track) — an idle heartbeat carries no position truth and
+      // the server now drops it anyway.
       if (!sess || sess.activeDeviceId !== myId) return;
+      if (!sess.isPlaying || sess.trackId == null) return;
       this.send({
         type: 'heartbeat',
         deviceId: myId,

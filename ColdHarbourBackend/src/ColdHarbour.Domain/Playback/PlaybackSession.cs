@@ -242,6 +242,20 @@ public sealed class PlaybackSession
         }
     }
 
+    /// <summary>
+    /// Releases ownership of the session when the active device has gone away for good
+    /// (socket closed and <c>LastSeenAt</c> past the liveness TTL). Queue, track, position
+    /// and <c>IsPlaying</c> are deliberately left intact so the next device to act can
+    /// <see cref="ClaimActiveIfNone"/> and resume exactly where playback was. No-op when
+    /// no device currently owns the session.
+    /// </summary>
+    public void DemoteActiveDevice()
+    {
+        if (ActiveDeviceId is null) return;
+        ActiveDeviceId = null;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     public void SetRepeatMode(RepeatMode mode)
     {
         RepeatMode = mode;

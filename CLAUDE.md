@@ -146,6 +146,7 @@ Three cross-cutting design axes:
 | `COLDHARBOUR_PUBLIC_ORIGIN`                         | compose           | e.g. `https://music.example.com` — CORS allowlist + cookie domain |
 | `COLDHARBOUR_WS_MAX_FRAME_BYTES`                    | compose           | Soft cap for a single assembled `/ws/playback` message. Default `1048576` (1 MB); over-cap closes the socket with 1009 |
 | `COLDHARBOUR_WS_MAX_QUEUE_SIZE`                     | compose           | Max tracks accepted in one `setQueue` over `/ws/playback`. Default `1000`; over-cap drops the message (FluentValidation) |
+| `COLDHARBOUR_ACTIVE_DEVICE_TTL_SECONDS`             | compose           | Seconds the active device may be gone (no live socket) before the session releases ownership. Default `30` |
 | `COLDHARBOUR_BOOTSTRAP_EMAIL` / `_PASSWORD`         | `.env`            | First-run owner seed (printed once to log, then unset)            |
 | `COLDHARBOUR_APPLE_TEAM_ID` `[post-MVP]`            | `.env` (secret)   | Apple Developer Team ID                                           |
 | `COLDHARBOUR_APPLE_KEY_ID` `[post-MVP]`             | `.env` (secret)   | MusicKit key ID                                                   |

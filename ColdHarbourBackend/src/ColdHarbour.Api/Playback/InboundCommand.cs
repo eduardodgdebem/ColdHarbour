@@ -21,3 +21,9 @@ public sealed record RemoveFromQueueCmd(Guid DeviceId, int Index) : InboundComma
 public sealed record ReorderQueueCmd(Guid DeviceId, int From, int To) : InboundCommand;
 public sealed record ClearQueueCmd(Guid DeviceId) : InboundCommand;
 public sealed record ResyncCmd(Guid DeviceId, long LastSeenRevision) : InboundCommand;
+/// <summary>
+/// Internal command (never parsed from a client frame). Enqueued by the hub on connect so the
+/// actor can release the active device through the pump if it has gone stale. Carries no data —
+/// the actor evaluates liveness against the connected-device store + the device's LastSeenAt.
+/// </summary>
+public sealed record CheckLivenessCmd : InboundCommand;

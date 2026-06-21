@@ -151,6 +151,14 @@ public sealed class DevicesTestFactory : WebApplicationFactory<Program>
     {
         public Task<IReadOnlyList<TrackReadModel>> GetAllTracksAsync(CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<TrackReadModel>>([]);
+        public Task<IReadOnlyList<AlbumReadModel>> GetAlbumsAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<AlbumReadModel>>([]);
+        public Task<AlbumDetailReadModel?> GetAlbumAsync(Guid albumId, CancellationToken ct = default)
+            => Task.FromResult<AlbumDetailReadModel?>(null);
+        public Task<IReadOnlyList<ArtistReadModel>> GetArtistsAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ArtistReadModel>>([]);
+        public Task<ArtistDetailReadModel?> GetArtistAsync(Guid artistId, CancellationToken ct = default)
+            => Task.FromResult<ArtistDetailReadModel?>(null);
     }
 
     private sealed class EmptyTrackRepo : ColdHarbour.Application.Library.Ports.ITrackRepository
@@ -193,6 +201,7 @@ public sealed class DevicesTestFactory : WebApplicationFactory<Program>
     private sealed class NullArtwork : ColdHarbour.Application.Library.Ports.IArtworkService
     {
         public Task<string?> GetThumbnailPathAsync(Guid id, int size, CancellationToken ct = default) => Task.FromResult<string?>(null);
+        public Task<string?> GetCoverArtSha1Async(Guid id, CancellationToken ct = default) => Task.FromResult<string?>(null);
     }
 
     private sealed class NullConnectedDeviceStore : ColdHarbour.Application.Playback.Ports.IConnectedDeviceStore

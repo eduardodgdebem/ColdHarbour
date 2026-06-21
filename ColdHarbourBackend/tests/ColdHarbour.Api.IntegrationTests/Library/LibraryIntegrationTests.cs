@@ -259,6 +259,8 @@ public sealed class LibraryTestFactory : WebApplicationFactory<Program>
 
         public Task<string?> GetThumbnailPathAsync(Guid albumId, int size, CancellationToken ct = default)
             => Task.FromResult(_path);
+        public Task<string?> GetCoverArtSha1Async(Guid albumId, CancellationToken ct = default)
+            => Task.FromResult<string?>(null);
     }
 
     // ── minimal stubs ─────────────────────────────────────────────────────────────
@@ -267,6 +269,14 @@ public sealed class LibraryTestFactory : WebApplicationFactory<Program>
     {
         public Task<IReadOnlyList<TrackReadModel>> GetAllTracksAsync(CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<TrackReadModel>>([]);
+        public Task<IReadOnlyList<AlbumReadModel>> GetAlbumsAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<AlbumReadModel>>([]);
+        public Task<AlbumDetailReadModel?> GetAlbumAsync(Guid albumId, CancellationToken ct = default)
+            => Task.FromResult<AlbumDetailReadModel?>(null);
+        public Task<IReadOnlyList<ArtistReadModel>> GetArtistsAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ArtistReadModel>>([]);
+        public Task<ArtistDetailReadModel?> GetArtistAsync(Guid artistId, CancellationToken ct = default)
+            => Task.FromResult<ArtistDetailReadModel?>(null);
     }
 
     private sealed class EmptyTrackRepo : ITrackRepository

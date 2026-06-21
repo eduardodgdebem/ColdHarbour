@@ -193,6 +193,18 @@ public class GetPlaylistIntegrationTests : IClassFixture<WebApplicationFactory<P
     {
         public Task<IReadOnlyList<TrackReadModel>> GetAllTracksAsync(CancellationToken ct = default)
             => Task.FromResult(tracks);
+
+        public Task<IReadOnlyList<AlbumReadModel>> GetAlbumsAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<AlbumReadModel>>([]);
+
+        public Task<AlbumDetailReadModel?> GetAlbumAsync(Guid albumId, CancellationToken ct = default)
+            => Task.FromResult<AlbumDetailReadModel?>(null);
+
+        public Task<IReadOnlyList<ArtistReadModel>> GetArtistsAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ArtistReadModel>>([]);
+
+        public Task<ArtistDetailReadModel?> GetArtistAsync(Guid artistId, CancellationToken ct = default)
+            => Task.FromResult<ArtistDetailReadModel?>(null);
     }
 
     private sealed class PlaylistResponse
@@ -285,6 +297,7 @@ public class GetPlaylistIntegrationTests : IClassFixture<WebApplicationFactory<P
     private sealed class FakeArtworkService : ColdHarbour.Application.Library.Ports.IArtworkService
     {
         public Task<string?> GetThumbnailPathAsync(Guid albumId, int size, CancellationToken ct = default) => Task.FromResult<string?>(null);
+        public Task<string?> GetCoverArtSha1Async(Guid albumId, CancellationToken ct = default) => Task.FromResult<string?>(null);
     }
 
     private sealed class NullDeviceRepo : ColdHarbour.Application.Playback.Ports.IDeviceRepository

@@ -62,4 +62,12 @@ public sealed class ArtworkService(
 
         return thumbPath;
     }
+
+    public async Task<string?> GetCoverArtSha1Async(Guid albumId, CancellationToken ct = default)
+    {
+        return await db.Albums
+            .Where(a => a.Id == albumId)
+            .Select(a => a.CoverArtSha1)
+            .FirstOrDefaultAsync(ct);
+    }
 }

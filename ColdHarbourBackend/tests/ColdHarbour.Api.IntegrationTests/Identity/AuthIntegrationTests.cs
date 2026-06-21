@@ -125,6 +125,14 @@ internal sealed class FakeLibraryReadRepository : ILibraryReadRepository
 {
     public Task<IReadOnlyList<TrackReadModel>> GetAllTracksAsync(CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<TrackReadModel>>(Array.Empty<TrackReadModel>());
+    public Task<IReadOnlyList<AlbumReadModel>> GetAlbumsAsync(CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<AlbumReadModel>>([]);
+    public Task<AlbumDetailReadModel?> GetAlbumAsync(Guid albumId, CancellationToken ct = default)
+        => Task.FromResult<AlbumDetailReadModel?>(null);
+    public Task<IReadOnlyList<ArtistReadModel>> GetArtistsAsync(CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<ArtistReadModel>>([]);
+    public Task<ArtistDetailReadModel?> GetArtistAsync(Guid artistId, CancellationToken ct = default)
+        => Task.FromResult<ArtistDetailReadModel?>(null);
 }
 
 internal sealed class FakeTrackWriteRepo : ColdHarbour.Application.Library.Ports.ITrackRepository
@@ -167,6 +175,7 @@ internal sealed class FakeReconciler : ColdHarbour.Application.Library.Ports.ILi
 internal sealed class FakeArtwork : ColdHarbour.Application.Library.Ports.IArtworkService
 {
     public Task<string?> GetThumbnailPathAsync(Guid albumId, int size, CancellationToken ct = default) => Task.FromResult<string?>(null);
+    public Task<string?> GetCoverArtSha1Async(Guid albumId, CancellationToken ct = default) => Task.FromResult<string?>(null);
 }
 
 // ── dedicated factory for auth tests ─────────────────────────────────────────

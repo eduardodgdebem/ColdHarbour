@@ -76,4 +76,141 @@ public class LibraryReadRepositoryTests : IAsyncLifetime
             t.AlbumId.Should().NotBeEmpty();
         }
     }
+
+    [Fact]
+    public async Task GetAlbumsAsync_ReturnsAlbumWithArtistYearCoverAndTrackCount()
+    {
+        var sha1 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        Guid albumId;
+
+        await using (var ctx = CreateContext())
+        {
+            var artist = Artist.Create("Pink Floyd");
+            var album = Album.Create("The Wall", artist.Id, 1979);
+            album.UpdateCoverArt(sha1);
+            albumId = album.Id;
+            ctx.Artists.Add(artist);
+            ctx.Albums.Add(album);
+            ctx.Tracks.Add(Track.Create("Hey You", album.Id, TimeSpan.FromSeconds(280), "local", "flac", 900,
+                "cccccccccccccccccccccccccccccccccccccccc", trackNumber: 1));
+            ctx.Tracks.Add(Track.Create("Run Like Hell", album.Id, TimeSpan.FromSeconds(260), "local", "flac", 900,
+                "dddddddddddddddddddddddddddddddddddddddd", trackNumber: 2));
+            await ctx.SaveChangesAsync();
+        }
+
+        await using (var ctx = CreateContext())
+        {
+            var repo = new LibraryReadRepository(ctx);
+            var albums = await repo.GetAlbumsAsync();
+
+            albums.Should().ContainSingle();
+            var a = albums[0];
+            a.Id.Should().Be(albumId);
+            a.Title.Should().Be("The Wall");
+            a.ArtistName.Should().Be("Pink Floyd");
+            a.Year.Should().Be(1979);
+            a.CoverArtSha1.Should().Be(sha1);
+            a.TrackCount.Should().Be(2);
+        }
+    }
+
+    [Fact]
+    public async Task GetAlbumAsync_ReturnsDetailWithTracksOrderedByTrackNumber()
+    {
+        Guid albumId;
+
+        await using (var ctx = CreateContext())
+        {
+            var artist = Artist.Create("Pink Floyd");
+            var album = Album.Create("The Wall", artist.Id, 1979);
+            albumId = album.Id;
+            ctx.Artists.Add(artist);
+            ctx.Albums.Add(album);
+            ctx.Tracks.Add(Track.Create("Second", album.Id, TimeSpan.FromSeconds(200), "local", "flac", 900,
+                "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", trackNumber: 2));
+            ctx.Tracks.Add(Track.Create("First", album.Id, TimeSpan.FromSeconds(200), "local", "flac", 900,
+                "ffffffffffffffffffffffffffffffffffffffff", trackNumber: 1));
+            await ctx.SaveChangesAsync();
+        }
+
+        await using (var ctx = CreateContext())
+        {
+            var repo = new LibraryReadRepository(ctx);
+            var detail = await repo.GetAlbumAsync(albumId);
+
+            detail.Should().NotBeNull();
+            detail!.ArtistName.Should().Be("Pink Floyd");
+            detail.Tracks.Select(t => t.Title).Should().ContainInOrder("First", "Second");
+        }
+    }
+
+    [Fact]
+    public async Task GetAlbumAsync_ReturnsNull_WhenMissing()
+    {
+        await using var ctx = CreateContext();
+        var repo = new LibraryReadRepository(ctx);
+
+        (await repo.GetAlbumAsync(Guid.NewGuid())).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetArtistsAsync_ReturnsArtistWithAlbumCount()
+    {
+        Guid artistId;
+
+        await using (var ctx = CreateContext())
+        {
+            var artist = Artist.Create("Radiohead");
+            artistId = artist.Id;
+            ctx.Artists.Add(artist);
+            ctx.Albums.Add(Album.Create("OK Computer", artist.Id, 1997));
+            ctx.Albums.Add(Album.Create("In Rainbows", artist.Id, 2007));
+            await ctx.SaveChangesAsync();
+        }
+
+        await using (var ctx = CreateContext())
+        {
+            var repo = new LibraryReadRepository(ctx);
+            var artists = await repo.GetArtistsAsync();
+
+            artists.Should().ContainSingle();
+            artists[0].Id.Should().Be(artistId);
+            artists[0].Name.Should().Be("Radiohead");
+            artists[0].AlbumCount.Should().Be(2);
+        }
+    }
+
+    [Fact]
+    public async Task GetArtistAsync_ReturnsDetailWithAlbums()
+    {
+        Guid artistId;
+
+        await using (var ctx = CreateContext())
+        {
+            var artist = Artist.Create("Radiohead");
+            artistId = artist.Id;
+            ctx.Artists.Add(artist);
+            ctx.Albums.Add(Album.Create("OK Computer", artist.Id, 1997));
+            await ctx.SaveChangesAsync();
+        }
+
+        await using (var ctx = CreateContext())
+        {
+            var repo = new LibraryReadRepository(ctx);
+            var detail = await repo.GetArtistAsync(artistId);
+
+            detail.Should().NotBeNull();
+            detail!.Name.Should().Be("Radiohead");
+            detail.Albums.Should().ContainSingle(a => a.Title == "OK Computer");
+        }
+    }
+
+    [Fact]
+    public async Task GetArtistAsync_ReturnsNull_WhenMissing()
+    {
+        await using var ctx = CreateContext();
+        var repo = new LibraryReadRepository(ctx);
+
+        (await repo.GetArtistAsync(Guid.NewGuid())).Should().BeNull();
+    }
 }

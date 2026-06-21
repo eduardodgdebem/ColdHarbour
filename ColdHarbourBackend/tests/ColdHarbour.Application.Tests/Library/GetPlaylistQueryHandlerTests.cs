@@ -152,5 +152,17 @@ public sealed class GetPlaylistQueryHandlerTests
     {
         public Task<IReadOnlyList<TrackReadModel>> GetAllTracksAsync(CancellationToken ct = default)
             => Task.FromResult(tracks);
+
+        public Task<IReadOnlyList<AlbumReadModel>> GetAlbumsAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<AlbumReadModel>>([]);
+
+        public Task<AlbumDetailReadModel?> GetAlbumAsync(Guid albumId, CancellationToken ct = default)
+            => Task.FromResult<AlbumDetailReadModel?>(null);
+
+        public Task<IReadOnlyList<ArtistReadModel>> GetArtistsAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ArtistReadModel>>([]);
+
+        public Task<ArtistDetailReadModel?> GetArtistAsync(Guid artistId, CancellationToken ct = default)
+            => Task.FromResult<ArtistDetailReadModel?>(null);
     }
 }

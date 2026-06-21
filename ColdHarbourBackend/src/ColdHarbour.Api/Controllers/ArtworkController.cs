@@ -23,7 +23,10 @@ public sealed class ArtworkController(IArtworkService artworkService) : Controll
         if (path is null)
             return NotFound();
 
-        Response.Headers.ETag = $"\"{albumId}-{size}\"";
+        // ETag is versioned by the cover sha1 so a re-uploaded cover invalidates the
+        // otherwise-immutable cached response (clients also pass ?v={sha1} on the URL).
+        var sha1 = await artworkService.GetCoverArtSha1Async(albumId, ct);
+        Response.Headers.ETag = $"\"{albumId}-{size}-{sha1}\"";
         Response.Headers.CacheControl = "public, max-age=31536000, immutable";
         return PhysicalFile(path, "image/webp");
     }

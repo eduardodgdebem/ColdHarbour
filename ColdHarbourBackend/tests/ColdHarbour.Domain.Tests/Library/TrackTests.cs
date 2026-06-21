@@ -114,4 +114,58 @@ public class TrackTests
 
         track.IntegrityStatus.Should().Be(status);
     }
+
+    [Fact]
+    public void UpdateMetadata_WithValidInputs_UpdatesTitleAndTrackNumber()
+    {
+        var track = Track.Create("Old", ValidAlbumId, ValidDuration, "local", "flac", 320, ValidSha1);
+
+        track.UpdateMetadata("Comfortably Numb", 6);
+
+        track.Title.Should().Be("Comfortably Numb");
+        track.TrackNumber.Should().Be(6);
+    }
+
+    [Fact]
+    public void UpdateMetadata_TrimsTitle()
+    {
+        var track = Track.Create("Old", ValidAlbumId, ValidDuration, "local", "flac", 320, ValidSha1);
+
+        track.UpdateMetadata("  Hey You  ", null);
+
+        track.Title.Should().Be("Hey You");
+    }
+
+    [Fact]
+    public void UpdateMetadata_AllowsNullTrackNumber()
+    {
+        var track = Track.Create("Old", ValidAlbumId, ValidDuration, "local", "flac", 320, ValidSha1, trackNumber: 3);
+
+        track.UpdateMetadata("Old", null);
+
+        track.TrackNumber.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void UpdateMetadata_WithBlankTitle_Throws(string? title)
+    {
+        var track = Track.Create("Old", ValidAlbumId, ValidDuration, "local", "flac", 320, ValidSha1);
+
+        var act = () => track.UpdateMetadata(title!, 1);
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void UpdateMetadata_WithNegativeTrackNumber_Throws()
+    {
+        var track = Track.Create("Old", ValidAlbumId, ValidDuration, "local", "flac", 320, ValidSha1);
+
+        var act = () => track.UpdateMetadata("Old", -1);
+
+        act.Should().Throw<ArgumentException>();
+    }
 }

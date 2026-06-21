@@ -71,4 +71,16 @@ public class Track
     }
 
     public void FlagIntegrity(string status) => IntegrityStatus = status;
+
+    public void UpdateMetadata(string title, int? trackNumber)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            throw new ArgumentException("Track title must not be null or whitespace.", nameof(title));
+
+        if (trackNumber is < 0)
+            throw new ArgumentException("Track number must be zero or positive.", nameof(trackNumber));
+
+        Title = title.Trim();
+        TrackNumber = trackNumber;
+    }
 }

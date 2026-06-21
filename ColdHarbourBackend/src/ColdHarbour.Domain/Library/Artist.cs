@@ -18,4 +18,12 @@ public class Artist
             Name = name.Trim()
         };
     }
+
+    public void Rename(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Artist name must not be null or whitespace.", nameof(name));
+
+        Name = name.Trim();
+    }
 }

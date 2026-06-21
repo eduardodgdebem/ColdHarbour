@@ -33,6 +33,15 @@ public class Album
         };
     }
 
+    public void UpdateMetadata(string title, int? year)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            throw new ArgumentException("Album title must not be null or whitespace.", nameof(title));
+
+        Title = title.Trim();
+        Year = year;
+    }
+
     public void UpdateCoverArt(string? sha1)
     {
         if (sha1 != null && !Sha1Regex.IsMatch(sha1))

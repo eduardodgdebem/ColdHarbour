@@ -24,4 +24,27 @@ public class ArtistTests
 
         act.Should().Throw<ArgumentException>();
     }
+
+    [Fact]
+    public void Rename_WithValidName_UpdatesAndTrims()
+    {
+        var artist = Artist.Create("Pink Floid");
+
+        artist.Rename("  Pink Floyd  ");
+
+        artist.Name.Should().Be("Pink Floyd");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Rename_WithBlankName_Throws(string? name)
+    {
+        var artist = Artist.Create("Pink Floyd");
+
+        var act = () => artist.Rename(name!);
+
+        act.Should().Throw<ArgumentException>();
+    }
 }

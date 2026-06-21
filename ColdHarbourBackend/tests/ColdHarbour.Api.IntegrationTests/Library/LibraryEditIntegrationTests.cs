@@ -1,12 +1,13 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
-using System.Text.Json;
 using ColdHarbour.Application.Identity.Ports;
 using ColdHarbour.Application.Library.Ports;
 using ColdHarbour.Domain.Identity;
+using ColdHarbour.Domain.Library;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -17,34 +18,25 @@ using Microsoft.IdentityModel.Tokens;
 namespace ColdHarbour.Api.IntegrationTests.Library;
 
 [Collection("IntegrationTests")]
-public class AlbumArtistIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+public class LibraryEditIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private const string TestSigningKey = "coldharbour-test-signing-key-32bytes!!";
     private const string TestIssuer = "coldharbour";
     private const string TestAudience = "coldharbour-web";
 
-    private static readonly Guid ArtistId = Guid.Parse("11111111-0000-0000-0000-000000000001");
-    private static readonly Guid AlbumId = Guid.Parse("22222222-0000-0000-0000-000000000001");
-    private static readonly Guid TrackId = Guid.Parse("33333333-0000-0000-0000-000000000001");
-    private const string Sha1 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-
-    private static readonly AlbumReadModel Album = new(
-        AlbumId, "The Wall", ArtistId, "Pink Floyd", 1979, Sha1, 1);
-
-    private static readonly AlbumDetailReadModel AlbumDetail = new(
-        AlbumId, "The Wall", ArtistId, "Pink Floyd", 1979, Sha1,
-        [new TrackReadModel(TrackId, AlbumId, "Comfortably Numb", "Pink Floyd", "The Wall",
-            TimeSpan.FromSeconds(382), "/x.flac", "flac", 900)]);
-
-    private static readonly ArtistReadModel Artist = new(ArtistId, "Pink Floyd", 1);
-    private static readonly ArtistDetailReadModel ArtistDetail = new(ArtistId, "Pink Floyd", [Album]);
-
-    private static readonly string TempThumb = CreateTempWebp();
-    private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
-
+    private static readonly MutableLibraryRepo Repo = BuildRepo();
     private readonly HttpClient _client;
 
-    public AlbumArtistIntegrationTests(WebApplicationFactory<Program> factory)
+    private static MutableLibraryRepo BuildRepo()
+    {
+        var artist = Artist.Create("Pink Floyd");
+        var album = Album.Create("The Wal", artist.Id, 1978);
+        var track = Track.Create("Comfortably Num", album.Id, TimeSpan.FromSeconds(382),
+            "local", "flac", 900, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", trackNumber: 5);
+        return new MutableLibraryRepo(track, album, artist);
+    }
+
+    public LibraryEditIntegrationTests(WebApplicationFactory<Program> factory)
     {
         _client = factory.WithWebHostBuilder(builder =>
         {
@@ -64,14 +56,12 @@ public class AlbumArtistIntegrationTests : IClassFixture<WebApplicationFactory<P
                 services.RemoveAll(typeof(Microsoft.EntityFrameworkCore.DbContextOptions<
                     ColdHarbour.Infrastructure.Persistence.ColdHarbourDbContext>));
 
-                services.RemoveAll<ILibraryReadRepository>();
-                services.AddScoped<ILibraryReadRepository>(_ => new FakeReadRepo());
-
-                services.RemoveAll<IArtworkService>();
-                services.AddScoped<IArtworkService>(_ => new FakeArtwork());
-
                 services.RemoveAll<ITrackRepository>();
-                services.AddScoped<ITrackRepository>(_ => new NoopTrackRepo());
+                services.AddScoped<ITrackRepository>(_ => Repo);
+                services.RemoveAll<IArtworkService>();
+                services.AddScoped<IArtworkService>(_ => new CoverArtwork());
+                services.RemoveAll<ILibraryReadRepository>();
+                services.AddScoped<ILibraryReadRepository>(_ => new EmptyReadRepo());
                 services.RemoveAll<ITrackIngestService>();
                 services.AddScoped<ITrackIngestService>(_ => new NoopIngest());
                 services.RemoveAll<ILibraryReconciler>();
@@ -104,13 +94,6 @@ public class AlbumArtistIntegrationTests : IClassFixture<WebApplicationFactory<P
             new AuthenticationHeaderValue("Bearer", GenerateTestToken());
     }
 
-    private static string CreateTempWebp()
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"ch-test-{Guid.NewGuid()}.webp");
-        File.WriteAllBytes(path, [0x52, 0x49, 0x46, 0x46]); // "RIFF" — content irrelevant for header test
-        return path;
-    }
-
     private static string GenerateTestToken()
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(TestSigningKey));
@@ -122,139 +105,136 @@ public class AlbumArtistIntegrationTests : IClassFixture<WebApplicationFactory<P
     }
 
     [Fact]
-    public async Task GetAlbums_ReturnsListWithImageRefVersion()
+    public async Task PatchTrack_UpdatesTitle_Returns204()
     {
-        var res = await _client.GetAsync("/api/albums");
-        res.StatusCode.Should().Be(HttpStatusCode.OK);
+        var res = await _client.PatchAsJsonAsync($"/api/tracks/{Repo.Track.Id}",
+            new { title = "Comfortably Numb", trackNumber = 6 });
 
-        var albums = JsonSerializer.Deserialize<List<AlbumSummaryResponse>>(
-            await res.Content.ReadAsStringAsync(), Json)!;
-
-        albums.Should().ContainSingle();
-        albums[0].Title.Should().Be("The Wall");
-        albums[0].ImageRef.Should().Be($"/api/artwork/{AlbumId}?size=256&v={Sha1}");
+        res.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        Repo.Track.Title.Should().Be("Comfortably Numb");
+        Repo.Track.TrackNumber.Should().Be(6);
     }
 
     [Fact]
-    public async Task GetAlbum_ReturnsDetailWithTracks()
+    public async Task PatchTrack_Returns404_WhenUnknown()
     {
-        var res = await _client.GetAsync($"/api/albums/{AlbumId}");
-        res.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        var detail = JsonSerializer.Deserialize<AlbumDetailResponse>(
-            await res.Content.ReadAsStringAsync(), Json)!;
-
-        detail.Title.Should().Be("The Wall");
-        detail.Tracks.Should().ContainSingle();
-        detail.Tracks[0].AudioRef.Should().Be($"/api/stream/{TrackId}");
-    }
-
-    [Fact]
-    public async Task GetAlbum_Returns404_WhenUnknown()
-    {
-        var res = await _client.GetAsync($"/api/albums/{Guid.NewGuid()}");
+        var res = await _client.PatchAsJsonAsync($"/api/tracks/{Guid.NewGuid()}",
+            new { title = "X", trackNumber = (int?)null });
         res.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     [Fact]
-    public async Task GetArtists_ReturnsList()
+    public async Task PatchTrack_Returns400_WhenTitleBlank()
     {
-        var res = await _client.GetAsync("/api/artists");
-        res.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        var artists = JsonSerializer.Deserialize<List<ArtistSummaryResponse>>(
-            await res.Content.ReadAsStringAsync(), Json)!;
-
-        artists.Should().ContainSingle(a => a.Name == "Pink Floyd" && a.AlbumCount == 1);
+        var res = await _client.PatchAsJsonAsync($"/api/tracks/{Repo.Track.Id}",
+            new { title = "", trackNumber = (int?)null });
+        res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task GetArtist_Returns404_WhenUnknown()
+    public async Task PatchAlbum_UpdatesMetadata_Returns204()
     {
-        var res = await _client.GetAsync($"/api/artists/{Guid.NewGuid()}");
+        var res = await _client.PatchAsJsonAsync($"/api/albums/{Repo.Album.Id}",
+            new { title = "The Wall", year = 1979 });
+
+        res.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        Repo.Album.Title.Should().Be("The Wall");
+        Repo.Album.Year.Should().Be(1979);
+    }
+
+    [Fact]
+    public async Task PatchAlbum_Returns404_WhenUnknown()
+    {
+        var res = await _client.PatchAsJsonAsync($"/api/albums/{Guid.NewGuid()}",
+            new { title = "X", year = (int?)null });
         res.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     [Fact]
-    public async Task Artwork_ETag_IncludesCoverSha1()
+    public async Task PatchArtist_Renames_Returns204()
     {
-        var res = await _client.GetAsync($"/api/artwork/{AlbumId}?size=256");
-        res.StatusCode.Should().Be(HttpStatusCode.OK);
-        res.Headers.ETag!.Tag.Should().Be($"\"{AlbumId}-256-{Sha1}\"");
+        var res = await _client.PatchAsJsonAsync($"/api/artists/{Repo.Artist.Id}",
+            new { name = "Pink Floyd!" });
+
+        res.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        Repo.Artist.Name.Should().Be("Pink Floyd!");
     }
 
-    // ── responses ────────────────────────────────────────────────────────────────
-
-    private sealed class AlbumSummaryResponse
+    [Fact]
+    public async Task PatchArtist_Returns404_WhenUnknown()
     {
-        public Guid Id { get; init; }
-        public string Title { get; init; } = "";
-        public string ImageRef { get; init; } = "";
-        public int TrackCount { get; init; }
+        var res = await _client.PatchAsJsonAsync($"/api/artists/{Guid.NewGuid()}",
+            new { name = "X" });
+        res.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    private sealed class AlbumDetailResponse
+    [Fact]
+    public async Task PostCover_Returns204_AndSetsSha1()
     {
-        public string Title { get; init; } = "";
-        public List<MusicResponse> Tracks { get; init; } = [];
+        using var form = new MultipartFormDataContent();
+        var img = new ByteArrayContent([0xFF, 0xD8, 0xFF, 0x00]);
+        img.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+        form.Add(img, "file", "cover.jpg");
+
+        var res = await _client.PostAsync($"/api/albums/{Repo.Album.Id}/cover", form);
+
+        res.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        Repo.Album.CoverArtSha1.Should().Be("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
     }
 
-    private sealed class MusicResponse
+    [Fact]
+    public async Task PostCover_Returns400_WhenNoFile()
     {
-        public string AudioRef { get; init; } = "";
-        public string ImageRef { get; init; } = "";
-    }
-
-    private sealed class ArtistSummaryResponse
-    {
-        public string Name { get; init; } = "";
-        public int AlbumCount { get; init; }
+        using var form = new MultipartFormDataContent();
+        var res = await _client.PostAsync($"/api/albums/{Repo.Album.Id}/cover", form);
+        res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     // ── stubs ────────────────────────────────────────────────────────────────────
 
-    private sealed class FakeReadRepo : ILibraryReadRepository
+    private sealed class CoverArtwork : IArtworkService
     {
-        public Task<IReadOnlyList<TrackReadModel>> GetAllTracksAsync(CancellationToken ct = default)
-            => Task.FromResult<IReadOnlyList<TrackReadModel>>([]);
-        public Task<IReadOnlyList<AlbumReadModel>> GetAlbumsAsync(CancellationToken ct = default)
-            => Task.FromResult<IReadOnlyList<AlbumReadModel>>([Album]);
-        public Task<AlbumDetailReadModel?> GetAlbumAsync(Guid albumId, CancellationToken ct = default)
-            => Task.FromResult<AlbumDetailReadModel?>(albumId == AlbumId ? AlbumDetail : null);
-        public Task<IReadOnlyList<ArtistReadModel>> GetArtistsAsync(CancellationToken ct = default)
-            => Task.FromResult<IReadOnlyList<ArtistReadModel>>([Artist]);
-        public Task<ArtistDetailReadModel?> GetArtistAsync(Guid artistId, CancellationToken ct = default)
-            => Task.FromResult<ArtistDetailReadModel?>(artistId == ArtistId ? ArtistDetail : null);
-    }
-
-    private sealed class FakeArtwork : IArtworkService
-    {
-        public Task<string?> GetThumbnailPathAsync(Guid albumId, int size, CancellationToken ct = default)
-            => Task.FromResult<string?>(albumId == AlbumId ? TempThumb : null);
-        public Task<string?> GetCoverArtSha1Async(Guid albumId, CancellationToken ct = default)
-            => Task.FromResult<string?>(albumId == AlbumId ? Sha1 : null);
+        public Task<string?> GetThumbnailPathAsync(Guid albumId, int size, CancellationToken ct = default) => Task.FromResult<string?>(null);
+        public Task<string?> GetCoverArtSha1Async(Guid albumId, CancellationToken ct = default) => Task.FromResult<string?>(null);
         public Task<string> SaveSourceAsync(Stream content, string contentType, CancellationToken ct = default)
-            => Task.FromResult(Sha1);
+            => Task.FromResult("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
     }
 
-    private sealed class NoopTrackRepo : ITrackRepository
+    private sealed class MutableLibraryRepo(Track track, Album album, Artist artist) : ITrackRepository
     {
-        public Task<ColdHarbour.Domain.Library.Track?> FindByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Track?>(null);
-        public Task<ColdHarbour.Domain.Library.Track?> FindByAudioSha1Async(string s, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Track?>(null);
-        public Task<ColdHarbour.Domain.Library.Artist?> FindArtistByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Artist?>(null);
-        public Task<ColdHarbour.Domain.Library.Artist?> FindArtistByNameAsync(string n, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Artist?>(null);
-        public Task<ColdHarbour.Domain.Library.Album?> FindAlbumByArtistAndTitleAsync(Guid a, string t, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Album?>(null);
-        public Task<ColdHarbour.Domain.Library.Album?> FindAlbumByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<ColdHarbour.Domain.Library.Album?>(null);
-        public Task<int> CountTracksByAlbumIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult(0);
-        public Task<int> CountAlbumsByArtistIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult(0);
-        public Task AddArtistAsync(ColdHarbour.Domain.Library.Artist a, CancellationToken ct = default) => Task.CompletedTask;
-        public Task AddAlbumAsync(ColdHarbour.Domain.Library.Album a, CancellationToken ct = default) => Task.CompletedTask;
-        public Task AddTrackAsync(ColdHarbour.Domain.Library.Track t, CancellationToken ct = default) => Task.CompletedTask;
-        public void RemoveTrack(ColdHarbour.Domain.Library.Track t) { }
-        public void RemoveAlbum(ColdHarbour.Domain.Library.Album a) { }
-        public void RemoveArtist(ColdHarbour.Domain.Library.Artist a) { }
+        public Track Track { get; } = track;
+        public Album Album { get; } = album;
+        public Artist Artist { get; } = artist;
+
+        public Task<Track?> FindByIdAsync(Guid trackId, CancellationToken ct = default)
+            => Task.FromResult<Track?>(trackId == Track.Id ? Track : null);
+        public Task<Album?> FindAlbumByIdAsync(Guid albumId, CancellationToken ct = default)
+            => Task.FromResult<Album?>(albumId == Album.Id ? Album : null);
+        public Task<Artist?> FindArtistByIdAsync(Guid artistId, CancellationToken ct = default)
+            => Task.FromResult<Artist?>(artistId == Artist.Id ? Artist : null);
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
-        public Task<List<ColdHarbour.Domain.Library.Track>> GetLocalTrackSampleAsync(int maxCount, CancellationToken ct = default) => Task.FromResult(new List<ColdHarbour.Domain.Library.Track>());
+
+        public Task<Track?> FindByAudioSha1Async(string audioSha1, CancellationToken ct = default) => Task.FromResult<Track?>(null);
+        public Task<Artist?> FindArtistByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<Artist?>(null);
+        public Task<Album?> FindAlbumByArtistAndTitleAsync(Guid artistId, string title, CancellationToken ct = default) => Task.FromResult<Album?>(null);
+        public Task<int> CountTracksByAlbumIdAsync(Guid albumId, CancellationToken ct = default) => Task.FromResult(0);
+        public Task<int> CountAlbumsByArtistIdAsync(Guid artistId, CancellationToken ct = default) => Task.FromResult(0);
+        public Task AddArtistAsync(Artist a, CancellationToken ct = default) => Task.CompletedTask;
+        public Task AddAlbumAsync(Album a, CancellationToken ct = default) => Task.CompletedTask;
+        public Task AddTrackAsync(Track t, CancellationToken ct = default) => Task.CompletedTask;
+        public void RemoveTrack(Track t) { }
+        public void RemoveAlbum(Album a) { }
+        public void RemoveArtist(Artist a) { }
+        public Task<List<Track>> GetLocalTrackSampleAsync(int maxCount, CancellationToken ct = default) => Task.FromResult(new List<Track>());
+    }
+
+    private sealed class EmptyReadRepo : ILibraryReadRepository
+    {
+        public Task<IReadOnlyList<TrackReadModel>> GetAllTracksAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<TrackReadModel>>([]);
+        public Task<IReadOnlyList<AlbumReadModel>> GetAlbumsAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<AlbumReadModel>>([]);
+        public Task<AlbumDetailReadModel?> GetAlbumAsync(Guid albumId, CancellationToken ct = default) => Task.FromResult<AlbumDetailReadModel?>(null);
+        public Task<IReadOnlyList<ArtistReadModel>> GetArtistsAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<ArtistReadModel>>([]);
+        public Task<ArtistDetailReadModel?> GetArtistAsync(Guid artistId, CancellationToken ct = default) => Task.FromResult<ArtistDetailReadModel?>(null);
     }
 
     private sealed class NoopIngest : ITrackIngestService

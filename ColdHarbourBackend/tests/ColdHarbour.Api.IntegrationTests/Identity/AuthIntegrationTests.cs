@@ -176,6 +176,7 @@ internal sealed class FakeArtwork : ColdHarbour.Application.Library.Ports.IArtwo
 {
     public Task<string?> GetThumbnailPathAsync(Guid albumId, int size, CancellationToken ct = default) => Task.FromResult<string?>(null);
     public Task<string?> GetCoverArtSha1Async(Guid albumId, CancellationToken ct = default) => Task.FromResult<string?>(null);
+    public Task<string> SaveSourceAsync(Stream content, string contentType, CancellationToken ct = default) => Task.FromResult("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 }
 
 // ── dedicated factory for auth tests ─────────────────────────────────────────

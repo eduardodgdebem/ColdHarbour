@@ -153,6 +153,7 @@ public sealed class HealthTestFactory : WebApplicationFactory<Program>
     {
         public Task<string?> GetThumbnailPathAsync(Guid id, int size, CancellationToken ct = default) => Task.FromResult<string?>(null);
         public Task<string?> GetCoverArtSha1Async(Guid id, CancellationToken ct = default) => Task.FromResult<string?>(null);
+        public Task<string> SaveSourceAsync(System.IO.Stream content, string contentType, CancellationToken ct = default) => Task.FromResult("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     }
 
     private sealed class NullDeviceRepo : IDeviceRepository

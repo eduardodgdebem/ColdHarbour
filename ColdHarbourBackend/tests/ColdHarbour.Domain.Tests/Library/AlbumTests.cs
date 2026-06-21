@@ -76,4 +76,48 @@ public class AlbumTests
 
         act.Should().Throw<ArgumentException>();
     }
+
+    [Fact]
+    public void UpdateMetadata_WithValidInputs_UpdatesTitleAndYear()
+    {
+        var album = Album.Create("The Wal", ValidArtistId, 1978);
+
+        album.UpdateMetadata("The Wall", 1979);
+
+        album.Title.Should().Be("The Wall");
+        album.Year.Should().Be(1979);
+    }
+
+    [Fact]
+    public void UpdateMetadata_TrimsTitle()
+    {
+        var album = Album.Create("X", ValidArtistId);
+
+        album.UpdateMetadata("  The Wall  ", null);
+
+        album.Title.Should().Be("The Wall");
+    }
+
+    [Fact]
+    public void UpdateMetadata_AllowsNullYear()
+    {
+        var album = Album.Create("The Wall", ValidArtistId, 1979);
+
+        album.UpdateMetadata("The Wall", null);
+
+        album.Year.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void UpdateMetadata_WithBlankTitle_Throws(string? title)
+    {
+        var album = Album.Create("The Wall", ValidArtistId);
+
+        var act = () => album.UpdateMetadata(title!, 1979);
+
+        act.Should().Throw<ArgumentException>();
+    }
 }

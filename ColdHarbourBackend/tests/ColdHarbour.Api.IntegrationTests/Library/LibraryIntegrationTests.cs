@@ -261,6 +261,8 @@ public sealed class LibraryTestFactory : WebApplicationFactory<Program>
             => Task.FromResult(_path);
         public Task<string?> GetCoverArtSha1Async(Guid albumId, CancellationToken ct = default)
             => Task.FromResult<string?>(null);
+        public Task<string> SaveSourceAsync(Stream content, string contentType, CancellationToken ct = default)
+            => Task.FromResult("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     }
 
     // ── minimal stubs ─────────────────────────────────────────────────────────────

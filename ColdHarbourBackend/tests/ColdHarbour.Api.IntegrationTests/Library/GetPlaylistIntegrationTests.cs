@@ -298,6 +298,7 @@ public class GetPlaylistIntegrationTests : IClassFixture<WebApplicationFactory<P
     {
         public Task<string?> GetThumbnailPathAsync(Guid albumId, int size, CancellationToken ct = default) => Task.FromResult<string?>(null);
         public Task<string?> GetCoverArtSha1Async(Guid albumId, CancellationToken ct = default) => Task.FromResult<string?>(null);
+        public Task<string> SaveSourceAsync(Stream content, string contentType, CancellationToken ct = default) => Task.FromResult("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     }
 
     private sealed class NullDeviceRepo : ColdHarbour.Application.Playback.Ports.IDeviceRepository

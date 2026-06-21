@@ -10,3 +10,4 @@ export { BadgeComponent } from './badge/badge.component';
 export type { BadgeVariant } from './badge/badge.component';
 export { BackButtonComponent } from './back-button/back-button.component';
 export type { BackButtonVariant } from './back-button/back-button.component';
+export { AlbumCardComponent } from './album-card/album-card.component';

@@ -1,6 +1,10 @@
 import { Routes } from '@angular/router';
 import { HomePageComponent } from './features/home/pages/home-page/home-page.component';
 import { LibraryPageComponent } from './features/library/pages/library-page/library-page.component';
+import { AlbumsPageComponent } from './features/browse/pages/albums-page/albums-page.component';
+import { AlbumDetailPageComponent } from './features/browse/pages/album-detail-page/album-detail-page.component';
+import { ArtistsPageComponent } from './features/browse/pages/artists-page/artists-page.component';
+import { ArtistDetailPageComponent } from './features/browse/pages/artist-detail-page/artist-detail-page.component';
 import { LoginPageComponent } from './features/auth/pages/login-page/login-page.component';
 import { DevicesPageComponent } from './features/devices/pages/devices-page/devices-page.component';
 import { AccountPageComponent } from './features/account/pages/account-page/account-page.component';
@@ -24,6 +28,26 @@ export const routes: Routes = [
   {
     path: 'library',
     component: LibraryPageComponent,
+    canActivate: [authGuard],
+  },
+  {
+    path: 'albums',
+    component: AlbumsPageComponent,
+    canActivate: [authGuard],
+  },
+  {
+    path: 'albums/:id',
+    component: AlbumDetailPageComponent,
+    canActivate: [authGuard],
+  },
+  {
+    path: 'artists',
+    component: ArtistsPageComponent,
+    canActivate: [authGuard],
+  },
+  {
+    path: 'artists/:id',
+    component: ArtistDetailPageComponent,
     canActivate: [authGuard],
   },
   {

@@ -20,6 +20,7 @@ See `docs/FRONTEND_MIGRATION.md` for the phased plan that introduces and consume
 | `ModalComponent` | `<app-modal>` | Overlay dialog with `isOpen` input + `(close)` output. Backdrop click and ESC dismiss; body + footer slots. |
 | `BadgeComponent` | `<app-badge>` | Inline pill with `default | active | accent` variants. |
 | `BackButtonComponent` | `<app-back-button>` | `← BACK` button wired to `Location.back()`. `default | inverse` variants for light vs dark headers. |
+| `AlbumCardComponent` | `<app-album-card>` | Brutalist cover tile (art + title + subtitle + meta) linking to a route. Primitive inputs only — no API-type coupling. Used for album & collection grids. |
 
 ## Conventions
 

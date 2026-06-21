@@ -1,0 +1,21 @@
+<a class="album-card" [routerLink]="link()">
+  <div class="album-card__art">
+    @if (coverRef() && !imageError()) {
+      <img [src]="coverRef()" [alt]="title()" (error)="onImageError()" />
+    } @else {
+      <div class="album-card__art-placeholder">
+        <span class="album-card__art-glyph">◼</span>
+      </div>
+    }
+    <span class="album-card__arrow">→</span>
+  </div>
+  <div class="album-card__meta">
+    <span class="album-card__title">{{ title() }}</span>
+    @if (subtitle()) {
+      <span class="album-card__sub">{{ subtitle() }}</span>
+    }
+    @if (meta()) {
+      <span class="album-card__count">{{ meta() }}</span>
+    }
+  </div>
+</a>

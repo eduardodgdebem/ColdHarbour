@@ -1,0 +1,27 @@
+<section class="browse">
+  <header class="browse__header">
+    <app-back-button variant="inverse" />
+    <div class="browse__id">
+      <h1 class="browse__title">ARTISTS</h1>
+      <span class="browse__stats">// {{ browse.artists().length }} ACTS</span>
+    </div>
+  </header>
+
+  @if (browse.artistsLoading()) {
+    <p class="browse__loading">// LOADING ARTISTS…</p>
+  } @else if (browse.artistsError()) {
+    <p class="browse__error">// {{ browse.artistsError() }}</p>
+  } @else if (browse.artists().length === 0) {
+    <p class="browse__empty">// NO ARTISTS IN THE HARBOUR YET.</p>
+  } @else {
+    <div class="browse__grid browse__grid--artists">
+      @for (artist of browse.artists(); track artist.id) {
+        <a class="artist-card" [routerLink]="['/artists', artist.id]">
+          <span class="artist-card__name">{{ artist.name }}</span>
+          <span class="artist-card__count">{{ meta(artist.albumCount) }}</span>
+          <span class="artist-card__arrow">→</span>
+        </a>
+      }
+    </div>
+  }
+</section>

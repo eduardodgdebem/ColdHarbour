@@ -1,0 +1,31 @@
+<section class="browse">
+  <header class="browse__header">
+    <app-back-button variant="inverse" />
+    <div class="browse__id">
+      <h1 class="browse__title">ALBUMS</h1>
+      <span class="browse__stats"
+        >// {{ browse.albums().length }} COLLECTIONS</span
+      >
+    </div>
+  </header>
+
+  @if (browse.albumsLoading()) {
+    <p class="browse__loading">// LOADING ALBUMS…</p>
+  } @else if (browse.albumsError()) {
+    <p class="browse__error">// {{ browse.albumsError() }}</p>
+  } @else if (browse.albums().length === 0) {
+    <p class="browse__empty">// NO ALBUMS IN THE HARBOUR YET.</p>
+  } @else {
+    <div class="browse__grid">
+      @for (album of browse.albums(); track album.id) {
+        <app-album-card
+          [title]="album.title"
+          [subtitle]="album.artist"
+          [meta]="meta(album.trackCount)"
+          [coverRef]="album.imageRef"
+          [link]="['/albums', album.id]"
+        />
+      }
+    </div>
+  }
+</section>

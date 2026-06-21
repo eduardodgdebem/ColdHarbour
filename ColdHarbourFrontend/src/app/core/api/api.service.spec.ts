@@ -114,4 +114,81 @@ describe('ApiService', () => {
     expect(req.request.method).toBe('GET');
     req.flush(serverResponse);
   });
+
+  describe('browse: albums & artists', () => {
+    it('getAlbums GETs /api/albums', () => {
+      let result: unknown;
+      service.getAlbums().subscribe((a) => (result = a));
+      const req = httpMock.expectOne('/api/albums');
+      expect(req.request.method).toBe('GET');
+      req.flush([
+        {
+          id: 'album-1',
+          title: 'The Wall',
+          artist: 'Pink Floyd',
+          artistId: 'artist-1',
+          year: 1979,
+          imageRef: '/api/artwork/album-1?size=256&v=abc',
+          trackCount: 2,
+        },
+      ]);
+      expect((result as { length: number }).length).toBe(1);
+    });
+
+    it('getAlbum GETs /api/albums/{id} and transforms track URLs', () => {
+      service.getAlbum('album-1').subscribe((album) => {
+        expect(album.title).toBe('The Wall');
+        expect(album.tracks[0].audioRef).toContain('/api/stream/track-1');
+        expect(album.tracks[0].imageRef).toContain('/api/artwork/album-1');
+      });
+      const req = httpMock.expectOne('/api/albums/album-1');
+      expect(req.request.method).toBe('GET');
+      req.flush({
+        id: 'album-1',
+        title: 'The Wall',
+        artist: 'Pink Floyd',
+        artistId: 'artist-1',
+        year: 1979,
+        imageRef: '/api/artwork/album-1?size=256',
+        tracks: [
+          makeMusic({
+            trackId: 'track-1',
+            audioRef: '/api/stream/track-1',
+            imageRef: '/api/artwork/album-1?size=256',
+          }),
+        ],
+      });
+    });
+
+    it('getArtists GETs /api/artists', () => {
+      service.getArtists().subscribe();
+      const req = httpMock.expectOne('/api/artists');
+      expect(req.request.method).toBe('GET');
+      req.flush([{ id: 'artist-1', name: 'Pink Floyd', albumCount: 1 }]);
+    });
+
+    it('getArtist GETs /api/artists/{id}', () => {
+      service.getArtist('artist-1').subscribe((artist) => {
+        expect(artist.name).toBe('Pink Floyd');
+        expect(artist.albums.length).toBe(1);
+      });
+      const req = httpMock.expectOne('/api/artists/artist-1');
+      expect(req.request.method).toBe('GET');
+      req.flush({
+        id: 'artist-1',
+        name: 'Pink Floyd',
+        albums: [
+          {
+            id: 'album-1',
+            title: 'The Wall',
+            artist: 'Pink Floyd',
+            artistId: 'artist-1',
+            year: 1979,
+            imageRef: '/api/artwork/album-1?size=256',
+            trackCount: 2,
+          },
+        ],
+      });
+    });
+  });
 });

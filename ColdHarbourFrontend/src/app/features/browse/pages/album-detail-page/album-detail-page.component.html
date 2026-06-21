@@ -1,0 +1,49 @@
+<section class="browse album-detail">
+  <header class="browse__header">
+    <app-back-button variant="inverse" />
+    <div class="browse__id">
+      <h1 class="browse__title">ALBUM</h1>
+    </div>
+  </header>
+
+  @if (browse.albumLoading()) {
+    <p class="browse__loading">// LOADING ALBUM…</p>
+  } @else if (browse.albumError()) {
+    <p class="browse__error">// {{ browse.albumError() }}</p>
+  } @else if (browse.album(); as album) {
+    <div class="album-hero">
+      <div class="album-hero__art">
+        @if (album.imageRef && !coverError()) {
+          <img
+            [src]="album.imageRef"
+            [alt]="album.title"
+            (error)="coverError.set(true)"
+          />
+        } @else {
+          <div class="album-hero__art-placeholder"><span>◼</span></div>
+        }
+      </div>
+      <div class="album-hero__meta">
+        <span class="album-hero__tag">// COLLECTION</span>
+        <h2 class="album-hero__title">{{ album.title }}</h2>
+        <a
+          class="album-hero__artist"
+          [routerLink]="['/artists', album.artistId]"
+        >
+          {{ album.artist }}
+        </a>
+        <span class="album-hero__stamp">
+          {{ yearLabel(album.year) }} ▮ {{ album.tracks.length }}
+          {{ album.tracks.length === 1 ? 'TRACK' : 'TRACKS' }}
+        </span>
+      </div>
+    </div>
+
+    <div class="album-detail__list">
+      <app-music-list
+        [musics]="album.tracks"
+        emptyMessage="NO TRACKS ON THIS ALBUM"
+      />
+    </div>
+  }
+</section>

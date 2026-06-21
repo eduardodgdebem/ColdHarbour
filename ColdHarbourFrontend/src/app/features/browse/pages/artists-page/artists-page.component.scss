@@ -1,0 +1,64 @@
+@use '../../browse-shared';
+
+.browse__grid--artists {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.artist-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  border: var(--border);
+  background: var(--off-white);
+  color: var(--black);
+  text-decoration: none;
+  transition:
+    transform 80ms steps(1),
+    box-shadow 80ms steps(1),
+    background 80ms steps(1);
+
+  &:hover,
+  &:focus-visible {
+    transform: translate(-3px, -3px);
+    box-shadow: 6px 6px 0 0 var(--black);
+    background: var(--accent);
+    outline: none;
+  }
+
+  &:active {
+    transform: translate(0, 0);
+    box-shadow: 0 0 0 0 var(--black);
+  }
+}
+
+.artist-card__name {
+  font-family: var(--font-headline);
+  font-size: 22px;
+  font-weight: 800;
+  text-transform: uppercase;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.artist-card__count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.artist-card:hover .artist-card__count,
+.artist-card:focus-visible .artist-card__count {
+  color: var(--black);
+}
+
+.artist-card__arrow {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+}

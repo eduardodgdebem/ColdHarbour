@@ -21,6 +21,38 @@ export type Playlist = {
   musics: Music[];
 };
 
+export type AlbumSummary = {
+  id: string;
+  title: string;
+  artist: string;
+  artistId: string;
+  year: number | null;
+  imageRef: string;
+  trackCount: number;
+};
+
+export type AlbumDetail = {
+  id: string;
+  title: string;
+  artist: string;
+  artistId: string;
+  year: number | null;
+  imageRef: string;
+  tracks: Music[];
+};
+
+export type ArtistSummary = {
+  id: string;
+  name: string;
+  albumCount: number;
+};
+
+export type ArtistDetail = {
+  id: string;
+  name: string;
+  albums: AlbumSummary[];
+};
+
 export type LibrarySyncItem = {
   path: string;
   title: string | null;
@@ -57,6 +89,43 @@ export class ApiService {
         })),
       })),
     );
+  }
+
+  getAlbums(): Observable<AlbumSummary[]> {
+    return this.http
+      .get<AlbumSummary[]>(`${this.API_URL}/albums`)
+      .pipe(map((albums) => albums.map((a) => this.withAlbumImage(a))));
+  }
+
+  getAlbum(id: string): Observable<AlbumDetail> {
+    return this.http.get<AlbumDetail>(`${this.API_URL}/albums/${id}`).pipe(
+      map((album) => ({
+        ...album,
+        imageRef: `${this.ASSETS_URL}${album.imageRef}`,
+        tracks: album.tracks.map((music) => ({
+          ...music,
+          audioRef: `${this.ASSETS_URL}${music.audioRef}`,
+          imageRef: `${this.ASSETS_URL}${music.imageRef}`,
+        })),
+      })),
+    );
+  }
+
+  getArtists(): Observable<ArtistSummary[]> {
+    return this.http.get<ArtistSummary[]>(`${this.API_URL}/artists`);
+  }
+
+  getArtist(id: string): Observable<ArtistDetail> {
+    return this.http.get<ArtistDetail>(`${this.API_URL}/artists/${id}`).pipe(
+      map((artist) => ({
+        ...artist,
+        albums: artist.albums.map((a) => this.withAlbumImage(a)),
+      })),
+    );
+  }
+
+  private withAlbumImage(album: AlbumSummary): AlbumSummary {
+    return { ...album, imageRef: `${this.ASSETS_URL}${album.imageRef}` };
   }
 
   uploadTrack(file: File): Observable<UploadResult> {

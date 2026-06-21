@@ -1,0 +1,39 @@
+<section class="browse">
+  <header class="browse__header">
+    <app-back-button variant="inverse" />
+    <div class="browse__id">
+      <h1 class="browse__title">ARTIST</h1>
+    </div>
+  </header>
+
+  @if (browse.artistLoading()) {
+    <p class="browse__loading">// LOADING ARTIST…</p>
+  } @else if (browse.artistError()) {
+    <p class="browse__error">// {{ browse.artistError() }}</p>
+  } @else if (browse.artist(); as artist) {
+    <div class="artist-hero">
+      <span class="artist-hero__tag">// ACT</span>
+      <h2 class="artist-hero__name">{{ artist.name }}</h2>
+      <span class="artist-hero__stamp">
+        {{ artist.albums.length }}
+        {{ artist.albums.length === 1 ? 'ALBUM' : 'ALBUMS' }}
+      </span>
+    </div>
+
+    @if (artist.albums.length === 0) {
+      <p class="browse__empty">// NO ALBUMS FOR THIS ARTIST.</p>
+    } @else {
+      <div class="browse__grid">
+        @for (album of artist.albums; track album.id) {
+          <app-album-card
+            [title]="album.title"
+            [subtitle]="album.year ? album.year + '' : ''"
+            [meta]="meta(album.trackCount)"
+            [coverRef]="album.imageRef"
+            [link]="['/albums', album.id]"
+          />
+        }
+      </div>
+    }
+  }
+</section>

@@ -1,0 +1,114 @@
+:host {
+  display: block;
+}
+
+.album-card {
+  display: flex;
+  flex-direction: column;
+  border: var(--border);
+  background: var(--off-white);
+  color: var(--black);
+  text-decoration: none;
+  transition:
+    transform 80ms steps(1),
+    box-shadow 80ms steps(1);
+
+  &:hover,
+  &:focus-visible {
+    transform: translate(-3px, -3px);
+    box-shadow: 6px 6px 0 0 var(--black);
+    outline: none;
+
+    .album-card__arrow {
+      background: var(--accent);
+      color: var(--black);
+    }
+  }
+
+  &:active {
+    transform: translate(0, 0);
+    box-shadow: 0 0 0 0 var(--black);
+  }
+}
+
+.album-card__art {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-bottom: var(--border);
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.album-card__art-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: var(--black);
+  color: var(--accent);
+}
+
+.album-card__art-glyph {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.album-card__arrow {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-top: var(--border);
+  border-left: var(--border);
+  background: var(--off-white);
+  color: var(--black);
+  font-family: var(--font-mono);
+  font-size: 16px;
+}
+
+.album-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+}
+
+.album-card__title {
+  font-family: var(--font-headline);
+  font-size: 17px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  line-height: 1.05;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.album-card__sub {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.album-card__count {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--black);
+}

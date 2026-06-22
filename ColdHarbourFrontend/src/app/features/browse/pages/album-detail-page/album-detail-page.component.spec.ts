@@ -40,6 +40,7 @@ const detail: AlbumDetail = {
 
 describe('AlbumDetailPageComponent', () => {
   let fixture: ComponentFixture<AlbumDetailPageComponent>;
+  let component: AlbumDetailPageComponent;
   let browse: jasmine.SpyObj<BrowseService>;
   let album: ReturnType<typeof signal<AlbumDetail | null>>;
   let loading: ReturnType<typeof signal<boolean>>;
@@ -49,11 +50,17 @@ describe('AlbumDetailPageComponent', () => {
     album = signal<AlbumDetail | null>(null);
     loading = signal(false);
     error = signal<string | null>(null);
-    browse = jasmine.createSpyObj('BrowseService', ['loadAlbum'], {
-      album,
-      albumLoading: loading,
-      albumError: error,
-    });
+    browse = jasmine.createSpyObj(
+      'BrowseService',
+      ['loadAlbum', 'saveAlbum', 'saveTrack'],
+      {
+        album,
+        albumLoading: loading,
+        albumError: error,
+        saving: signal(false),
+        saveError: signal<string | null>(null),
+      },
+    );
 
     const musicSpy = jasmine.createSpyObj(
       'MusicService',
@@ -92,6 +99,7 @@ describe('AlbumDetailPageComponent', () => {
       ],
     });
     fixture = TestBed.createComponent(AlbumDetailPageComponent);
+    component = fixture.componentInstance;
     fixture.detectChanges();
   }
 
@@ -124,5 +132,44 @@ describe('AlbumDetailPageComponent', () => {
     error.set('Album not found.');
     fixture.detectChanges();
     expect(fixture.debugElement.query(By.css('.browse__error'))).toBeTruthy();
+  });
+
+  it('opens the album edit modal and forwards save to the service', () => {
+    setUp();
+    album.set(detail);
+    fixture.detectChanges();
+
+    const editBtn = fixture.debugElement.query(
+      By.css('[data-test=edit-album] button'),
+    ).nativeElement as HTMLButtonElement;
+    editBtn.click();
+    fixture.detectChanges();
+
+    component['onAlbumSave']({
+      title: 'The Wall',
+      year: 1979,
+      coverFile: null,
+    });
+
+    expect(browse.saveAlbum).toHaveBeenCalled();
+    const args = browse.saveAlbum.calls.mostRecent().args;
+    expect(args[0]).toBe('album-1');
+    expect(args[1]).toEqual({ title: 'The Wall', year: 1979 });
+    expect(args[2]).toBeNull();
+  });
+
+  it('forwards a song edit to saveTrack with the parent album id', () => {
+    setUp();
+    album.set(detail);
+    fixture.detectChanges();
+
+    component['openSongEdit'](track(1));
+    component['onSongSave']({ title: 'Hey You', trackNumber: 2 });
+
+    expect(browse.saveTrack).toHaveBeenCalled();
+    const args = browse.saveTrack.calls.mostRecent().args;
+    expect(args[0]).toBe('album-1');
+    expect(args[1]).toBe('track-1');
+    expect(args[2]).toEqual({ title: 'Hey You', trackNumber: 2 });
   });
 });

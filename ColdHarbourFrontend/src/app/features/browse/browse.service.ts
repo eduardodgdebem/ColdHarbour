@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { of, switchMap } from 'rxjs';
 import {
   ApiService,
   type AlbumDetail,
@@ -28,6 +29,10 @@ export class BrowseService {
   readonly artist = signal<ArtistDetail | null>(null);
   readonly artistLoading = signal(false);
   readonly artistError = signal<string | null>(null);
+
+  // Shared edit-flow state for the modals (Phase 4).
+  readonly saving = signal(false);
+  readonly saveError = signal<string | null>(null);
 
   constructor(private api: ApiService) {}
 
@@ -91,5 +96,71 @@ export class BrowseService {
         this.artistLoading.set(false);
       },
     });
+  }
+
+  /**
+   * Update album metadata (and optionally replace the cover), then re-fetch the
+   * album so the new cover `?v={sha1}` busts the immutable artwork cache.
+   */
+  saveAlbum(
+    id: string,
+    body: { title: string; year: number | null },
+    coverFile: File | null,
+    onSuccess?: () => void,
+  ): void {
+    this.beginSave();
+    const cover$ = coverFile
+      ? this.api.uploadAlbumCover(id, coverFile)
+      : of(void 0);
+    this.api
+      .updateAlbum(id, body)
+      .pipe(switchMap(() => cover$))
+      .subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.loadAlbum(id);
+          onSuccess?.();
+        },
+        error: () => this.failSave(),
+      });
+  }
+
+  saveTrack(
+    albumId: string,
+    trackId: string,
+    body: { title: string; trackNumber: number | null },
+    onSuccess?: () => void,
+  ): void {
+    this.beginSave();
+    this.api.updateTrack(trackId, body).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.loadAlbum(albumId);
+        onSuccess?.();
+      },
+      error: () => this.failSave(),
+    });
+  }
+
+  saveArtist(id: string, body: { name: string }, onSuccess?: () => void): void {
+    this.beginSave();
+    this.api.renameArtist(id, body).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.loadArtist(id);
+        onSuccess?.();
+      },
+      error: () => this.failSave(),
+    });
+  }
+
+  private beginSave(): void {
+    this.saving.set(true);
+    this.saveError.set(null);
+  }
+
+  private failSave(): void {
+    this.saving.set(false);
+    this.saveError.set('Save failed. Check your input and try again.');
   }
 }

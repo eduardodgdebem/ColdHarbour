@@ -1,0 +1,59 @@
+<app-modal [isOpen]="open()" title="EDIT ALBUM" (close)="close.emit()">
+  <div class="edit-form">
+    <app-form-field label="TITLE" data-test="title">
+      <app-input
+        type="text"
+        placeholder="Album title"
+        [ngModel]="titleValue()"
+        (ngModelChange)="titleValue.set($event)"
+      />
+    </app-form-field>
+
+    <app-form-field
+      label="YEAR"
+      hint="Optional — leave blank to clear"
+      data-test="year"
+    >
+      <app-input
+        type="number"
+        placeholder="e.g. 1979"
+        [ngModel]="yearValue()"
+        (ngModelChange)="yearValue.set($event)"
+      />
+    </app-form-field>
+
+    <div class="edit-form__cover" data-test="cover">
+      <span class="edit-form__file">COVER ART</span>
+      <img
+        class="edit-form__cover-preview"
+        [src]="coverPreview() ?? coverRef()"
+        alt="Cover preview"
+      />
+      <input
+        class="edit-form__file-input"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        (change)="onFilePicked($event)"
+      />
+    </div>
+
+    @if (errorMessage()) {
+      <p class="edit-form__error">// {{ errorMessage() }}</p>
+    }
+  </div>
+
+  <div slot="footer">
+    <span data-test="save">
+      <app-button
+        variant="primary"
+        [disabled]="!canSave()"
+        [loading]="saving()"
+        (click)="submit()"
+        >SAVE</app-button
+      >
+    </span>
+    <span data-test="cancel">
+      <app-button (click)="close.emit()">CANCEL</app-button>
+    </span>
+  </div>
+</app-modal>

@@ -1,0 +1,45 @@
+// Shared layout for the brutalist edit modals (song / album / artist).
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: min(420px, 80vw);
+}
+
+.edit-form__error {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--error-fg);
+  background: var(--error-bg);
+  border: var(--border);
+  padding: 8px 12px;
+}
+
+.edit-form__cover {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.edit-form__cover-preview {
+  width: 120px;
+  height: 120px;
+  border: var(--border);
+  object-fit: cover;
+  background: var(--black);
+}
+
+.edit-form__file {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.edit-form__file-input {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  border: var(--border);
+  padding: 8px;
+  background: var(--off-white);
+  width: 100%;
+}

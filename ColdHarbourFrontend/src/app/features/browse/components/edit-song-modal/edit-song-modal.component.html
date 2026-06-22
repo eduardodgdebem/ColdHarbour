@@ -1,0 +1,44 @@
+<app-modal [isOpen]="open()" title="EDIT TRACK" (close)="close.emit()">
+  <div class="edit-form">
+    <app-form-field label="TITLE" data-test="title">
+      <app-input
+        type="text"
+        placeholder="Track title"
+        [ngModel]="titleValue()"
+        (ngModelChange)="titleValue.set($event)"
+      />
+    </app-form-field>
+
+    <app-form-field
+      label="TRACK NO."
+      hint="Optional — leave blank to clear"
+      data-test="trackNumber"
+    >
+      <app-input
+        type="number"
+        placeholder="e.g. 6"
+        [ngModel]="trackNumberValue()"
+        (ngModelChange)="trackNumberValue.set($event)"
+      />
+    </app-form-field>
+
+    @if (errorMessage()) {
+      <p class="edit-form__error">// {{ errorMessage() }}</p>
+    }
+  </div>
+
+  <div slot="footer">
+    <span data-test="save">
+      <app-button
+        variant="primary"
+        [disabled]="!canSave()"
+        [loading]="saving()"
+        (click)="submit()"
+        >SAVE</app-button
+      >
+    </span>
+    <span data-test="cancel">
+      <app-button (click)="close.emit()">CANCEL</app-button>
+    </span>
+  </div>
+</app-modal>

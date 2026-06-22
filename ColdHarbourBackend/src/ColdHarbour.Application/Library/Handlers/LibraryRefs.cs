@@ -35,6 +35,7 @@ internal static class LibraryRefs
         Author = t.ArtistName,
         AudioRef = $"/api/stream/{t.Id}",
         ImageRef = AlbumImageRef(t.AlbumId, coverArtSha1),
-        DurationSeconds = t.Duration.TotalSeconds
+        DurationSeconds = t.Duration.TotalSeconds,
+        TrackNumber = t.TrackNumber
     };
 }

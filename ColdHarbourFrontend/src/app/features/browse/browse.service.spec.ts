@@ -41,6 +41,10 @@ describe('BrowseService', () => {
       'getAlbum',
       'getArtists',
       'getArtist',
+      'updateAlbum',
+      'updateTrack',
+      'renameArtist',
+      'uploadAlbumCover',
     ]);
     TestBed.configureTestingModule({
       providers: [BrowseService, { provide: ApiService, useValue: api }],
@@ -97,5 +101,88 @@ describe('BrowseService', () => {
     service.loadArtist('missing');
     expect(service.artistError()).toBeTruthy();
     expect(service.artist()).toBeNull();
+  });
+
+  describe('saveAlbum', () => {
+    it('updates metadata, reloads the album, and signals success', () => {
+      api.updateAlbum.and.returnValue(of(void 0));
+      api.getAlbum.and.returnValue(of(albumDetail));
+      const onSuccess = jasmine.createSpy('onSuccess');
+
+      service.saveAlbum(
+        'album-1',
+        { title: 'The Wall', year: 1979 },
+        null,
+        onSuccess,
+      );
+
+      expect(api.updateAlbum).toHaveBeenCalledWith('album-1', {
+        title: 'The Wall',
+        year: 1979,
+      });
+      expect(api.getAlbum).toHaveBeenCalledWith('album-1');
+      expect(onSuccess).toHaveBeenCalled();
+      expect(service.saving()).toBeFalse();
+    });
+
+    it('uploads the cover when a file is provided', () => {
+      api.updateAlbum.and.returnValue(of(void 0));
+      api.uploadAlbumCover.and.returnValue(of(void 0));
+      api.getAlbum.and.returnValue(of(albumDetail));
+      const file = new File(['x'], 'cover.jpg', { type: 'image/jpeg' });
+
+      service.saveAlbum('album-1', { title: 'The Wall', year: 1979 }, file);
+
+      expect(api.uploadAlbumCover).toHaveBeenCalledWith('album-1', file);
+    });
+
+    it('sets saveError and does not signal success on failure', () => {
+      api.updateAlbum.and.returnValue(throwError(() => new Error('400')));
+      const onSuccess = jasmine.createSpy('onSuccess');
+
+      service.saveAlbum('album-1', { title: '', year: null }, null, onSuccess);
+
+      expect(service.saveError()).toBeTruthy();
+      expect(service.saving()).toBeFalse();
+      expect(onSuccess).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('saveTrack', () => {
+    it('updates the track, reloads the parent album, and signals success', () => {
+      api.updateTrack.and.returnValue(of(void 0));
+      api.getAlbum.and.returnValue(of(albumDetail));
+      const onSuccess = jasmine.createSpy('onSuccess');
+
+      service.saveTrack(
+        'album-1',
+        'track-1',
+        { title: 'Hey', trackNumber: 1 },
+        onSuccess,
+      );
+
+      expect(api.updateTrack).toHaveBeenCalledWith('track-1', {
+        title: 'Hey',
+        trackNumber: 1,
+      });
+      expect(api.getAlbum).toHaveBeenCalledWith('album-1');
+      expect(onSuccess).toHaveBeenCalled();
+    });
+  });
+
+  describe('saveArtist', () => {
+    it('renames the artist, reloads it, and signals success', () => {
+      api.renameArtist.and.returnValue(of(void 0));
+      api.getArtist.and.returnValue(of(artistDetail));
+      const onSuccess = jasmine.createSpy('onSuccess');
+
+      service.saveArtist('artist-1', { name: 'Pink Floyd' }, onSuccess);
+
+      expect(api.renameArtist).toHaveBeenCalledWith('artist-1', {
+        name: 'Pink Floyd',
+      });
+      expect(api.getArtist).toHaveBeenCalledWith('artist-1');
+      expect(onSuccess).toHaveBeenCalled();
+    });
   });
 });

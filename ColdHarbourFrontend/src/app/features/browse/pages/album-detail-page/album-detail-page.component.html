@@ -36,14 +36,44 @@
           {{ yearLabel(album.year) }} ▮ {{ album.tracks.length }}
           {{ album.tracks.length === 1 ? 'TRACK' : 'TRACKS' }}
         </span>
+        <span class="album-hero__edit" data-test="edit-album">
+          <app-button size="sm" (click)="openAlbumEdit()"
+            >✎ EDIT ALBUM</app-button
+          >
+        </span>
       </div>
     </div>
 
     <div class="album-detail__list">
       <app-music-list
         [musics]="album.tracks"
+        [editable]="true"
+        (edit)="openSongEdit($event)"
         emptyMessage="NO TRACKS ON THIS ALBUM"
       />
     </div>
+
+    <app-edit-album-modal
+      [open]="albumEditOpen()"
+      [title]="album.title"
+      [year]="album.year"
+      [coverRef]="album.imageRef"
+      [saving]="browse.saving()"
+      [errorMessage]="browse.saveError()"
+      (save)="onAlbumSave($event)"
+      (close)="albumEditOpen.set(false)"
+    />
+
+    @if (songEditTarget(); as song) {
+      <app-edit-song-modal
+        [open]="true"
+        [title]="song.name"
+        [trackNumber]="song.trackNumber ?? null"
+        [saving]="browse.saving()"
+        [errorMessage]="browse.saveError()"
+        (save)="onSongSave($event)"
+        (close)="songEditTarget.set(null)"
+      />
+    }
   }
 </section>

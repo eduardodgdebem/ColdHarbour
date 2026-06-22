@@ -31,7 +31,7 @@ public sealed class AlbumArtistQueryHandlerTests
         Tracks:
         [
             new TrackReadModel(TrackId, AlbumId, "Comfortably Numb", "Pink Floyd", "The Wall",
-                TimeSpan.FromSeconds(382), "/content/x.flac", "flac", 900)
+                TimeSpan.FromSeconds(382), "/content/x.flac", "flac", 900, TrackNumber: 6)
         ]);
 
     private static ArtistReadModel SampleArtist => new(ArtistId, "Pink Floyd", AlbumCount: 1);
@@ -102,6 +102,7 @@ public sealed class AlbumArtistQueryHandlerTests
         result.Artist.Should().Be("Pink Floyd");
         result.Tracks.Should().ContainSingle();
         result.Tracks[0].TrackId.Should().Be(TrackId);
+        result.Tracks[0].TrackNumber.Should().Be(6);
         result.Tracks[0].AudioRef.Should().Be($"/api/stream/{TrackId}");
         result.Tracks[0].ImageRef.Should().Be($"/api/artwork/{AlbumId}?size=256&v={Sha1}");
     }

@@ -32,7 +32,8 @@ internal static class LibraryRefs
         TrackId = t.Id,
         AlbumId = t.AlbumId,
         Name = t.Title,
-        Author = t.ArtistName,
+        // Prefer the per-track performer (keeps "feat." credits) over the album artist.
+        Author = string.IsNullOrWhiteSpace(t.Performer) ? t.ArtistName : t.Performer,
         AudioRef = $"/api/stream/{t.Id}",
         ImageRef = AlbumImageRef(t.AlbumId, coverArtSha1),
         DurationSeconds = t.Duration.TotalSeconds,

@@ -9,6 +9,9 @@ public class Track
     public string Title { get; private set; } = default!;
     public Guid AlbumId { get; private set; }
     public int? TrackNumber { get; private set; }
+    // Full per-track credit (e.g. "Daniel Caesar feat. H.E.R."). The album groups under
+    // the normalized album artist; this preserves the displayed feature credit.
+    public string? Performer { get; private set; }
     public TimeSpan Duration { get; private set; }
     public string Provider { get; private set; } = default!;
     public string? ProviderRef { get; private set; }
@@ -31,7 +34,8 @@ public class Track
         string audioSha1,
         string? providerRef = null,
         string? localPath = null,
-        int? trackNumber = null)
+        int? trackNumber = null,
+        string? performer = null)
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("Track title must not be null or whitespace.", nameof(title));
@@ -66,7 +70,8 @@ public class Track
             LocalPath = localPath,
             Format = format.Trim(),
             Bitrate = bitrate,
-            AudioSha1 = audioSha1
+            AudioSha1 = audioSha1,
+            Performer = string.IsNullOrWhiteSpace(performer) ? null : performer.Trim()
         };
     }
 

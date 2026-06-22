@@ -41,6 +41,10 @@ public class TrackConfiguration : IEntityTypeConfiguration<Track>
         builder.Property(t => t.TrackNumber)
             .IsRequired(false);
 
+        builder.Property(t => t.Performer)
+            .IsRequired(false)
+            .HasMaxLength(512);
+
         // Store Duration as long (ticks) since PostgreSQL doesn't have a native ticks type.
         builder.Property(t => t.Duration)
             .HasConversion(

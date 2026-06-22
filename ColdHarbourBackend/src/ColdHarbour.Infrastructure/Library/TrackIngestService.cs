@@ -105,7 +105,9 @@ public sealed class TrackIngestService(
 
         // Group by the *album artist*, collapsing "feat." performers so every track on
         // an album lands on the same album rather than splitting per featured guest.
-        var artistName = AlbumArtistNormalizer.Normalize(tags.FirstAlbumArtist ?? tags.FirstPerformer);
+        // The raw performer is kept on the track so the feature credit stays visible.
+        var performer = tags.FirstPerformer;
+        var artistName = AlbumArtistNormalizer.Normalize(tags.FirstAlbumArtist ?? performer);
         var albumTitle = tags.Album ?? "Unknown Album";
         var trackTitle = tags.Title ?? Path.GetFileNameWithoutExtension(fallbackTitleName);
         var year = tags.Year > 0 ? (int?)tags.Year : null;
@@ -141,7 +143,8 @@ public sealed class TrackIngestService(
             bitrate: bitrate,
             audioSha1: audioSha1,
             localPath: relativePath,
-            trackNumber: trackNumber);
+            trackNumber: trackNumber,
+            performer: performer);
 
         await repo.AddTrackAsync(track, ct);
         await repo.SaveChangesAsync(ct);

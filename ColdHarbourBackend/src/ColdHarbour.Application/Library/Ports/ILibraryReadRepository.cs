@@ -22,7 +22,8 @@ public sealed record TrackReadModel(
     TimeSpan Duration,
     string? LocalPath,
     string Format,
-    int Bitrate
+    int Bitrate,
+    int? TrackNumber = null
 );
 
 public sealed record AlbumReadModel(

@@ -12,6 +12,9 @@ export type Music = {
   audioRef: string;
   imageRef: string;
   durationSeconds: number;
+  // Always present from the API; optional in the type so existing test fixtures
+  // need not be retrofitted.
+  trackNumber?: number | null;
 };
 
 export type Playlist = {
@@ -126,6 +129,30 @@ export class ApiService {
 
   private withAlbumImage(album: AlbumSummary): AlbumSummary {
     return { ...album, imageRef: `${this.ASSETS_URL}${album.imageRef}` };
+  }
+
+  updateTrack(
+    id: string,
+    body: { title: string; trackNumber: number | null },
+  ): Observable<void> {
+    return this.http.patch<void>(`${this.API_URL}/tracks/${id}`, body);
+  }
+
+  updateAlbum(
+    id: string,
+    body: { title: string; year: number | null },
+  ): Observable<void> {
+    return this.http.patch<void>(`${this.API_URL}/albums/${id}`, body);
+  }
+
+  renameArtist(id: string, body: { name: string }): Observable<void> {
+    return this.http.patch<void>(`${this.API_URL}/artists/${id}`, body);
+  }
+
+  uploadAlbumCover(id: string, file: File): Observable<void> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return this.http.post<void>(`${this.API_URL}/albums/${id}/cover`, form);
   }
 
   uploadTrack(file: File): Observable<UploadResult> {

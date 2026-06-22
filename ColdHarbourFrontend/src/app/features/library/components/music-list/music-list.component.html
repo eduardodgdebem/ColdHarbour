@@ -48,6 +48,16 @@
           >
             <span class="queue-btn-plus">+</span>
           </button>
+          @if (editable()) {
+            <button
+              class="edit-btn"
+              title="Edit track"
+              aria-label="Edit track"
+              (click)="requestEdit($event, music)"
+            >
+              <span class="edit-btn-glyph">✎</span>
+            </button>
+          }
           <button
             class="delete-btn"
             title="Delete track"

@@ -191,4 +191,43 @@ describe('ApiService', () => {
       });
     });
   });
+
+  describe('library edit', () => {
+    it('updateTrack PATCHes /api/tracks/{id} with the body', () => {
+      service
+        .updateTrack('track-1', { title: 'New', trackNumber: 6 })
+        .subscribe();
+      const req = httpMock.expectOne('/api/tracks/track-1');
+      expect(req.request.method).toBe('PATCH');
+      expect(req.request.body).toEqual({ title: 'New', trackNumber: 6 });
+      req.flush(null);
+    });
+
+    it('updateAlbum PATCHes /api/albums/{id} with the body', () => {
+      service
+        .updateAlbum('album-1', { title: 'The Wall', year: 1979 })
+        .subscribe();
+      const req = httpMock.expectOne('/api/albums/album-1');
+      expect(req.request.method).toBe('PATCH');
+      expect(req.request.body).toEqual({ title: 'The Wall', year: 1979 });
+      req.flush(null);
+    });
+
+    it('renameArtist PATCHes /api/artists/{id} with the body', () => {
+      service.renameArtist('artist-1', { name: 'Pink Floyd' }).subscribe();
+      const req = httpMock.expectOne('/api/artists/artist-1');
+      expect(req.request.method).toBe('PATCH');
+      expect(req.request.body).toEqual({ name: 'Pink Floyd' });
+      req.flush(null);
+    });
+
+    it('uploadAlbumCover POSTs multipart to /api/albums/{id}/cover', () => {
+      const file = new File(['x'], 'cover.jpg', { type: 'image/jpeg' });
+      service.uploadAlbumCover('album-1', file).subscribe();
+      const req = httpMock.expectOne('/api/albums/album-1/cover');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body instanceof FormData).toBeTrue();
+      req.flush(null);
+    });
+  });
 });

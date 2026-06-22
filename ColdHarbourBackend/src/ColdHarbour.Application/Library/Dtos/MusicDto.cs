@@ -10,4 +10,5 @@ public sealed class MusicDto
     public string AudioRef { get; init; } = "";
     public string ImageRef { get; init; } = "";
     public double DurationSeconds { get; init; }
+    public int? TrackNumber { get; init; }
 }

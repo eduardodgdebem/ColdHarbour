@@ -22,7 +22,7 @@ Per the phase-branch workflow: each phase branches **from `main`** → TDD `red 
 | 1 | `album-artist-read` | Browse backend: read repo + queries + DTOs + Albums/Artists controllers; ArtworkController ETag fix | ✅ Done |
 | 2 | `album-artist-browse-ui` | Browse frontend: album/artist list + detail pages, routes, nav | ✅ Done |
 | 3 | `library-edit-backend` | Track/Album/Artist field mutators + update commands + PATCH endpoints + cover upload endpoint | ✅ Done |
-| 4 | `library-edit-ui` | Edit modals (song metadata, album metadata) + cover upload UI | ⬜ Todo |
+| 4 | `library-edit-ui` | Edit modals (song metadata, album metadata) + cover upload UI | ✅ Done |
 | 5 | `playlists-backend` | Playlist aggregate + per-user repo + EF migration + CQRS + controller + real GetLibrary query | ⬜ Todo |
 | 6 | `playlists-ui` | Playlist pages + PlaylistService + cut over library off the fake GetPlaylistQuery | ⬜ Todo |
 

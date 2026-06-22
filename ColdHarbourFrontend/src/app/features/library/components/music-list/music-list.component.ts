@@ -1,4 +1,4 @@
-import { Component, computed, input, signal } from '@angular/core';
+import { Component, computed, input, output, signal } from '@angular/core';
 
 import { MusicService } from '../../../player/services/music.service';
 import { PlaybackSessionService } from '../../../player/services/playback-session.service';
@@ -23,6 +23,12 @@ export class MusicListComponent {
 
   /** Optional empty-state message override (replaces the default "no tracks" copy). */
   readonly emptyMessage = input<string | null>(null);
+
+  /** When true, each row shows an edit affordance that emits `(edit)`. */
+  readonly editable = input(false);
+
+  /** Emitted when the row's edit button is clicked (only when `editable`). */
+  readonly edit = output<Music>();
 
   public imageErrorById = new Map<number, boolean>();
 
@@ -56,6 +62,11 @@ export class MusicListComponent {
   addToQueue(event: Event, music: Music) {
     event.stopPropagation();
     this.playbackSession.addToQueue(music.trackId);
+  }
+
+  requestEdit(event: Event, music: Music) {
+    event.stopPropagation();
+    this.edit.emit(music);
   }
 
   isCurrentMusic(music: Music): boolean {

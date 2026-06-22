@@ -25,7 +25,8 @@ public sealed class GetPlaylistQueryHandler : IRequestHandler<GetPlaylistQuery, 
                 Author = t.ArtistName,
                 AudioRef = $"/api/stream/{t.Id}",
                 ImageRef = $"/api/artwork/{t.AlbumId}?size=256",
-                DurationSeconds = t.Duration.TotalSeconds
+                DurationSeconds = t.Duration.TotalSeconds,
+                TrackNumber = t.TrackNumber
             })
             .ToList();
 

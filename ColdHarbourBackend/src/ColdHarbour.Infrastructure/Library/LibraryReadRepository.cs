@@ -23,7 +23,8 @@ public sealed class LibraryReadRepository : ILibraryReadRepository
                 ta.Track.Duration,
                 ta.Track.LocalPath,
                 ta.Track.Format,
-                ta.Track.Bitrate))
+                ta.Track.Bitrate,
+                ta.Track.TrackNumber))
             .ToListAsync(ct);
     }
 
@@ -74,7 +75,8 @@ public sealed class LibraryReadRepository : ILibraryReadRepository
                 t.Duration,
                 t.LocalPath,
                 t.Format,
-                t.Bitrate))
+                t.Bitrate,
+                t.TrackNumber))
             .ToListAsync(ct);
 
         return new AlbumDetailReadModel(

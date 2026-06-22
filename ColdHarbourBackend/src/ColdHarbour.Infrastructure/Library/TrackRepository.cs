@@ -16,11 +16,14 @@ public sealed class TrackRepository(ColdHarbourDbContext db) : ITrackRepository
     public Task<Artist?> FindArtistByIdAsync(Guid artistId, CancellationToken ct = default)
         => db.Artists.FirstOrDefaultAsync(a => a.Id == artistId, ct);
 
+    // Case-insensitive so "Honne" and "HONNE" resolve to the same artist instead of
+    // splitting into two (and two copies of every album under them).
     public Task<Artist?> FindArtistByNameAsync(string name, CancellationToken ct = default)
-        => db.Artists.FirstOrDefaultAsync(a => a.Name == name, ct);
+        => db.Artists.FirstOrDefaultAsync(a => a.Name.ToLower() == name.ToLower(), ct);
 
     public Task<Album?> FindAlbumByArtistAndTitleAsync(Guid artistId, string title, CancellationToken ct = default)
-        => db.Albums.FirstOrDefaultAsync(a => a.ArtistId == artistId && a.Title == title, ct);
+        => db.Albums.FirstOrDefaultAsync(
+            a => a.ArtistId == artistId && a.Title.ToLower() == title.ToLower(), ct);
 
     public Task<Album?> FindAlbumByIdAsync(Guid albumId, CancellationToken ct = default)
         => db.Albums.FirstOrDefaultAsync(a => a.Id == albumId, ct);

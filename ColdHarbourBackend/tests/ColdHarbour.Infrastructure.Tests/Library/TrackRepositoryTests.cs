@@ -79,6 +79,46 @@ public class TrackRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task FindArtistByNameAsync_IsCaseInsensitive()
+    {
+        await using (var ctx = CreateContext())
+        {
+            ctx.Artists.Add(Artist.Create("Honne"));
+            await ctx.SaveChangesAsync();
+        }
+
+        await using (var ctx = CreateContext())
+        {
+            var repo = new TrackRepository(ctx);
+            var found = await repo.FindArtistByNameAsync("HONNE");
+            found.Should().NotBeNull();
+            found!.Name.Should().Be("Honne");
+        }
+    }
+
+    [Fact]
+    public async Task FindAlbumByArtistAndTitleAsync_IsCaseInsensitive()
+    {
+        Guid artistId;
+        await using (var ctx = CreateContext())
+        {
+            var artist = Artist.Create("HONNE");
+            ctx.Artists.Add(artist);
+            ctx.Albums.Add(Album.Create("Warm On A Cold Night", artist.Id, 2016));
+            await ctx.SaveChangesAsync();
+            artistId = artist.Id;
+        }
+
+        await using (var ctx = CreateContext())
+        {
+            var repo = new TrackRepository(ctx);
+            var found = await repo.FindAlbumByArtistAndTitleAsync(artistId, "warm on a cold night");
+            found.Should().NotBeNull();
+            found!.Title.Should().Be("Warm On A Cold Night");
+        }
+    }
+
+    [Fact]
     public async Task FindOrCreate_ArtistAndAlbum_ThenAddTrack()
     {
         await using (var ctx = CreateContext())

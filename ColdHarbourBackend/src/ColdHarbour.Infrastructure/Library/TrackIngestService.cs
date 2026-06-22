@@ -53,7 +53,7 @@ public sealed class TrackIngestService(
             using (var tagFile = File.Create(tmpPath))
             {
                 var tags = tagFile.Tag;
-                var artistName = tags.FirstAlbumArtist ?? tags.FirstPerformer ?? "Unknown Artist";
+                var artistName = AlbumArtistNormalizer.Normalize(tags.FirstAlbumArtist ?? tags.FirstPerformer);
                 var albumTitle = tags.Album ?? "Unknown Album";
                 var trackTitle = tags.Title ?? Path.GetFileNameWithoutExtension(fileName);
                 canonicalPath = BuildCanonicalPath(ContentRoot, artistName, albumTitle, trackTitle, ext);
@@ -103,7 +103,9 @@ public sealed class TrackIngestService(
         using var tagFile = File.Create(fileOnDisk);
         var tags = tagFile.Tag;
 
-        var artistName = tags.FirstAlbumArtist ?? tags.FirstPerformer ?? "Unknown Artist";
+        // Group by the *album artist*, collapsing "feat." performers so every track on
+        // an album lands on the same album rather than splitting per featured guest.
+        var artistName = AlbumArtistNormalizer.Normalize(tags.FirstAlbumArtist ?? tags.FirstPerformer);
         var albumTitle = tags.Album ?? "Unknown Album";
         var trackTitle = tags.Title ?? Path.GetFileNameWithoutExtension(fallbackTitleName);
         var year = tags.Year > 0 ? (int?)tags.Year : null;

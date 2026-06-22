@@ -18,6 +18,11 @@ public sealed class TrackIngestService(
     private static readonly HashSet<string> SupportedExtensions =
         new(StringComparer.OrdinalIgnoreCase) { ".mp3", ".flac", ".m4a", ".ogg", ".opus", ".wav" };
 
+    // Serializes the artist/album find-or-create across concurrent uploads. The client
+    // fires every selected file in parallel; without this, each request's find-or-create
+    // misses the others' uncommitted rows and the same album splits into N copies.
+    private static readonly SemaphoreSlim CatalogLock = new(1, 1);
+
     private static readonly Regex SafeNameRegex = new(@"[^\w\s\-\(\)\[\]\.']", RegexOptions.Compiled);
 
     private string ContentRoot => config["COLDHARBOUR_CONTENT_ROOT"]
@@ -116,23 +121,8 @@ public sealed class TrackIngestService(
         var bitrate = tagFile.Properties.AudioBitrate > 0 ? tagFile.Properties.AudioBitrate : 128;
         var format = ext.TrimStart('.').ToLowerInvariant();
 
-        var artist = await repo.FindArtistByNameAsync(artistName, ct);
-        if (artist is null)
-        {
-            artist = Artist.Create(artistName);
-            await repo.AddArtistAsync(artist, ct);
-        }
-
-        var album = await repo.FindAlbumByArtistAndTitleAsync(artist.Id, albumTitle, ct);
-        if (album is null)
-        {
-            album = Album.Create(albumTitle, artist.Id, year);
-            await repo.AddAlbumAsync(album, ct);
-        }
-
         var artSha1 = await ExtractArtworkAsync(tagFile, ct);
-        if (artSha1 is not null)
-            album.UpdateCoverArt(artSha1);
+        var album = await EnsureArtistAndAlbumAsync(artistName, albumTitle, year, artSha1, ct);
 
         var track = Track.Create(
             title: trackTitle,
@@ -151,6 +141,48 @@ public sealed class TrackIngestService(
 
         logger.LogInformation("Ingested track {Title} → {Path}", track.Title, relativePath);
         return new TrackUploadResultDto(track.Id, album.Id, false);
+    }
+
+    /// <summary>
+    /// Find-or-create the artist and album under a process-wide lock so concurrent
+    /// uploads of the same album converge on one artist + one album row instead of
+    /// racing and each creating their own. Each create is committed inside the lock,
+    /// so the next caller's lookup sees it. Sets the cover on first art seen.
+    /// </summary>
+    internal async Task<Album> EnsureArtistAndAlbumAsync(
+        string artistName, string albumTitle, int? year, string? artSha1, CancellationToken ct)
+    {
+        await CatalogLock.WaitAsync(ct);
+        try
+        {
+            var artist = await repo.FindArtistByNameAsync(artistName, ct);
+            if (artist is null)
+            {
+                artist = Artist.Create(artistName);
+                await repo.AddArtistAsync(artist, ct);
+                await repo.SaveChangesAsync(ct);
+            }
+
+            var album = await repo.FindAlbumByArtistAndTitleAsync(artist.Id, albumTitle, ct);
+            if (album is null)
+            {
+                album = Album.Create(albumTitle, artist.Id, year);
+                await repo.AddAlbumAsync(album, ct);
+                await repo.SaveChangesAsync(ct);
+            }
+
+            if (artSha1 is not null && album.CoverArtSha1 is null)
+            {
+                album.UpdateCoverArt(artSha1);
+                await repo.SaveChangesAsync(ct);
+            }
+
+            return album;
+        }
+        finally
+        {
+            CatalogLock.Release();
+        }
     }
 
     private string ToRelativePath(string fullPath) =>

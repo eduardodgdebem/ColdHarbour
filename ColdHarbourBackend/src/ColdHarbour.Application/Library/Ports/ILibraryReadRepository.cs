@@ -23,7 +23,8 @@ public sealed record TrackReadModel(
     string? LocalPath,
     string Format,
     int Bitrate,
-    int? TrackNumber = null
+    int? TrackNumber = null,
+    string? Performer = null
 );
 
 public sealed record AlbumReadModel(

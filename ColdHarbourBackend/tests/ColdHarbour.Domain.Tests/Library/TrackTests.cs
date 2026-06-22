@@ -168,4 +168,30 @@ public class TrackTests
 
         act.Should().Throw<ArgumentException>();
     }
+
+    [Fact]
+    public void Create_StoresPerformer_WhenProvided()
+    {
+        var track = Track.Create("Best Part", ValidAlbumId, ValidDuration, "local", "flac", 320, ValidSha1,
+            performer: "Daniel Caesar feat. H.E.R.");
+
+        track.Performer.Should().Be("Daniel Caesar feat. H.E.R.");
+    }
+
+    [Fact]
+    public void Create_Performer_DefaultsToNull()
+    {
+        var track = Track.Create("Title", ValidAlbumId, ValidDuration, "local", "flac", 320, ValidSha1);
+
+        track.Performer.Should().BeNull();
+    }
+
+    [Fact]
+    public void Create_TrimsPerformer()
+    {
+        var track = Track.Create("Title", ValidAlbumId, ValidDuration, "local", "flac", 320, ValidSha1,
+            performer: "  Syd  ");
+
+        track.Performer.Should().Be("Syd");
+    }
 }
